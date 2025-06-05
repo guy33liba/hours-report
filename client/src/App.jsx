@@ -1,54 +1,23 @@
-import React, { useState, useEffect, useRef } from "react";
-import { initializeApp } from "firebase/app";
-import {
-  getAuth,
-  signInAnonymously,
-  signInWithCustomToken,
-  onAuthStateChanged,
-} from "firebase/auth";
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  addDoc,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  onSnapshot,
-  collection,
-  query,
-  where,
-  getDocs,
-  Timestamp,
-} from "firebase/firestore";
+import React, { useState, useEffect } from "react";
+import "./App.css"; // Assuming your CSS remains similar
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAgd4rdl5qyjxaS90cBslWbQoNMXAJDpgQ",
-  authDomain: "attendance-9419a.firebaseapp.com",
-  projectId: "attendance-9419a",
-  storageBucket: "attendance-9419a.firebasestorage.app",
-  messagingSenderId: "720123425038",
-  appId: "1:720123425038:web:30cb1c0ec453a85dd8675f",
-  measurementId: "G-NGFC0H8H2H",
+// --- Helper Functions (can be moved to a separate file) ---
+const formatDuration = (ms) => {
+  if (!ms) return "לא זמין";
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  return `${hours} שעות ${minutes} דקות`;
 };
 
-const appId = firebaseConfig.projectId || "my-attendance-app";
-const initialAuthToken = null; // No custom token for local setup
+const formatTimestamp = (isoString) => {
+  if (!isoString) return "לא זמין";
+  return new Date(isoString).toLocaleString("he-IL");
+};
 
-let app, db, auth;
-if (firebaseConfig.apiKey && firebaseConfig.projectId) {
-  // Check if config is provided
-  app = initializeApp(firebaseConfig);
-  db = getFirestore(app);
-  auth = getAuth(app);
-} else {
-  console.error(
-    "Firebase configuration is missing or incomplete. Please update firebaseConfig in src/App.js."
-  );
-}
-
+// --- Modal Component (remains the same) ---
 const Modal = ({ message, onConfirm, onCancel, showCancel = false }) => {
-  if (!message) return null; // Don't render if no message
+  if (!message) return null;
 
   return (
     <div className="modal-overlay">
@@ -59,14 +28,14 @@ const Modal = ({ message, onConfirm, onCancel, showCancel = false }) => {
             onClick={onConfirm}
             className="modal-button modal-button-primary"
           >
-            OK
+            אישור
           </button>
           {showCancel && (
             <button
               onClick={onCancel}
               className="modal-button modal-button-secondary"
             >
-              Cancel
+              ביטול
             </button>
           )}
         </div>
@@ -76,331 +45,416 @@ const Modal = ({ message, onConfirm, onCancel, showCancel = false }) => {
 };
 
 const App = () => {
-  const [userId, setUserId] = useState(null);
-  const [isAuthReady, setIsAuthReady] = useState(false);
-  const [clockedInSession, setClockedInSession] = useState(null); // Stores the current session if clocked in
+  const [user, setUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [clockedInSession, setClockedInSession] = useState(null);
   const [dailyLogs, setDailyLogs] = useState([]);
-  const [reportData, setReportData] = useState(null); // Changed to null initially
+  const [reportData, setReportData] = useState(null);
   const [reportStartDate, setReportStartDate] = useState("");
   const [reportEndDate, setReportEndDate] = useState("");
-  const [activeTab, setActiveTab] = useState("attendance"); // 'attendance', 'reports'
-
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [usersList, setUsersList] = useState([]);
+  const [activeTab, setActiveTab] = useState("attendance");
   const [modalMessage, setModalMessage] = useState("");
   const [modalCallback, setModalCallback] = useState(null);
   const [showModalCancel, setShowModalCancel] = useState(false);
+  const [isClockingIn, setIsClockingIn] = useState(false);
+  const [isClockingOut, setIsClockingOut] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [registerEmail, setRegisterEmail] = useState("");
+  const [registerPassword, setRegisterPassword] = useState("");
+  const [registerName, setRegisterName] = useState("");
+  const [showLogin, setShowLogin] = useState(true);
+  const [showRegister, setShowRegister] = useState(false);
 
+  const API_BASE_URL = "http://localhost:5000/api"; // Your backend server URL
+
+  // Helper to get auth headers
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("token");
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
+  // Modal handling remains largely the same
   const showCustomModal = (
     message,
     onConfirm,
     showCancel = false,
-    onCancel = null
+    onCancel = () => {}
   ) => {
     setModalMessage(message);
-    setModalCallback(() => onConfirm); // Use a function wrapper to store callback
+    setModalCallback({ confirm: onConfirm, cancel: onCancel });
     setShowModalCancel(showCancel);
-    if (showCancel && onCancel) {
-      setModalCallback(() => () => {
-        // If canceled, run onCancel, then clear modal
-        onCancel();
-        setModalMessage("");
-        setModalCallback(null);
-        setShowModalCancel(false);
-      });
-    } else {
-      // If no cancel action, ensure confirm clears modal as well
-      setModalCallback(() => {
-        onConfirm();
-        setModalMessage("");
-        setModalCallback(null);
-        setShowModalCancel(false);
-      });
-    }
   };
 
   const handleModalConfirm = () => {
-    if (modalCallback) {
-      modalCallback();
-    }
+    modalCallback?.confirm?.();
+    closeModal();
+  };
 
+  const handleModalCancel = () => {
+    modalCallback?.cancel?.();
+    closeModal();
+  };
+
+  const closeModal = () => {
     setModalMessage("");
     setModalCallback(null);
     setShowModalCancel(false);
   };
 
-  // 1. Firebase Authentication
+  // --- Authentication ---
   useEffect(() => {
-    if (!auth) {
-      console.error(
-        "Firebase Auth is not initialized. Please check your firebaseConfig."
-      );
-      return;
-    }
+    const storedToken = localStorage.getItem("token");
+    const storedUser = localStorage.getItem("user"); // Store user info (id, name, isAdmin, etc.)
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setUserId(user.uid);
-      } else {
-        // Sign in anonymously if no custom token, otherwise use custom token
-        try {
-          if (initialAuthToken) {
-            await signInWithCustomToken(auth, initialAuthToken);
-          } else {
-            await signInAnonymously(auth);
-          }
-          setUserId(auth.currentUser?.uid);
-        } catch (error) {
-          console.error("Error during Firebase authentication:", error);
-          showCustomModal(`Authentication failed: ${error.message}`, () => {});
-        }
+    if (storedToken && storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        setIsAdmin(parsedUser.isAdmin || false);
+        setShowLogin(false);
+        setShowRegister(false);
+      } catch (e) {
+        console.error("Failed to parse user from local storage", e);
+        localStorage.clear(); // Clear potentially corrupted data
+        setUser(null);
+        setIsAdmin(false);
+        setShowLogin(true);
       }
-      setIsAuthReady(true); // Auth state is ready
-    });
+    }
+  }, []);
 
-    return () => unsubscribe(); // Cleanup subscription
-  }, []); // Empty dependency array means this runs once on mount
+  const handleLogin = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+      });
 
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Login failed");
+      }
+
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user)); // Store user details
+      setUser(data.user);
+      setIsAdmin(data.user.isAdmin);
+      setShowLogin(false);
+    } catch (error) {
+      showCustomModal(`שגיאה בהתחברות: ${error.message}`, () => {});
+    }
+  };
+
+  const handleRegister = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: registerEmail,
+          password: registerPassword,
+          name: registerName,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Registration failed");
+      }
+
+      showCustomModal("הרשמה בוצעה בהצלחה! אנא התחברו", () => {
+        setShowRegister(false);
+        setShowLogin(true);
+      });
+    } catch (error) {
+      showCustomModal(`שגיאה בהרשמה: ${error.message}`, () => {});
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    setUser(null);
+    setIsAdmin(false);
+    setClockedInSession(null);
+    setDailyLogs([]);
+    setReportData(null);
+    setUsersList([]);
+    setShowLogin(true);
+    setShowRegister(false);
+    setActiveTab("attendance");
+  };
+
+  // --- Data Fetching ---
+
+  // Load users list (for admin)
   useEffect(() => {
-    if (!isAuthReady || !userId || !db) return;
+    const fetchUsers = async () => {
+      if (!isAdmin) return;
+      try {
+        const response = await fetch(`${API_BASE_URL}/users`, {
+          headers: getAuthHeaders(),
+        });
+        const data = await response.json();
+        if (!response.ok)
+          throw new Error(data.message || "Failed to fetch users");
+        setUsersList(data);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+        // showCustomModal(`שגיאה בטעינת עובדים: ${error.message}`, () => {});
+      }
+    };
 
-    const today = new Date();
-    const todayString = today.toISOString().split("T")[0]; // Format:YYYY-MM-DD
+    // You'd typically use a WebSocket or polling for real-time updates here
+    // For simplicity, we'll just fetch once on admin status change.
+    fetchUsers();
+  }, [isAdmin]);
 
-    const userAttendanceCollectionRef = collection(
-      db,
-      `artifacts/${appId}/users/${userId}/attendanceSessions`
-    );
-    // Query for today's sessions
-    const q = query(
-      userAttendanceCollectionRef,
-      where("date", "==", todayString)
-    );
+  // Load daily attendance logs
+  useEffect(() => {
+    const fetchDailyLogs = async () => {
+      if (!user) return;
 
-    // Listen for real-time updates for daily logs
-    const unsubscribeDailyLogs = onSnapshot(
-      q,
-      (snapshot) => {
-        const sessions = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        // Sort by newest first (clockInTime)
+      const userIdToQuery =
+        isAdmin && selectedUserId ? selectedUserId : user.id;
+
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/attendance/daily-logs?userId=${userIdToQuery}`,
+          {
+            headers: getAuthHeaders(),
+          }
+        );
+        const data = await response.json();
+        if (!response.ok)
+          throw new Error(data.message || "Failed to fetch daily logs");
+
+        // Sort by clockInTime (newest first)
         setDailyLogs(
-          sessions.sort(
-            (a, b) => b.clockInTime.toMillis() - a.clockInTime.toMillis()
+          data.sort(
+            (a, b) =>
+              new Date(b.clock_in_time).getTime() -
+              new Date(a.clock_in_time).getTime()
           )
         );
 
-        // Check for an active clocked-in session (where clockOutTime is null)
-        const activeSession = sessions.find((session) => !session.clockOutTime);
+        // Find active session
+        const activeSession = data.find((session) => !session.clock_out_time);
         setClockedInSession(activeSession || null);
-      },
-      (error) => {
+      } catch (error) {
         console.error("Error fetching daily logs:", error);
-        showCustomModal(
-          `Failed to fetch daily logs: ${error.message}`,
-          () => {}
-        );
+        // showCustomModal(`שגיאה בטעינת יומן נוכחות: ${error.message}`, () => {});
       }
-    );
+    };
 
-    return () => unsubscribeDailyLogs();
-  }, [isAuthReady, userId, db]); // Re-run if auth state or userId changes
+    // Fetch logs whenever user, admin status, or selectedUserId changes
+    // For real-time, you'd integrate WebSockets here.
+    fetchDailyLogs();
+    const intervalId = setInterval(fetchDailyLogs, 30000); // Poll every 30 seconds for updates
+    return () => clearInterval(intervalId); // Cleanup interval
+  }, [user, isAdmin, selectedUserId]);
 
-  // Helper to format duration from milliseconds
-  const formatDuration = (ms) => {
-    if (ms === null || ms === undefined) return "N/A";
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    const remainingSeconds = seconds % 60;
-    return `${hours}h ${remainingMinutes}m ${remainingSeconds}s`;
-  };
+  // --- Attendance Actions ---
 
-  // Helper to format Firestore Timestamp to a readable local string
-  const formatTimestamp = (timestamp) => {
-    if (!timestamp) return "N/A";
-    const date = timestamp.toDate();
-    return date.toLocaleString(); // Use local string for readability (e.g., "6/5/2025, 11:30:00 AM")
-  };
-
-  // Clock In function
   const handleClockIn = async () => {
-    if (!userId || !db) {
-      showCustomModal(
-        "Application not ready. Please wait for authentication.",
-        () => {}
-      );
-      return;
-    }
-    if (clockedInSession) {
-      showCustomModal("You are already clocked in!", () => {});
-      return;
-    }
+    if (!user) return;
 
+    setIsClockingIn(true);
     try {
-      const today = new Date();
-      const todayString = today.toISOString().split("T")[0]; // Format:YYYY-MM-DD
-
-      const newSession = {
-        userId: userId,
-        clockInTime: Timestamp.now(), // Current Firestore Timestamp
-        clockOutTime: null, // Null initially, will be updated on clock out
-        durationMs: null, // Null initially
-        date: todayString, // Date string for easier querying by day
-      };
-
-      // Add a new document to the attendanceSessions collection
-      const docRef = await addDoc(
-        collection(db, `artifacts/${appId}/users/${userId}/attendanceSessions`),
-        newSession
-      );
-      console.log("Clocked in successfully with ID:", docRef.id);
-      showCustomModal("You have successfully clocked in!", () => {});
-    } catch (error) {
-      console.error("Error clocking in:", error);
-      showCustomModal(`Failed to clock in: ${error.message}`, () => {});
-    }
-  };
-
-  // Clock Out function
-  const handleClockOut = async () => {
-    if (!userId || !db) {
-      showCustomModal(
-        "Application not ready. Please wait for authentication.",
-        () => {}
-      );
-      return;
-    }
-    if (!clockedInSession) {
-      showCustomModal("You are not currently clocked in.", () => {});
-      return;
-    }
-
-    try {
-      // Get the document reference for the active session
-      const sessionDocRef = doc(
-        db,
-        `artifacts/${appId}/users/${userId}/attendanceSessions`,
-        clockedInSession.id
-      );
-      const clockOutTime = Timestamp.now(); // Current Firestore Timestamp
-      // Calculate duration in milliseconds
-      const durationMs =
-        clockOutTime.toMillis() - clockedInSession.clockInTime.toMillis();
-
-      // Update the existing session document with clock-out time and duration
-      await updateDoc(sessionDocRef, {
-        clockOutTime: clockOutTime,
-        durationMs: durationMs,
+      const response = await fetch(`${API_BASE_URL}/attendance/clock-in`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
       });
-      console.log(
-        "Clocked out successfully for session ID:",
-        clockedInSession.id
-      );
-      showCustomModal("You have successfully clocked out!", () => {});
-      setClockedInSession(null); // Clear active session state in UI
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Clock-in failed");
+      }
+
+      showCustomModal("נכנסת למשמרת בהצלחה!", () => {});
+      // Re-fetch daily logs to update UI
+      // The useEffect for daily logs will handle this if polling,
+      // otherwise, you'd trigger a manual fetch here.
     } catch (error) {
-      console.error("Error clocking out:", error);
-      showCustomModal(`Failed to clock out: ${error.message}`, () => {});
+      showCustomModal(`שגיאה בכניסה למשמרת: ${error.message}`, () => {});
+    } finally {
+      setIsClockingIn(false);
     }
   };
 
-  // Generate Report function
-  const generateReport = async () => {
-    if (!userId || !db) {
-      showCustomModal(
-        "Application not ready. Please wait for authentication.",
-        () => {}
+  const handleClockOut = async () => {
+    if (!user || !clockedInSession) return;
+
+    setIsClockingOut(true);
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/attendance/clock-out/${clockedInSession.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+          },
+        }
       );
-      return;
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Clock-out failed");
+      }
+
+      showCustomModal("יצאת מהמשמרת בהצלחה!", () => {});
+      // Re-fetch daily logs to update UI
+    } catch (error) {
+      showCustomModal(`שגיאה ביציאה מהמשמרת: ${error.message}`, () => {});
+    } finally {
+      setIsClockingOut(false);
     }
+  };
+
+  // --- Report Generation ---
+
+  const generateReport = async () => {
     if (!reportStartDate || !reportEndDate) {
-      showCustomModal(
-        "Please select both start and end dates for the report.",
-        () => {}
-      );
+      showCustomModal("אנא בחר תאריך התחלה וסיום", () => {});
       return;
     }
 
     const startDate = new Date(reportStartDate);
     const endDate = new Date(reportEndDate);
-    // Adjust endDate to include the entire last day selected
-    endDate.setDate(endDate.getDate() + 1);
+    // Firebase timestamp comparison was inclusive of the end date, adjust for JS Date objects
+    // and backend where we want to query up to the start of the *next* day.
+    endDate.setDate(endDate.getDate()); // No need to add day if backend handles the +1 day logic
 
     if (startDate > endDate) {
-      showCustomModal("Start date cannot be after the end date.", () => {});
+      showCustomModal("תאריך ההתחלה חייב להיות לפני תאריך הסיום", () => {});
       return;
     }
 
+    setIsGeneratingReport(true);
     try {
-      const userAttendanceCollectionRef = collection(
-        db,
-        `artifacts/${appId}/users/${userId}/attendanceSessions`
-      );
-      // Query for sessions within the selected date range based on clockInTime
-      const q = query(
-        userAttendanceCollectionRef,
-        where("clockInTime", ">=", Timestamp.fromDate(startDate)),
-        where("clockInTime", "<", Timestamp.fromDate(endDate)) // Use '<' to exclude the start of the next day
-      );
-
-      const querySnapshot = await getDocs(q);
-      const reportSessions = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-
-      // Calculate total presence duration for the report
-      let totalDurationMs = 0;
-      reportSessions.forEach((session) => {
-        if (session.durationMs) {
-          // Only sum completed sessions
-          totalDurationMs += session.durationMs;
+      const userIdParam =
+        isAdmin && selectedUserId ? `&userId=${selectedUserId}` : "";
+      const response = await fetch(
+        `${API_BASE_URL}/reports?startDate=${reportStartDate}&endDate=${reportEndDate}${userIdParam}`,
+        {
+          headers: getAuthHeaders(),
         }
-      });
+      );
 
-      setReportData({
-        sessions: reportSessions,
-        totalDuration: totalDurationMs,
-      });
-      console.log("Report generated successfully!");
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Report generation failed");
+      }
+
+      setReportData(data);
     } catch (error) {
-      console.error("Error generating report:", error);
-      showCustomModal(`Failed to generate report: ${error.message}`, () => {});
+      showCustomModal(`שגיאה ביצירת דוח: ${error.message}`, () => {});
+    } finally {
+      setIsGeneratingReport(false);
     }
   };
 
-  // Display loading message if authentication is not ready
-  if (!isAuthReady) {
+  // --- Render Logic (remains largely the same) ---
+  if (!user) {
     return (
-      <div className="app-container" style={{ justifyContent: "center" }}>
-        <div className="text-lg text-gray-700">Loading authentication...</div>
+      <div className="auth-container">
+        {showLogin && (
+          <div className="auth-form">
+            <h2>התחברות למערכת</h2>
+            <input
+              type="email"
+              placeholder="אימייל"
+              value={loginEmail}
+              onChange={(e) => setLoginEmail(e.target.value)}
+            />
+            <input
+              type="password"
+              placeholder="סיסמה"
+              value={loginPassword}
+              onChange={(e) => setLoginPassword(e.target.value)}
+            />
+            <button onClick={handleLogin}>התחברות</button>
+            <p
+              className="auth-switch"
+              onClick={() => {
+                setShowLogin(false);
+                setShowRegister(true);
+              }}
+            >
+              אין לך חשבון? הירשם עכשיו
+            </p>
+          </div>
+        )}
+
+        {showRegister && (
+          <div className="auth-form">
+            <h2>הרשמה למערכת</h2>
+            <input
+              type="text"
+              placeholder="שם מלא"
+              value={registerName}
+              onChange={(e) => setRegisterName(e.target.value)}
+            />
+            <input
+              type="email"
+              placeholder="אימייל"
+              value={registerEmail}
+              onChange={(e) => setRegisterEmail(e.target.value)}
+            />
+            <input
+              type="password"
+              placeholder="סיסמה"
+              value={registerPassword}
+              onChange={(e) => setRegisterPassword(e.target.value)}
+            />
+            <button onClick={handleRegister}>הרשמה</button>
+            <p
+              className="auth-switch"
+              onClick={() => {
+                setShowRegister(false);
+                setShowLogin(true);
+              }}
+            >
+              כבר יש לך חשבון? התחבר עכשיו
+            </p>
+          </div>
+        )}
       </div>
     );
   }
 
-  // Main application UI
+  // Main App UI
   return (
     <div className="app-container">
-      {/* Modal component for messages/confirmations */}
       <Modal
         message={modalMessage}
         onConfirm={handleModalConfirm}
+        onCancel={handleModalCancel}
         showCancel={showModalCancel}
-        onCancel={handleModalConfirm} // If no specific cancel action, just confirm behavior
       />
 
       <header className="header-container">
-        <h1 className="header-title">Employee Time Watch</h1>
-        {userId && (
-          <p className="user-id-text">
-            User ID: <span className="user-id-mono">{userId}</span>
-          </p>
-        )}
+        <h1 className="header-title">מערכת נוכחות עובדים</h1>
+        <div className="user-info">
+          <span>
+            {user.name} ({user.email})
+          </span>
+          {isAdmin && <span className="admin-badge">מנהל</span>}
+          <button onClick={handleLogout} className="logout-button">
+            התנתק
+          </button>
+        </div>
       </header>
 
-      {/* Tabs for Navigation */}
       <nav className="nav-tabs">
         <button
           onClick={() => setActiveTab("attendance")}
@@ -408,7 +462,7 @@ const App = () => {
             activeTab === "attendance" ? "active" : ""
           }`}
         >
-          Attendance
+          נוכחות
         </button>
         <button
           onClick={() => setActiveTab("reports")}
@@ -416,69 +470,92 @@ const App = () => {
             activeTab === "reports" ? "active" : ""
           }`}
         >
-          Reports
+          דוחות
         </button>
+        {isAdmin && (
+          <button
+            onClick={() => setActiveTab("admin")}
+            className={`nav-tab-button ${
+              activeTab === "admin" ? "active" : ""
+            }`}
+          >
+            ניהול
+          </button>
+        )}
       </nav>
 
-      {/* Attendance Tab Content */}
       {activeTab === "attendance" && (
         <main className="main-content">
-          <section style={{ marginBottom: "32px", textAlign: "center" }}>
-            <h2 className="section-title">Clock In / Clock Out</h2>
+          <section className="clock-section">
+            <h2 className="section-title">כניסה / יציאה ממשמרת</h2>
+            {isAdmin && (
+              <div className="user-selector">
+                <label>בחר עובד:</label>
+                <select
+                  value={selectedUserId}
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                >
+                  <option value="">-- בחר עובד --</option>
+                  {usersList.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} ({u.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="clock-buttons-container">
               <button
                 onClick={handleClockIn}
-                disabled={clockedInSession !== null}
+                disabled={clockedInSession !== null || isClockingIn}
                 className="clock-button clock-button-in"
               >
-                Clock In
+                {isClockingIn ? "בתהליך כניסה..." : "כניסה למשמרת"}
               </button>
               <button
                 onClick={handleClockOut}
-                disabled={clockedInSession === null}
+                disabled={clockedInSession === null || isClockingOut}
                 className="clock-button clock-button-out"
               >
-                Clock Out
+                {isClockingOut ? "בתהליך יציאה..." : "יציאה ממשמרת"}
               </button>
             </div>
             {clockedInSession && (
               <p className="clocked-in-message">
-                You are currently clocked in since:{" "}
+                במשמרת מאז:{" "}
                 <span className="clocked-in-time">
-                  {formatTimestamp(clockedInSession.clockInTime)}
+                  {formatTimestamp(clockedInSession.clock_in_time)}
                 </span>
               </p>
             )}
           </section>
 
-          <section>
-            <h2 className="section-title">Today's Attendance Log</h2>
+          <section className="logs-section">
+            <h2 className="section-title">יומן נוכחות יומי</h2>
             {dailyLogs.length === 0 ? (
-              <p className="no-records-message">
-                No attendance records for today.
-              </p>
+              <p className="no-records-message">אין רשומות להיום</p>
             ) : (
               <div className="table-container">
                 <table className="data-table">
-                  <thead className="table-header">
+                  <thead>
                     <tr>
-                      <th>Clock In</th>
-                      <th>Clock Out</th>
-                      <th>Duration</th>
+                      <th>שעת כניסה</th>
+                      <th>שעת יציאה</th>
+                      <th>משך זמן</th>
                     </tr>
                   </thead>
-                  <tbody className="table-body">
+                  <tbody>
                     {dailyLogs.map((log) => (
                       <tr key={log.id}>
-                        <td>{formatTimestamp(log.clockInTime)}</td>
+                        <td>{formatTimestamp(log.clock_in_time)}</td>
                         <td>
-                          {log.clockOutTime ? (
-                            formatTimestamp(log.clockOutTime)
+                          {log.clock_out_time ? (
+                            formatTimestamp(log.clock_out_time)
                           ) : (
-                            <span className="table-active-status">Active</span>
+                            <span className="active-session">פעיל</span>
                           )}
                         </td>
-                        <td>{formatDuration(log.durationMs)}</td>
+                        <td>{formatDuration(log.duration_ms)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -489,99 +566,153 @@ const App = () => {
         </main>
       )}
 
-      {/* Reports Tab Content */}
       {activeTab === "reports" && (
         <main className="main-content">
-          <section style={{ marginBottom: "32px" }}>
-            <h2 className="section-title">Generate Report</h2>
-            <div className="report-date-inputs">
+          <section className="report-controls">
+            <h2 className="section-title">יצירת דוח</h2>
+            {isAdmin && (
+              <div className="user-selector">
+                <label>בחר עובד:</label>
+                <select
+                  value={selectedUserId}
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                >
+                  <option value="">כל העובדים</option>
+                  {usersList.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} ({u.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="date-inputs">
               <div className="form-group">
-                <label htmlFor="startDate" className="form-label">
-                  Start Date:
-                </label>
+                <label htmlFor="startDate">תאריך התחלה:</label>
                 <input
                   type="date"
                   id="startDate"
                   value={reportStartDate}
                   onChange={(e) => setReportStartDate(e.target.value)}
-                  className="form-input"
+                  max={new Date().toISOString().split("T")[0]}
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="endDate" className="form-label">
-                  End Date:
-                </label>
+                <label htmlFor="endDate">תאריך סיום:</label>
                 <input
                   type="date"
                   id="endDate"
                   value={reportEndDate}
                   onChange={(e) => setReportEndDate(e.target.value)}
-                  className="form-input"
+                  max={new Date().toISOString().split("T")[0]}
                 />
               </div>
               <button
                 onClick={generateReport}
-                className="generate-report-button"
+                disabled={isGeneratingReport}
+                className="generate-button"
               >
-                Generate Report
+                {isGeneratingReport ? "מייצר דוח..." : "צור דוח"}
               </button>
             </div>
           </section>
 
-          <section>
-            <h2 className="section-title">Report Data</h2>
-            {reportData &&
-            reportData.sessions &&
-            reportData.sessions.length > 0 ? (
-              <div>
-                <p className="report-summary">
-                  Total Presence:{" "}
-                  <span className="report-total-duration">
-                    {formatDuration(reportData.totalDuration)}
-                  </span>
-                </p>
-                <div className="table-container">
-                  <table className="data-table">
-                    <thead className="table-header">
-                      <tr>
-                        <th>Date</th>
-                        <th>Clock In</th>
-                        <th>Clock Out</th>
-                        <th>Duration</th>
-                      </tr>
-                    </thead>
-                    <tbody className="table-body">
-                      {reportData.sessions
-                        .sort(
-                          (a, b) =>
-                            b.clockInTime.toMillis() - a.clockInTime.toMillis()
-                        ) // Sort by newest first
-                        .map((session) => (
-                          <tr key={session.id}>
-                            <td>{session.date}</td>
-                            <td>{formatTimestamp(session.clockInTime)}</td>
-                            <td>
-                              {session.clockOutTime ? (
-                                formatTimestamp(session.clockOutTime)
-                              ) : (
-                                <span className="table-active-status">
-                                  Still Clocked In
-                                </span>
-                              )}
-                            </td>
-                            <td>{formatDuration(session.durationMs)}</td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
+          <section className="report-results">
+            <h2 className="section-title">נתוני דוח</h2>
+            {reportData ? (
+              reportData.sessions.length > 0 ? (
+                <div>
+                  <p className="report-summary">
+                    סה"כ נוכחות{" "}
+                    {reportData.userName && `של ${reportData.userName}`}:{" "}
+                    <span className="total-duration">
+                      {formatDuration(reportData.totalDuration)}
+                    </span>
+                  </p>
+                  <div className="table-container">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>תאריך</th>
+                          <th>שעת כניסה</th>
+                          <th>שעת יציאה</th>
+                          <th>משך זמן</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reportData.sessions
+                          .sort(
+                            (a, b) =>
+                              new Date(b.clock_in_time).getTime() -
+                              new Date(a.clock_in_time).getTime()
+                          )
+                          .map((session) => (
+                            <tr key={session.id}>
+                              <td>{session.date}</td>
+                              <td>{formatTimestamp(session.clock_in_time)}</td>
+                              <td>
+                                {session.clock_out_time ? (
+                                  formatTimestamp(session.clock_out_time)
+                                ) : (
+                                  <span className="active-session">פעיל</span>
+                                )}
+                              </td>
+                              <td>{formatDuration(session.duration_ms)}</td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <p className="no-records-message">
+                  לא נמצאו משמרות בתאריכים שנבחרו
+                </p>
+              )
             ) : (
-              <p className="no-records-message">
-                No report data generated yet. Select dates and click "Generate
-                Report".
-              </p>
+              <p className="no-records-message">בחר תאריכים וצור דוח</p>
             )}
+          </section>
+        </main>
+      )}
+
+      {activeTab === "admin" && isAdmin && (
+        <main className="main-content">
+          <section className="admin-section">
+            <h2 className="section-title">ניהול עובדים</h2>
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>שם</th>
+                    <th>אימייל</th>
+                    <th>תאריך הרשמה</th>
+                    <th>פעולות</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {usersList.map((user) => (
+                    <tr key={user.id}>
+                      <td>{user.name}</td>
+                      <td>{user.email}</td>
+                      <td>
+                        {new Date(user.created_at).toLocaleDateString("he-IL")}
+                      </td>
+                      <td>
+                        <button
+                          className="action-button"
+                          onClick={() => {
+                            // Placeholder for edit/delete functionality
+                          }}
+                        >
+                          ערוך
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
         </main>
       )}

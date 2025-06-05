@@ -49,25 +49,26 @@ const authorizeAdmin = (req, res, next) => {
 // Register
 app.post("/api/register", async (req, res) => {
   const { email, password, name } = req.body;
+  console.log("Register attempt:", { email, name }); // Check received data
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
+    console.log("Hashed password:", hashedPassword); // Check if hashing works
     const result = await pool.query(
       "INSERT INTO users (email, password_hash, name) VALUES ($1, $2, $3) RETURNING id, email, name, is_admin",
       [email, hashedPassword, name]
     );
+    console.log("Insert successful:", result.rows[0]); // Check if insert works
     res
       .status(201)
       .json({ message: "User registered successfully", user: result.rows[0] });
   } catch (err) {
-    console.error("Registration error:", err);
+    console.error("Registration error details:", err); // THIS IS THE MOST IMPORTANT console.log
     if (err.code === "23505") {
-      // Duplicate email error code
       return res.status(409).json({ message: "Email already exists." });
     }
     res.status(500).json({ message: "Error registering user." });
   }
 });
-
 // Login
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body;

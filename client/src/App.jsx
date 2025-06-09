@@ -67,17 +67,61 @@ const GlobalCSS = `
   .select-all-item { padding-bottom: 10px; border-bottom: 1px solid var(--border-color); margin-bottom: 5px; }
   .employee-select-item input[type="checkbox"], .select-all-item input[type="checkbox"] { cursor: pointer; width: auto; margin: 0 0 0 12px; }
   .payroll-table tfoot td { font-weight: 700; background-color: var(--primary-light); color: var(--primary-hover); border-top: 2px solid var(--primary-color); font-size: 16px; }
-  .status-selector { display: flex; flex-wrap: wrap; gap: 10px; }
-  .status-tag { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border-color); background-color: var(--bg-main); cursor: pointer; transition: all 0.2s ease-in-out; font-size: 14px; font-weight: 500; }
-  .status-tag:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--secondary-color); }
-  .status-tag.selected { color: white; border-color: transparent; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-  .status-tag.selected.present { background: var(--success-color); }
-  .status-tag.selected.on_break { background: var(--secondary-color); }
-  .status-tag.selected.absent { background: var(--font-light); }
-  .status-tag.selected.sick { background: var(--warning-color); }
-  .status-tag.selected.vacation { background: var(--info-color); }
-  .status-tag .status-tag-icon { color: var(--font-light); width: 16px; height: 16px; }
-  .status-tag.selected .status-tag-icon { color: white; }
+/* =================================================================================== */
+/*   החלף את כל כללי ה-CSS של status-tag בקוד שלך בבלוק המעודכן הזה                  */
+/* =================================================================================== */
+
+.status-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.status-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    background-color: transparent; /* רקע שקוף כברירת מחדל */
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--font-light); /* צבע טקסט אפרפר כברירת מחדל */
+}
+
+.status-tag .status-tag-icon {
+    color: inherit; /* יורש את צבע הטקסט */
+    width: 16px;
+    height: 16px;
+}
+
+.status-tag:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+    background-color: var(--primary-light); /* רקע בהיר במעבר עכבר */
+    color: var(--primary-color);
+}
+
+/* --- התיקון המרכזי כאן --- */
+.status-tag.selected {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    /* לא נגדיר כאן צבע טקסט כללי, אלא לכל סטטוס בנפרד */
+}
+
+/* הגדרות צבע לרקע וטקסט עבור כל סטטוס שנבחר */
+.status-tag.selected.present { background-color: #A7F3D0; color: #065F46; border-color: #6EE7B7; } /* Light Mint */
+.status-tag.selected.on_break { background-color: #BFDBFE; color: #1E40AF; border-color: #93C5FD; } /* Light Sky Blue */
+.status-tag.selected.absent { background-color: #E2E8F0; color: #475569; border-color: #CBD5E1; } /* Light Gray */
+.status-tag.selected.sick { background-color: #FEF3C7; color: #92400E; border-color: #FDE68A; } /* Light Yellow */
+.status-tag.selected.vacation { background-color: #FBCFE8; color: #9D2449; border-color: #F9A8D4; } /* Light Pink
+/* ודא שהאייקון מקבל את הצבע הלבן כשהתגית נבחרת */
+.status-tag.selected .status-tag-icon {
+    color: white;
+}
   .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
   .toast { background-color: var(--font-dark); color: white; padding: 15px 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 10px; display: flex; align-items: center; gap: 10px; animation: slideInUp 0.5s ease, fadeOut 0.5s ease 4.5s forwards; }
 `;

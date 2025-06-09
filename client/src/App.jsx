@@ -1,723 +1,180 @@
 import React, { useState, useEffect } from "react";
-import "./App.css"; // Assuming your CSS remains similar
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import "./App.css";
 
-// --- Helper Functions (can be moved to a separate file) ---
-const formatDuration = (ms) => {
-  if (!ms) return "לא זמין";
-  const totalSeconds = Math.floor(ms / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  return `${hours} שעות ${minutes} דקות`;
-};
+// Import Components
+import Header from "./components/Header";
+import Dashboard from "./components/Dashboard";
+import EmployeePanel from "./components/EmployeePanel";
+import EmployeeList from "./components/EmployeeList";
+import Reports from "./components/Reports";
+import Login from "./components/Login";
+// נתונים ראשוניים לדוגמה
 
-const formatTimestamp = (isoString) => {
-  if (!isoString) return "לא זמין";
-  return new Date(isoString).toLocaleString("he-IL");
-};
+const initialEmployees = [
+  { id: 1, name: "ישראל ישראלי", department: "פיתוח", role: "manager" },
+  { id: 2, name: "משה כהן", department: "פיתוח", role: "employee" },
+  { id: 3, name: "דנה לוי", department: "שיווק", role: "employee" },
+  { id: 4, name: "אביגיל שרון", department: "מכירות", role: "employee" },
+];
 
-// --- Modal Component (remains the same) ---
-const Modal = ({ message, onConfirm, onCancel, showCancel = false }) => {
-  if (!message) return null;
-
-  return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <p className="modal-message">{message}</p>
-        <div className="modal-actions">
-          <button
-            onClick={onConfirm}
-            className="modal-button modal-button-primary"
-          >
-            אישור
-          </button>
-          {showCancel && (
-            <button
-              onClick={onCancel}
-              className="modal-button modal-button-secondary"
-            >
-              ביטול
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
+function App() {
+  // זה ה-State המרכזי של האפליקציה. נשתמש ב-localStorage כדי לשמור נתונים בין רענונים
+  const [employees, setEmployees] = useState(
+    () => JSON.parse(localStorage.getItem("employees")) || initialEmployees
   );
-};
+  const [attendance, setAttendance] = useState(() =>
+    JSON.parse(localStorage.getItem("attendance"))
+  );
+  const [currentUser, setCurrentUser] = useState(
+    () => JSON.parse(localStorage.getItem("currentUser")) || null
+  );
 
-const App = () => {
-  const [user, setUser] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [clockedInSession, setClockedInSession] = useState(null);
-  const [dailyLogs, setDailyLogs] = useState([]);
-  const [reportData, setReportData] = useState(null);
-  const [reportStartDate, setReportStartDate] = useState("");
-  const [reportEndDate, setReportEndDate] = useState("");
-  const [selectedUserId, setSelectedUserId] = useState("");
-  const [usersList, setUsersList] = useState([]);
-  const [activeTab, setActiveTab] = useState("attendance");
-  const [modalMessage, setModalMessage] = useState("");
-  const [modalCallback, setModalCallback] = useState(null);
-  const [showModalCancel, setShowModalCancel] = useState(false);
-  const [isClockingIn, setIsClockingIn] = useState(false);
-  const [isClockingOut, setIsClockingOut] = useState(false);
-  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
-  const [loginEmail, setLoginEmail] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
-  const [registerEmail, setRegisterEmail] = useState("");
-  const [registerPassword, setRegisterPassword] = useState("");
-  const [registerName, setRegisterName] = useState("");
-  const [showLogin, setShowLogin] = useState(true);
-  const [showRegister, setShowRegister] = useState(false);
-
-  const API_BASE_URL = "http://localhost:5000/api"; // Your backend server URL
-
-  // Helper to get auth headers
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem("token");
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  };
-
-  // Modal handling remains largely the same
-  const showCustomModal = (
-    message,
-    onConfirm,
-    showCancel = false,
-    onCancel = () => {}
-  ) => {
-    setModalMessage(message);
-    setModalCallback({ confirm: onConfirm, cancel: onCancel });
-    setShowModalCancel(showCancel);
-  };
-
-  const handleModalConfirm = () => {
-    modalCallback?.confirm?.();
-    closeModal();
-  };
-
-  const handleModalCancel = () => {
-    modalCallback?.cancel?.();
-    closeModal();
-  };
-
-  const closeModal = () => {
-    setModalMessage("");
-    setModalCallback(null);
-    setShowModalCancel(false);
-  };
-
-  // --- Authentication ---
+  // שמירת הנתונים ב-localStorage בכל פעם שהם משתנים
   useEffect(() => {
-    const storedToken = localStorage.getItem("token");
-    const storedUser = localStorage.getItem("user"); // Store user info (id, name, isAdmin, etc.)
+    localStorage.setItem("employees", JSON.stringify(employees));
+  }, [employees]);
 
-    if (storedToken && storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-        setIsAdmin(parsedUser.isAdmin || false);
-        setShowLogin(false);
-        setShowRegister(false);
-      } catch (e) {
-        console.error("Failed to parse user from local storage", e);
-        localStorage.clear(); // Clear potentially corrupted data
-        setUser(null);
-        setIsAdmin(false);
-        setShowLogin(true);
-      }
-    }
-  }, []);
+  useEffect(() => {
+    localStorage.setItem("attendance", JSON.stringify(attendance));
+  }, [attendance]);
 
-  const handleLogin = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
-      });
+  useEffect(() => {
+    localStorage.setItem("currentUser", JSON.stringify(currentUser));
+  }, [currentUser]);
 
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Login failed");
-      }
-
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user)); // Store user details
-      setUser(data.user);
-      setIsAdmin(data.user.isAdmin);
-      setShowLogin(false);
-    } catch (error) {
-      showCustomModal(`שגיאה בהתחברות: ${error.message}`, () => {});
-    }
-  };
-
-  const handleRegister = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: registerEmail,
-          password: registerPassword,
-          name: registerName,
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Registration failed");
-      }
-
-      showCustomModal("הרשמה בוצעה בהצלחה! אנא התחברו", () => {
-        setShowRegister(false);
-        setShowLogin(true);
-      });
-    } catch (error) {
-      showCustomModal(`שגיאה בהרשמה: ${error.message}`, () => {});
+  // פונקציות לניהול המידע
+  const handleLogin = (employeeId) => {
+    const user = employees.find((emp) => emp.id === parseInt(employeeId));
+    if (user) {
+      setCurrentUser(user);
+    } else {
+      alert("עובד לא נמצא");
     }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setUser(null);
-    setIsAdmin(false);
-    setClockedInSession(null);
-    setDailyLogs([]);
-    setReportData(null);
-    setUsersList([]);
-    setShowLogin(true);
-    setShowRegister(false);
-    setActiveTab("attendance");
+    setCurrentUser(null);
   };
 
-  // --- Data Fetching ---
+  // פונקציה לעדכון נוכחות (כניסה/יציאה)
+  const handleClockInOut = (employeeId) => {
+    const now = new Date().toISOString();
+    // בדיקה אם העובד כבר נכנס היום ועדיין לא יצא
+    const lastEntry = attendance
+      .filter((a) => a.employeeId === employeeId)
+      .sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn))[0];
 
-  // Load users list (for admin)
-  useEffect(() => {
-    const fetchUsers = async () => {
-      if (!isAdmin) return;
-      try {
-        const response = await fetch(`${API_BASE_URL}/users`, {
-          headers: getAuthHeaders(),
-        });
-        const data = await response.json();
-        if (!response.ok)
-          throw new Error(data.message || "Failed to fetch users");
-        setUsersList(data);
-      } catch (error) {
-        console.error("Error fetching users:", error);
-        // showCustomModal(`שגיאה בטעינת עובדים: ${error.message}`, () => {});
-      }
-    };
-
-    // You'd typically use a WebSocket or polling for real-time updates here
-    // For simplicity, we'll just fetch once on admin status change.
-    fetchUsers();
-  }, [isAdmin]);
-
-  // Load daily attendance logs
-  useEffect(() => {
-    const fetchDailyLogs = async () => {
-      if (!user) return;
-
-      const userIdToQuery =
-        isAdmin && selectedUserId ? selectedUserId : user.id;
-
-      try {
-        const response = await fetch(
-          `${API_BASE_URL}/attendance/daily-logs?userId=${userIdToQuery}`,
-          {
-            headers: getAuthHeaders(),
-          }
-        );
-        const data = await response.json();
-        if (!response.ok)
-          throw new Error(data.message || "Failed to fetch daily logs");
-
-        // Sort by clockInTime (newest first)
-        setDailyLogs(
-          data.sort(
-            (a, b) =>
-              new Date(b.clock_in_time).getTime() -
-              new Date(a.clock_in_time).getTime()
-          )
-        );
-
-        // Find active session
-        const activeSession = data.find((session) => !session.clock_out_time);
-        setClockedInSession(activeSession || null);
-      } catch (error) {
-        console.error("Error fetching daily logs:", error);
-        // showCustomModal(`שגיאה בטעינת יומן נוכחות: ${error.message}`, () => {});
-      }
-    };
-
-    // Fetch logs whenever user, admin status, or selectedUserId changes
-    // For real-time, you'd integrate WebSockets here.
-    fetchDailyLogs();
-    const intervalId = setInterval(fetchDailyLogs, 30000); // Poll every 30 seconds for updates
-    return () => clearInterval(intervalId); // Cleanup interval
-  }, [user, isAdmin, selectedUserId]);
-
-  // --- Attendance Actions ---
-
-  const handleClockIn = async () => {
-    if (!user) return;
-
-    setIsClockingIn(true);
-    try {
-      const response = await fetch(`${API_BASE_URL}/attendance/clock-in`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeaders(),
-        },
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Clock-in failed");
-      }
-
-      showCustomModal("נכנסת למשמרת בהצלחה!", () => {});
-      // Re-fetch daily logs to update UI
-      // The useEffect for daily logs will handle this if polling,
-      // otherwise, you'd trigger a manual fetch here.
-    } catch (error) {
-      showCustomModal(`שגיאה בכניסה למשמרת: ${error.message}`, () => {});
-    } finally {
-      setIsClockingIn(false);
-    }
-  };
-
-  const handleClockOut = async () => {
-    if (!user || !clockedInSession) return;
-
-    setIsClockingOut(true);
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/attendance/clock-out/${clockedInSession.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            ...getAuthHeaders(),
-          },
-        }
+    if (lastEntry && !lastEntry.clockOut) {
+      // אם יש כניסה פתוחה, מבצעים יציאה
+      const updatedAttendance = attendance.map((a) =>
+        a.id === lastEntry.id ? { ...a, clockOut: now } : a
       );
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Clock-out failed");
-      }
-
-      showCustomModal("יצאת מהמשמרת בהצלחה!", () => {});
-      // Re-fetch daily logs to update UI
-    } catch (error) {
-      showCustomModal(`שגיאה ביציאה מהמשמרת: ${error.message}`, () => {});
-    } finally {
-      setIsClockingOut(false);
+      setAttendance(updatedAttendance);
+    } else {
+      // אם לא, מבצעים כניסה חדשה
+      const newEntry = {
+        id: Date.now(), // ID ייחודי פשוט
+        employeeId: employeeId,
+        clockIn: now,
+        clockOut: null,
+      };
+      setAttendance([...attendance, newEntry]);
     }
   };
 
-  // --- Report Generation ---
-
-  const generateReport = async () => {
-    if (!reportStartDate || !reportEndDate) {
-      showCustomModal("אנא בחר תאריך התחלה וסיום", () => {});
-      return;
-    }
-
-    const startDate = new Date(reportStartDate);
-    const endDate = new Date(reportEndDate);
-    // Firebase timestamp comparison was inclusive of the end date, adjust for JS Date objects
-    // and backend where we want to query up to the start of the *next* day.
-    endDate.setDate(endDate.getDate()); // No need to add day if backend handles the +1 day logic
-
-    if (startDate > endDate) {
-      showCustomModal("תאריך ההתחלה חייב להיות לפני תאריך הסיום", () => {});
-      return;
-    }
-
-    setIsGeneratingReport(true);
-    try {
-      const userIdParam =
-        isAdmin && selectedUserId ? `&userId=${selectedUserId}` : "";
-      const response = await fetch(
-        `${API_BASE_URL}/reports?startDate=${reportStartDate}&endDate=${reportEndDate}${userIdParam}`,
-        {
-          headers: getAuthHeaders(),
-        }
-      );
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Report generation failed");
-      }
-
-      setReportData(data);
-    } catch (error) {
-      showCustomModal(`שגיאה ביצירת דוח: ${error.message}`, () => {});
-    } finally {
-      setIsGeneratingReport(false);
-    }
+  const handleAddEmployee = (employeeData) => {
+    const newEmployee = { ...employeeData, id: Date.now() };
+    setEmployees([...employees, newEmployee]);
   };
 
-  // --- Render Logic (remains largely the same) ---
-  if (!user) {
-    return (
-      <div className="auth-container">
-        {showLogin && (
-          <div className="auth-form">
-            <h2>התחברות למערכת</h2>
-            <input
-              type="email"
-              placeholder="אימייל"
-              value={loginEmail}
-              onChange={(e) => setLoginEmail(e.target.value)}
-            />
-            <input
-              type="password"
-              placeholder="סיסמה"
-              value={loginPassword}
-              onChange={(e) => setLoginPassword(e.target.value)}
-            />
-            <button onClick={handleLogin}>התחברות</button>
-            <p
-              className="auth-switch"
-              onClick={() => {
-                setShowLogin(false);
-                setShowRegister(true);
-              }}
-            >
-              אין לך חשבון? הירשם עכשיו
-            </p>
-          </div>
-        )}
+  const handleDeleteEmployee = (employeeId) => {
+    setEmployees(employees.filter((emp) => emp.id !== employeeId));
+    // אפשר גם למחוק את רשומות הנוכחות שלו
+    setAttendance(attendance.filter((att) => att.employeeId !== employeeId));
+  };
 
-        {showRegister && (
-          <div className="auth-form">
-            <h2>הרשמה למערכת</h2>
-            <input
-              type="text"
-              placeholder="שם מלא"
-              value={registerName}
-              onChange={(e) => setRegisterName(e.target.value)}
-            />
-            <input
-              type="email"
-              placeholder="אימייל"
-              value={registerEmail}
-              onChange={(e) => setRegisterEmail(e.target.value)}
-            />
-            <input
-              type="password"
-              placeholder="סיסמה"
-              value={registerPassword}
-              onChange={(e) => setRegisterPassword(e.target.value)}
-            />
-            <button onClick={handleRegister}>הרשמה</button>
-            <p
-              className="auth-switch"
-              onClick={() => {
-                setShowRegister(false);
-                setShowLogin(true);
-              }}
-            >
-              כבר יש לך חשבון? התחבר עכשיו
-            </p>
-          </div>
-        )}
-      </div>
+  const handleUpdateEmployee = (updatedEmployee) => {
+    setEmployees(
+      employees.map((emp) =>
+        emp.id === updatedEmployee.id ? updatedEmployee : emp
+      )
     );
+  };
+
+  if (!currentUser) {
+    return <Login onLogin={handleLogin} employees={employees} />;
   }
 
-  // Main App UI
   return (
     <div className="app-container">
-      <Modal
-        message={modalMessage}
-        onConfirm={handleModalConfirm}
-        onCancel={handleModalCancel}
-        showCancel={showModalCancel}
-      />
-
-      <header className="header-container">
-        <h1 className="header-title">מערכת נוכחות עובדים</h1>
-        <div className="user-info">
-          <span>
-            {user.name} ({user.email})
-          </span>
-          {isAdmin && <span className="admin-badge">מנהל</span>}
-          <button onClick={handleLogout} className="logout-button">
-            התנתק
-          </button>
-        </div>
-      </header>
-
-      <nav className="nav-tabs">
-        <button
-          onClick={() => setActiveTab("attendance")}
-          className={`nav-tab-button ${
-            activeTab === "attendance" ? "active" : ""
-          }`}
-        >
-          נוכחות
-        </button>
-        <button
-          onClick={() => setActiveTab("reports")}
-          className={`nav-tab-button ${
-            activeTab === "reports" ? "active" : ""
-          }`}
-        >
-          דוחות
-        </button>
-        {isAdmin && (
-          <button
-            onClick={() => setActiveTab("admin")}
-            className={`nav-tab-button ${
-              activeTab === "admin" ? "active" : ""
-            }`}
-          >
-            ניהול
-          </button>
-        )}
-      </nav>
-
-      {activeTab === "attendance" && (
-        <main className="main-content">
-          <section className="clock-section">
-            <h2 className="section-title">כניסה / יציאה ממשמרת</h2>
-            {isAdmin && (
-              <div className="user-selector">
-                <label>בחר עובד:</label>
-                <select
-                  value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
-                >
-                  <option value="">-- בחר עובד --</option>
-                  {usersList.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name} ({u.email})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            <div className="clock-buttons-container">
-              <button
-                onClick={handleClockIn}
-                disabled={clockedInSession !== null || isClockingIn}
-                className="clock-button clock-button-in"
-              >
-                {isClockingIn ? "בתהליך כניסה..." : "כניסה למשמרת"}
-              </button>
-              <button
-                onClick={handleClockOut}
-                disabled={clockedInSession === null || isClockingOut}
-                className="clock-button clock-button-out"
-              >
-                {isClockingOut ? "בתהליך יציאה..." : "יציאה ממשמרת"}
-              </button>
-            </div>
-            {clockedInSession && (
-              <p className="clocked-in-message">
-                במשמרת מאז:{" "}
-                <span className="clocked-in-time">
-                  {formatTimestamp(clockedInSession.clock_in_time)}
-                </span>
-              </p>
-            )}
-          </section>
-
-          <section className="logs-section">
-            <h2 className="section-title">יומן נוכחות יומי</h2>
-            {dailyLogs.length === 0 ? (
-              <p className="no-records-message">אין רשומות להיום</p>
-            ) : (
-              <div className="table-container">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>שעת כניסה</th>
-                      <th>שעת יציאה</th>
-                      <th>משך זמן</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dailyLogs.map((log) => (
-                      <tr key={log.id}>
-                        <td>{formatTimestamp(log.clock_in_time)}</td>
-                        <td>
-                          {log.clock_out_time ? (
-                            formatTimestamp(log.clock_out_time)
-                          ) : (
-                            <span className="active-session">פעיל</span>
-                          )}
-                        </td>
-                        <td>{formatDuration(log.duration_ms)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-        </main>
-      )}
-
-      {activeTab === "reports" && (
-        <main className="main-content">
-          <section className="report-controls">
-            <h2 className="section-title">יצירת דוח</h2>
-            {isAdmin && (
-              <div className="user-selector">
-                <label>בחר עובד:</label>
-                <select
-                  value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
-                >
-                  <option value="">כל העובדים</option>
-                  {usersList.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name} ({u.email})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            <div className="date-inputs">
-              <div className="form-group">
-                <label htmlFor="startDate">תאריך התחלה:</label>
-                <input
-                  type="date"
-                  id="startDate"
-                  value={reportStartDate}
-                  onChange={(e) => setReportStartDate(e.target.value)}
-                  max={new Date().toISOString().split("T")[0]}
+      <BrowserRouter>
+        <Header user={currentUser} onLogout={handleLogout} />
+        <main>
+          <Routes>
+            {/* ניתוב למנהל */}
+            {currentUser.role === "manager" && (
+              <>
+                <Route
+                  path="/"
+                  element={
+                    <Dashboard employees={employees} attendance={attendance} />
+                  }
                 />
-              </div>
-              <div className="form-group">
-                <label htmlFor="endDate">תאריך סיום:</label>
-                <input
-                  type="date"
-                  id="endDate"
-                  value={reportEndDate}
-                  onChange={(e) => setReportEndDate(e.target.value)}
-                  max={new Date().toISOString().split("T")[0]}
+                <Route
+                  path="/employees"
+                  element={
+                    <EmployeeList
+                      employees={employees}
+                      onDelete={handleDeleteEmployee}
+                      onAdd={handleAddEmployee}
+                      onUpdate={handleUpdateEmployee}
+                    />
+                  }
                 />
-              </div>
-              <button
-                onClick={generateReport}
-                disabled={isGeneratingReport}
-                className="generate-button"
-              >
-                {isGeneratingReport ? "מייצר דוח..." : "צור דוח"}
-              </button>
-            </div>
-          </section>
-
-          <section className="report-results">
-            <h2 className="section-title">נתוני דוח</h2>
-            {reportData ? (
-              reportData.sessions.length > 0 ? (
-                <div>
-                  <p className="report-summary">
-                    סה"כ נוכחות{" "}
-                    {reportData.userName && `של ${reportData.userName}`}:{" "}
-                    <span className="total-duration">
-                      {formatDuration(reportData.totalDuration)}
-                    </span>
-                  </p>
-                  <div className="table-container">
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>תאריך</th>
-                          <th>שעת כניסה</th>
-                          <th>שעת יציאה</th>
-                          <th>משך זמן</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {reportData.sessions
-                          .sort(
-                            (a, b) =>
-                              new Date(b.clock_in_time).getTime() -
-                              new Date(a.clock_in_time).getTime()
-                          )
-                          .map((session) => (
-                            <tr key={session.id}>
-                              <td>{session.date}</td>
-                              <td>{formatTimestamp(session.clock_in_time)}</td>
-                              <td>
-                                {session.clock_out_time ? (
-                                  formatTimestamp(session.clock_out_time)
-                                ) : (
-                                  <span className="active-session">פעיל</span>
-                                )}
-                              </td>
-                              <td>{formatDuration(session.duration_ms)}</td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ) : (
-                <p className="no-records-message">
-                  לא נמצאו משמרות בתאריכים שנבחרו
-                </p>
-              )
-            ) : (
-              <p className="no-records-message">בחר תאריכים וצור דוח</p>
+                <Route
+                  path="/reports"
+                  element={
+                    <Reports employees={employees} attendance={attendance} />
+                  }
+                />
+                {/* ניתוב למקרה שהמנהל רוצה לראות פאנל עובד ספציפי */}
+                <Route
+                  path="/employee/:id"
+                  element={
+                    <EmployeePanel
+                      attendance={attendance}
+                      onClockInOut={handleClockInOut}
+                      employees={employees}
+                    />
+                  }
+                />
+              </>
             )}
-          </section>
-        </main>
-      )}
 
-      {activeTab === "admin" && isAdmin && (
-        <main className="main-content">
-          <section className="admin-section">
-            <h2 className="section-title">ניהול עובדים</h2>
-            <div className="table-container">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>שם</th>
-                    <th>אימייל</th>
-                    <th>תאריך הרשמה</th>
-                    <th>פעולות</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {usersList.map((user) => (
-                    <tr key={user.id}>
-                      <td>{user.name}</td>
-                      <td>{user.email}</td>
-                      <td>
-                        {new Date(user.created_at).toLocaleDateString("he-IL")}
-                      </td>
-                      <td>
-                        <button
-                          className="action-button"
-                          onClick={() => {
-                            // Placeholder for edit/delete functionality
-                          }}
-                        >
-                          ערוך
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
+            {/* ניתוב לעובד */}
+            {currentUser.role === "employee" && (
+              <>
+                <Route
+                  path="/"
+                  element={
+                    <EmployeePanel
+                      attendance={attendance}
+                      onClockInOut={handleClockInOut}
+                      employees={employees}
+                      currentUser={currentUser}
+                    />
+                  }
+                />
+                {/* הפנייה אוטומטית אם עובד מנסה לגשת לדפים אחרים */}
+                <Route path="*" element={<Navigate to="/" />} />
+              </>
+            )}
+          </Routes>
         </main>
-      )}
+      </BrowserRouter>
     </div>
   );
-};
+}
 
 export default App;

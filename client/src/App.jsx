@@ -2,15 +2,15 @@ import React, { useState, useEffect, useMemo, useCallback, createContext, useCon
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 
 const GlobalCSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800&display=swap');
   :root {
     --primary-color: #6366F1; --primary-hover: #4F46E5; --primary-light: #EEF2FF;
     --secondary-color: #6B7280; --danger-color: #EF4444; --warning-color: #F59E0B;
-    --success-color: #22C55E; --bg-main: #F9FAFB; --bg-sidebar: #FFFFFF;
+    --success-color: #22C55E; --info-color: #3B82F6; --bg-main: #F9FAFB; --bg-sidebar: #FFFFFF;
     --font-dark: #1F2937; --font-light: #6B7280; --border-color: #E5E7EB;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.05); --radius: 8px;
   }
-  body { font-family: 'Rubik', sans-serif; background-color: var(--bg-main); margin: 0; color: var(--font-dark); direction: rtl; }
+  body { font-family: 'Heebo', sans-serif; font-size: 16px; background-color: var(--bg-main); margin: 0; color: var(--font-dark); direction: rtl; line-height: 1.6; }
   .app-layout { display: flex; }
   .sidebar { width: 260px; height: 100vh; position: sticky; top: 0; background-color: var(--bg-sidebar); border-left: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; }
   .main-content { flex-grow: 1; padding: 30px; height: 100vh; overflow-y: auto; }
@@ -22,20 +22,20 @@ const GlobalCSS = `
   .sidebar nav a.active { background-color: var(--primary-light); color: var(--primary-color); font-weight: 600; }
   .sidebar-footer { margin-top: auto; border-top: 1px solid var(--border-color); padding-top: 20px; }
   .dashboard-grid, .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 24px; }
-  h2, h3 { color: var(--font-dark); }
-  h2 { font-size: 24px; font-weight: 600; margin-bottom: 24px; }
-  h3 { font-size: 18px; font-weight: 600; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; }
+  h2, h3 { color: var(--font-dark); font-weight: 700; }
+  h2 { font-size: 28px; margin-bottom: 24px; }
+  h3 { font-size: 20px; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; }
   .card { background-color: var(--bg-sidebar); border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px; margin-bottom: 24px; border: 1px solid var(--border-color); }
-  button { background-color: var(--primary-color); color: white; border: none; padding: 10px 18px; border-radius: var(--radius); cursor: pointer; font-size: 14px; font-family: 'Rubik', sans-serif; transition: all 0.2s ease-in-out; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+  button { background-color: var(--primary-color); color: white; border: none; padding: 10px 18px; border-radius: var(--radius); cursor: pointer; font-size: 16px; font-family: 'Heebo', sans-serif; transition: all 0.2s ease-in-out; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
   button:hover:not(:disabled) { background-color: var(--primary-hover); transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
   button:disabled { background-color: #E2E8F0; border-color: #E2E8F0; color: #94A3B8; cursor: not-allowed; }
   button.secondary { background-color: white; color: var(--font-dark); border: 1px solid #CBD5E1; }
   button.secondary:hover:not(:disabled) { background-color: #F8FAFC; }
   .form-group { margin-bottom: 16px; }
   .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; }
-  input, select, textarea { width: 100%; padding: 8px 12px; border: 1px solid #CBD5E1; border-radius: 6px; box-sizing: border-box; transition: all 0.2s ease; }
+  input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #CBD5E1; border-radius: 6px; box-sizing: border-box; transition: all 0.2s ease; font-size: 16px; }
   input:focus, select:focus, textarea:focus { border-color: var(--primary-color); box-shadow: 0 0 0 2px var(--primary-light); outline: none; }
-  .toggle-switch { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+  .toggle-switch { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; cursor: pointer; }
   .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
   .switch input { opacity: 0; width: 0; height: 0; }
   .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #CBD5E1; transition: .4s; border-radius: 22px; }
@@ -44,14 +44,16 @@ const GlobalCSS = `
   input:checked + .slider:before { transform: translateX(18px); }
   .login-container { display: flex; align-items: center; justify-content: center; height: 100vh; background-color: var(--bg-main); }
   table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-  th, td { padding: 12px 15px; text-align: right; border-bottom: 1px solid var(--border-color); }
-  th { background-color: #F8FAFC; font-weight: 600; color: var(--font-light); font-size: 12px; text-transform: uppercase; }
+  th, td { padding: 14px 16px; text-align: right; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+  th { background-color: #F8FAFC; font-weight: 700; color: var(--font-light); font-size: 12px; text-transform: uppercase; }
   .kpi-card { text-align: center; }
-  .kpi-value { font-size: 28px; font-weight: 700; color: var(--primary-color); margin: 5px 0; }
-  .status-dot { width: 8px; height: 8px; border-radius: 50%; }
-  .status-dot.present { background-color: var(--success-color); }
-  .status-dot.on_break { background-color: var(--warning-color); }
-  .status-dot.absent { background-color: #94A3B8; }
+  .kpi-value { font-size: 32px; font-weight: 800; color: var(--primary-color); margin: 5px 0; }
+  .status-dot, .status-tag-icon { width: 10px; height: 10px; border-radius: 50%; transition: transform 0.2s ease-in-out; }
+  .status-dot.present, .status-tag.selected.present .status-tag-icon { background-color: var(--success-color); }
+  .status-dot.on_break, .status-tag.selected.on_break .status-tag-icon { background-color: var(--secondary-color); }
+  .status-dot.absent, .status-tag.selected.absent .status-tag-icon { background-color: var(--font-light); }
+  .status-dot.sick, .status-tag.selected.sick .status-tag-icon { background-color: var(--warning-color); }
+  .status-dot.vacation, .status-tag.selected.vacation .status-tag-icon { background-color: var(--info-color); }
   .modal-backdrop { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(15, 23, 42, 0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; animation: fadeIn 0.3s ease-out; }
   .modal-content { background: var(--bg-sidebar); padding: 24px; border-radius: var(--radius); box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1); width: 100%; max-width: 500px; position: relative; animation: scaleUp 0.3s ease-out; }
   .modal-close-btn { position: absolute; top: 16px; left: 16px; background: none; border: none; color: var(--font-light); font-size: 24px; cursor: pointer; line-height: 1; }
@@ -65,42 +67,24 @@ const GlobalCSS = `
   .select-all-item { padding-bottom: 10px; border-bottom: 1px solid var(--border-color); margin-bottom: 5px; }
   .employee-select-item input[type="checkbox"], .select-all-item input[type="checkbox"] { cursor: pointer; width: auto; margin: 0 0 0 12px; }
   .payroll-table tfoot td { font-weight: 700; background-color: var(--primary-light); color: var(--primary-hover); border-top: 2px solid var(--primary-color); font-size: 16px; }
+  .status-selector { display: flex; flex-wrap: wrap; gap: 10px; }
+  .status-tag { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border-color); background-color: var(--bg-main); cursor: pointer; transition: all 0.2s ease-in-out; font-size: 14px; font-weight: 500; }
+  .status-tag:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--secondary-color); }
+  .status-tag.selected { color: white; border-color: transparent; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+  .status-tag.selected.present { background: var(--success-color); }
+  .status-tag.selected.on_break { background: var(--secondary-color); }
+  .status-tag.selected.absent { background: var(--font-light); }
+  .status-tag.selected.sick { background: var(--warning-color); }
+  .status-tag.selected.vacation { background: var(--info-color); }
+  .status-tag .status-tag-icon { color: var(--font-light); width: 16px; height: 16px; }
+  .status-tag.selected .status-tag-icon { color: white; }
   .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
   .toast { background-color: var(--font-dark); color: white; padding: 15px 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 10px; display: flex; align-items: center; gap: 10px; animation: slideInUp 0.5s ease, fadeOut 0.5s ease 4.5s forwards; }
 `;
 
-const STATUSES = {
-    ABSENT: {
-        key: 'absent',
-        text: 'לא בעבודה',
-        colorClass: 'absent'
-    },
-    PRESENT: {
-        key: 'present',
-        text: 'נוכח',
-        colorClass: 'present'
-    },
-    ON_BREAK: {
-        key: 'on_break',
-        text: 'בהפסקה',
-        colorClass: 'on_break'
-    },
-    SICK: {
-        key: 'sick',
-        text: 'מחלה',
-        colorClass: 'warning' // נשתמש בצבע של אזהרה
-    },
-    VACATION: {
-        key: 'vacation',
-        text: 'חופשה',
-        colorClass: 'info' // נוסיף צבע 'info' אם צריך, או נשתמש באחר
-    }
-};
-
-const Icon = ({ path, size = 18 }) => { /* ... */ };
-// ... שאר הקוד בחלק זה ...
 const Icon = ({ path, size = 18 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d={path}></path></svg>;
-const ICONS = { DASHBOARD: "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z", EMPLOYEES: "M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z", REPORTS: "M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z", PAYROLL: "M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41s-.22-1.05-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z", SETTINGS: "M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.69-1.62-0.92L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 l-3.84,0c-0.24,0-0.44,0.17-0.48,0.41L9.2,5.59C8.6,5.82,8.08,6.13,7.58,6.51L5.19,5.55C4.97,5.48,4.72,5.55,4.6,5.77L2.68,9.09 c-0.11,0.2-0.06,0.47,0.12,0.61L4.83,11.28c-0.05,0.3-0.07,0.62-0.07,0.94c0,0.32,0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.69,1.62,0.92l0.44,2.78 c0.04,0.24,0.24,0.41,0.48,0.41l3.84,0c0.24,0,0.44-0.17,0.48-0.41l0.44-2.78c0.59-0.23,1.12-0.54,1.62-0.92l2.39,0.96 c0.22,0.08,0.47,0.01,0.59-0.22l1.92-3.32c0.12-0.2,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z", LOGOUT: "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2h8v-2H4V5z"};
+const ICONS = { DASHBOARD: "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z", EMPLOYEES: "M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z", REPORTS: "M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z", PAYROLL: "M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41s-.22-1.05-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z", SETTINGS: "M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.69-1.62-0.92L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 l-3.84,0c-0.24,0-0.44,0.17-0.48,0.41L9.2,5.59C8.6,5.82,8.08,6.13,7.58,6.51L5.19,5.55C4.97,5.48,4.72,5.55,4.6,5.77L2.68,9.09 c-0.11,0.2-0.06,0.47,0.12,0.61L4.83,11.28c-0.05,0.3-0.07,0.62-0.07,0.94c0,0.32,0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.69,1.62,0.92l0.44,2.78 c0.04,0.24,0.24,0.41,0.48,0.41l3.84,0c0.24,0,0.44-0.17,0.48-0.41l0.44-2.78c0.59-0.23,1.12-0.54,1.62-0.92l2.39,0.96 c0.22,0.08,0.47,0.01,0.59-0.22l1.92-3.32c0.12-0.2,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z", LOGOUT: "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2h8v-2H4V5z", ON_BREAK: "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z", SICK: "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z", VACATION: "M21.99 8c0-.55-.45-1-1-1h-2.01V5c0-1.1-.9-2-2-2H7c-1.1 0-2 .9-2 2v2H3c-.55 0-1 .45-1 1s.45 1 1 1h18c.55 0 1-.45 1-1zM7 11h10v8H7v-8z" };
+const STATUSES = { PRESENT: { key: 'present', text: 'נוכח', colorClass: 'present', icon: null }, ON_BREAK: { key: 'on_break', text: 'בהפסקה', colorClass: 'secondary', icon: ICONS.ON_BREAK }, SICK: { key: 'sick', text: 'מחלה', colorClass: 'warning', icon: ICONS.SICK }, VACATION: { key: 'vacation', text: 'חופשה', colorClass: 'info', icon: ICONS.VACATION }, ABSENT: { key: 'absent', text: 'לא בעבודה', colorClass: 'absent', icon: null }};
 const useLocalStorage = (key, initialValue) => { const [value, setValue] = useState(() => { try { const item = localStorage.getItem(key); return item ? JSON.parse(item) : initialValue; } catch (e) { return initialValue; }}); useEffect(() => { try { localStorage.setItem(key, JSON.stringify(value)); } catch(e) { console.error(e); }}, [key, value]); return [value, setValue]; };
 const ToastContext = createContext();
 const ToastProvider = ({ children }) => { const [toasts, setToasts] = useState([]); const addToast = useCallback((message, type='info') => { const id = Date.now(); setToasts(p => [...p, {id,message,type}]); setTimeout(() => setToasts(c => c.filter(t => t.id !== id)), 4000) }, []); return <ToastContext.Provider value={addToast}>{children}<div className="toast-container">{toasts.map(t=><div key={t.id} className="toast" style={{backgroundColor: t.type === 'success' ? 'var(--success-color)' : 'var(--font-dark)'}}>{t.message}</div>)}</div></ToastContext.Provider> };
@@ -108,11 +92,9 @@ const useToaster = () => useContext(ToastContext);
 const calculateHours = (start, end) => end ? ((new Date(end) - new Date(start)) / 36e5) : 0;
 
 const initialData = {
-    employees: [
-        { id: 1, name: "ישראל ישראלי", department: "פיתוח", role: "manager", hourlyRate: 120, status: STATUSES.ABSENT.key },
-        { id: 2, name: "דנה כהן", department: "שיווק", role: "employee", hourlyRate: 60, status: STATUSES.ABSENT.key }
-    ],
-    // ... שאר הנתונים ...
+    employees: [{ id: 1, name: "ישראל ישראלי", department: "פיתוח", role: "manager", hourlyRate: 120, status: STATUSES.ABSENT.key }, { id: 2, name: "דנה כהן", department: "שיווק", role: "employee", hourlyRate: 60, status: STATUSES.ABSENT.key }],
+    attendance: [],
+    settings: { standardWorkDayHours: 8.5, overtimeRatePercent: 150, restrictByIp: true, allowedIps: "192.168.1.1, 8.8.8.8", alertOnLateArrival: true, }
 };
 const dataReducer = (state, action) => {
   switch (action.type) {
@@ -121,7 +103,7 @@ const dataReducer = (state, action) => {
     case 'UPDATE_EMPLOYEE_STATUS': return { ...state, employees: state.employees.map(e => e.id === action.payload.id ? {...e, status: action.payload.status} : e) };
     case 'ADD_ATTENDANCE': return { ...state, attendance: [...state.attendance, action.payload] };
     case 'UPDATE_LAST_ATTENDANCE': { const idx = state.attendance.findLastIndex(a => a.employeeId === action.payload.employeeId && !a.clockOut); if (idx === -1) return state; const newAtt = [...state.attendance]; newAtt[idx] = { ...newAtt[idx], ...action.payload.data }; return { ...state, attendance: newAtt }; }
-    case 'ADD_EMPLOYEE': return { ...state, employees: [...state.employees, { ...action.payload, id: Date.now(), status: 'absent' }] };
+    case 'ADD_EMPLOYEE': return { ...state, employees: [...state.employees, { ...action.payload, id: Date.now(), status: STATUSES.ABSENT.key }] };
     case 'UPDATE_EMPLOYEE': return { ...state, employees: state.employees.map(e => e.id === action.payload.id ? {...e, ...action.payload} : e) };
     case 'DELETE_EMPLOYEE': return { ...state, employees: state.employees.filter(e => e.id !== action.payload), attendance: state.attendance.filter(a => a.employeeId !== action.payload) };
     default: return state;
@@ -139,11 +121,11 @@ function Dashboard() {
         if (!state || !state.settings || !state.employees || !state.attendance) { return { totalHours: 0, overtimeHours: 0, totalPay: 0, presentCount: 0 }; }
         let totalHours = 0, overtimeHours = 0, totalPay = 0;
         const todayStr = new Date().toDateString();
-        const activeEmployees = state.employees.filter(emp => emp.status !== 'absent');
+        const activeEmployees = state.employees.filter(emp => emp.status !== STATUSES.ABSENT.key);
         activeEmployees.forEach(emp => {
             const todayEntries = state.attendance.filter(a => a.employeeId === emp.id && new Date(a.clockIn).toDateString() === todayStr);
             let empTodayHours = 0;
-            todayEntries.forEach(entry => { empTodayHours += calculateHours(entry.clockIn, entry.clockOut || (emp.status !== 'absent' ? new Date().toISOString() : null)); });
+            todayEntries.forEach(entry => { empTodayHours += calculateHours(entry.clockIn, entry.clockOut || (emp.status !== STATUSES.ABSENT.key ? new Date().toISOString() : null)); });
             const validEmpHours = Number(empTodayHours) || 0;
             const maxHours = Number(state.settings.standardWorkDayHours) || 9;
             const hourlyRate = Number(emp.hourlyRate) || 0;
@@ -174,17 +156,22 @@ function Dashboard() {
 function RealTimePresenceCard() {
     const { state, dispatch } = useContext(AppContext);
     const toaster = useToaster();
-    const handleStatusChange = (employee, newStatus) => {
-        if (employee.status === newStatus) return;
+    const handleStatusChange = (employee, newStatusKey) => {
+        if (employee.status === newStatusKey) return;
         const now = new Date().toISOString();
-        if (newStatus === 'present') {
+        const newStatusObject = Object.values(STATUSES).find(s => s.key === newStatusKey);
+        const toasterMessage = `${employee.name} שינה סטטוס ל: ${newStatusObject.text}`;
+        
+        if (newStatusKey === STATUSES.PRESENT.key) {
             dispatch({ type: 'ADD_ATTENDANCE', payload: { id: Date.now(), employeeId: employee.id, clockIn: now, clockOut: null } });
-            toaster(`${employee.name} נכנס/ה למשמרת`);
-        } else if (newStatus === 'absent') {
+            toaster(toasterMessage, 'success');
+        } else if (employee.status === STATUSES.PRESENT.key && newStatusKey === STATUSES.ABSENT.key) {
             dispatch({ type: 'UPDATE_LAST_ATTENDANCE', payload: { employeeId: employee.id, data: { clockOut: now } } });
-            toaster(`${employee.name} יצא/ה מהמשמרת`);
-        } else { toaster(`${employee.name} יצא/ה להפסקה`); }
-        dispatch({ type: 'UPDATE_EMPLOYEE_STATUS', payload: { id: employee.id, status: newStatus } });
+            toaster(toasterMessage);
+        } else {
+            toaster(toasterMessage);
+        }
+        dispatch({ type: 'UPDATE_EMPLOYEE_STATUS', payload: { id: employee.id, status: newStatusKey } });
     };
     return (
         <div className="card">
@@ -193,9 +180,9 @@ function RealTimePresenceCard() {
                 <div key={emp.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border-color)' }}>
                     <div><div style={{fontWeight: 500}}>{emp.name}</div><div style={{fontSize: '14px', color: 'var(--font-light)'}}>{emp.department}</div></div>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                        <button onClick={() => handleStatusChange(emp, 'present')} disabled={emp.status !== 'absent'} className="secondary">כניסה</button>
-                        <button onClick={() => handleStatusChange(emp, 'on_break')} disabled={emp.status !== 'present'} className="secondary">הפסקה</button>
-                        <button onClick={() => handleStatusChange(emp, 'absent')} disabled={emp.status === 'absent'} className="secondary">יציאה</button>
+                        <button onClick={() => handleStatusChange(emp, STATUSES.PRESENT.key)} disabled={emp.status !== STATUSES.ABSENT.key} className="secondary">{STATUSES.PRESENT.text}</button>
+                        <button onClick={() => handleStatusChange(emp, STATUSES.ON_BREAK.key)} disabled={emp.status !== STATUSES.PRESENT.key} className="secondary">{STATUSES.ON_BREAK.text}</button>
+                        <button onClick={() => handleStatusChange(emp, STATUSES.ABSENT.key)} disabled={emp.status === STATUSES.ABSENT.key} className="secondary">יציאה</button>
                     </div>
                 </div>
             ))}
@@ -204,17 +191,21 @@ function RealTimePresenceCard() {
 }
 
 function EmployeeForm({ initialData, onSave, onCancel }) {
-    const [formData, setFormData] = useState({ name: '', department: '', hourlyRate: '', role: 'employee' });
-    useEffect(() => { setFormData(initialData || { name: '', department: '', hourlyRate: '', role: 'employee' }) }, [initialData]);
-    const handleChange = e => setFormData({...formData, [e.target.name]: e.target.value});
+    const [formData, setFormData] = useState({ name: '', department: '', hourlyRate: '', role: 'employee', status: STATUSES.ABSENT.key });
+    useEffect(() => { if (initialData) { setFormData(initialData); } else { setFormData({ name: '', department: '', hourlyRate: '', role: 'employee', status: STATUSES.ABSENT.key }); }}, [initialData]);
+    const handleChange = e => { const { name, value } = e.target; setFormData(prev => ({ ...prev, [name]: value })); };
+    const handleStatusChange = (statusKey) => { setFormData(prev => ({ ...prev, status: statusKey })); };
+    const handleSubmit = e => { e.preventDefault(); onSave(formData); };
+
     return (
-        <form onSubmit={e=>{e.preventDefault(); onSave(formData)}}>
+        <form onSubmit={handleSubmit}>
             <h3 style={{marginTop: 0, borderBottom: 'none'}}>{initialData ? 'עריכת פרטי עובד' : 'הוספת עובד חדש'}</h3>
             <p style={{marginTop: 0, marginBottom: '24px', color: 'var(--font-light)'}}>מלא את הפרטים הבאים כדי להוסיף או לעדכן עובד במערכת.</p>
             <FormInput label="שם מלא" name="name" value={formData.name} onChange={handleChange} required />
             <FormInput label="מחלקה" name="department" value={formData.department} onChange={handleChange} required />
             <FormInput label="תעריף שעתי (₪)" type="number" name="hourlyRate" value={formData.hourlyRate} onChange={handleChange} required />
             <div className="form-group"><label>תפקיד</label><select name="role" value={formData.role} onChange={handleChange}><option value="employee">עובד</option><option value="manager">מנהל</option></select></div>
+            {initialData && (<div className="form-group"><label>סטטוס נוכחי</label><div className="status-selector">{Object.values(STATUSES).map(statusInfo => (<div key={statusInfo.key} className={`status-tag ${formData.status === statusInfo.key ? 'selected ' + statusInfo.colorClass : ''}`} onClick={() => handleStatusChange(statusInfo.key)}>{statusInfo.icon ? <Icon path={statusInfo.icon} className="status-tag-icon" /> : <div className={`status-dot ${statusInfo.colorClass}`}></div>}<span>{statusInfo.text}</span></div>))}</div></div>)}
             <div style={{display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px'}}><button type="button" className="secondary" onClick={onCancel}>ביטול</button><button type="submit">שמור</button></div>
         </form>
     );
@@ -242,12 +233,36 @@ function EmployeeList() {
     const handleEdit = (employee) => { setEditingEmployee(employee); setIsModalOpen(true); };
     const handleDelete = (employee) => { if (window.confirm(`האם אתה בטוח שברצונך למחוק את ${employee.name}?`)) { dispatch({ type: 'DELETE_EMPLOYEE', payload: employee.id }); toaster(`${employee.name} נמחק בהצלחה.`); } };
     const handleSave = (employeeData) => { if (editingEmployee) { dispatch({ type: 'UPDATE_EMPLOYEE', payload: { ...employeeData, id: editingEmployee.id } }); toaster('פרטי העובד עודכנו!', 'success'); } else { dispatch({ type: 'ADD_EMPLOYEE', payload: employeeData }); toaster('עובד חדש נוסף בהצלחה!', 'success'); } setIsModalOpen(false); };
+    
     return (
         <>
             <div className="card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><h2>ניהול עובדים</h2><button onClick={handleAddNew}>הוסף עובד חדש</button></div>
-                <table><thead><tr><th>שם</th><th>מחלקה</th><th>תעריף</th><th>סטטוס</th><th>פעולות</th></tr></thead>
-                <tbody>{state.employees.map(emp => (<tr key={emp.id}><td>{emp.name}</td><td>{emp.department}</td><td>₪{emp.hourlyRate}/שעה</td><td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div className={`status-dot ${emp.status}`}></div><span>{emp.status}</span></div></td><td><button className="secondary" onClick={() => handleEdit(emp)}>ערוך</button><button className="secondary" onClick={() => handleDelete(emp)} style={{ marginRight: 10, borderColor: 'var(--danger-color)', color: 'var(--danger-color)' }}>מחק</button></td></tr>))}</tbody></table>
+                <table>
+                    <thead><tr><th>שם</th><th>מחלקה</th><th>תעריף</th><th>סטטוס</th><th>פעולות</th></tr></thead>
+                    <tbody>
+                        {state.employees.map(emp => {
+                            const statusObject = Object.values(STATUSES).find(s => s.key === emp.status) || STATUSES.ABSENT;
+                            return (
+                                <tr key={emp.id}>
+                                    <td>{emp.name}</td>
+                                    <td>{emp.department}</td>
+                                    <td>₪{emp.hourlyRate}/שעה</td>
+                                    <td>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <div className={`status-dot ${statusObject.colorClass}`}></div>
+                                            <span>{statusObject.text}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <button className="secondary" onClick={() => handleEdit(emp)}>ערוך</button>
+                                        <button className="secondary" onClick={() => handleDelete(emp)} style={{ marginRight: 10, borderColor: 'var(--danger-color)', color: 'var(--danger-color)' }}>מחק</button>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
             </div>
             <EmployeeModal show={isModalOpen} onClose={() => setIsModalOpen(false)} employee={editingEmployee} onSave={handleSave} />
         </>
@@ -287,7 +302,6 @@ function ReportsPage() {
 }
 
 function SettingsPage() { const { state, dispatch } = useContext(AppContext); const [settings, setSettings] = useState(state.settings); const toaster = useToaster(); useEffect(() => { setSettings(state.settings) }, [state.settings]); const handleChange = (e) => { const { name, value, type, checked } = e.target; setSettings(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value })); }; const handleSave = () => { dispatch({ type: 'UPDATE_SETTINGS', payload: settings }); toaster('ההגדרות נשמרו בהצלחה!', 'success'); }; return (<><div style={{display:'flex', justifyContent: 'space-between', alignItems: 'center'}}><h2 >הגדרות מערכת</h2><button onClick={handleSave}>שמור שינויים</button></div><div className="settings-grid"><div className="card"><h3>מדיניות נוכחות</h3><FormInput label="יום עבודה סטנדרטי (שעות)" type="number" name="standardWorkDayHours" value={settings.standardWorkDayHours} onChange={handleChange} /><ToggleSwitch label="התראה על איחור" name="alertOnLateArrival" checked={settings.alertOnLateArrival} onChange={handleChange} /></div><div className="card"><h3>מדיניות שכר</h3><FormInput label="תעריף שעות נוספות (%)" type="number" name="overtimeRatePercent" value={settings.overtimeRatePercent} onChange={handleChange} /></div><div className="card"><h3>אבטחה</h3><ToggleSwitch label="הגבל החתמה לפי IP" name="restrictByIp" checked={settings.restrictByIp} onChange={handleChange} />{settings.restrictByIp && (<FormTextarea label="כתובות IP מורשות (מופרד בפסיק)" name="allowedIps" value={settings.allowedIps} onChange={handleChange} />)}</div></div></>); }
-
 function PayrollPage() { const { state } = useContext(AppContext); const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]); const [dateRange, setDateRange] = useState({ start: '', end: '' }); const [payrollResult, setPayrollResult] = useState(null); const handleEmployeeSelection = (e) => { const { value, checked } = e.target; const id = parseInt(value); if (checked) { setSelectedEmployeeIds(prev => [...prev, id]); } else { setSelectedEmployeeIds(prev => prev.filter(empId => empId !== id)); } }; const handleSelectAll = (e) => { if (e.target.checked) { setSelectedEmployeeIds(state.employees.filter(emp => emp.role === 'employee').map(emp => emp.id)); } else { setSelectedEmployeeIds([]); } }; const calculatePayroll = () => { if (selectedEmployeeIds.length === 0 || !dateRange.start || !dateRange.end) return null; const startDate = new Date(dateRange.start); const endDate = new Date(dateRange.end); endDate.setHours(23, 59, 59, 999); const details = state.employees.filter(emp => selectedEmployeeIds.includes(emp.id)).map(emp => { const entries = state.attendance.filter(a => a.employeeId === emp.id && new Date(a.clockIn) >= startDate && new Date(a.clockIn) <= endDate); let totalHours = 0, overtimeHours = 0, basePay = 0, overtimePay = 0; entries.forEach(entry => { const hours = calculateHours(entry.clockIn, entry.clockOut); const validHours = Number(hours) || 0; const maxHours = Number(state.settings.standardWorkDayHours) || 9; const hourlyRate = Number(emp.hourlyRate) || 0; const overtimeRatePercent = Number(state.settings.overtimeRatePercent) || 150; totalHours += validHours; const regular = Math.min(validHours, maxHours); const overtime = Math.max(0, validHours - maxHours); overtimeHours += overtime; basePay += regular * hourlyRate; overtimePay += overtime * hourlyRate * (overtimeRatePercent / 100); }); return { id: emp.id, name: emp.name, regularHours: totalHours - overtimeHours, overtimeHours, basePay, overtimePay, totalPay: basePay + overtimePay, }; }); const summary = details.reduce((acc, curr) => { acc.totalRegularHours += curr.regularHours; acc.totalOvertime += curr.overtimeHours; acc.totalBasePay += curr.basePay; acc.totalOvertimePay += curr.overtimePay; acc.totalPay += curr.totalPay; return acc; }, { totalRegularHours: 0, totalOvertime: 0, totalBasePay: 0, totalOvertimePay: 0, totalPay: 0 }); return { details, summary }; }; const handleGenerate = () => { setPayrollResult(calculatePayroll()); }; const handleExportCSV = () => { if (!payrollResult || payrollResult.details.length === 0) return; const headers = ["שם עובד", "שעות רגילות", "שעות נוספות", "שכר בסיס", "תוספת ש\"נ", "סה\"כ לתשלום"]; const rows = payrollResult.details.map(r => [`"${r.name}"`, r.regularHours.toFixed(2), r.overtimeHours.toFixed(2), r.basePay.toFixed(2), r.overtimePay.toFixed(2), r.totalPay.toFixed(2)]); let csvContent = "data:text/csv;charset=utf-8,\uFEFF" + headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n"); const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", `payroll_${dateRange.start}_to_${dateRange.end}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); }; const isReady = selectedEmployeeIds.length > 0 && dateRange.start && dateRange.end; return ( <div className="card"><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><h2>הפקת דוח שכר</h2><button onClick={handleExportCSV} className="secondary" disabled={!payrollResult}>ייצא ל-CSV</button></div><div className="payroll-controls"><div className="control-section"><h3>1. בחר עובדים</h3><div className="employee-select-list"><div className="select-all-item"><input type="checkbox" id="select-all" onChange={handleSelectAll} checked={selectedEmployeeIds.length === state.employees.filter(e => e.role === 'employee').length && state.employees.filter(e => e.role === 'employee').length > 0} /><label htmlFor="select-all">בחר הכל</label></div>{state.employees.filter(emp => emp.role === 'employee').map(emp => (<div key={emp.id} className="employee-select-item"><input type="checkbox" id={`emp-${emp.id}`} value={emp.id} checked={selectedEmployeeIds.includes(emp.id)} onChange={handleEmployeeSelection} /><label htmlFor={`emp-${emp.id}`}>{emp.name}</label></div>))}</div></div><div className="control-section"><h3>2. בחר תקופה</h3><FormInput label="מתאריך" type="date" value={dateRange.start} onChange={e => setDateRange(prev => ({...prev, start: e.target.value}))} /><FormInput label="עד תאריך" type="date" value={dateRange.end} onChange={e => setDateRange(prev => ({...prev, end: e.target.value}))} /></div></div><div style={{textAlign: 'center', marginTop: '24px'}}><button onClick={handleGenerate} disabled={!isReady}>הפק דוח שכר</button></div>{payrollResult && (<div style={{marginTop: '30px', borderTop: '1px solid var(--border-color)', paddingTop: '24px'}}><h3 style={{textAlign: 'center', borderBottom: 'none'}}>דוח שכר לתקופה: {new Date(dateRange.start).toLocaleDateString('he-IL')} - {new Date(dateRange.end).toLocaleDateString('he-IL')}</h3><table className="payroll-table"><thead><tr><th>שם עובד</th><th>שעות רגילות</th><th>שעות נוספות</th><th>שכר בסיס</th><th>תוספת ש"נ</th><th>סה"כ לתשלום</th></tr></thead><tbody>{payrollResult.details.map(r => (<tr key={r.id}><td>{r.name}</td><td>{r.regularHours.toFixed(2)}</td><td>{r.overtimeHours.toFixed(2)}</td><td>₪{r.basePay.toFixed(2)}</td><td>₪{r.overtimePay.toFixed(2)}</td><td style={{fontWeight: 700, fontSize: '16px'}}>₪{r.totalPay.toFixed(2)}</td></tr>))}</tbody><tfoot><tr><td>סה"כ</td><td>{payrollResult.summary.totalRegularHours.toFixed(2)}</td><td>{payrollResult.summary.totalOvertime.toFixed(2)}</td><td>₪{payrollResult.summary.totalBasePay.toFixed(2)}</td><td>₪{payrollResult.summary.totalOvertimePay.toFixed(2)}</td><td>₪{payrollResult.summary.totalPay.toFixed(2)}</td></tr></tfoot></table></div>)}</div> );}
 function Login({ onLogin }) { const { state } = useContext(AppContext); const [employeeId, setEmployeeId] = useState(''); return <div className="login-container"><form className="card" style={{ width: '350px', textAlign: 'center' }} onSubmit={(e) => { e.preventDefault(); onLogin(employeeId); }}><h2>התחברות למערכת</h2><select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} required style={{width: '100%', padding: '10px', marginBottom: '20px', borderRadius: '8px'}}><option value="">בחר/י שם...</option>{state.employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}</select><button type="submit" style={{ width: '100%' }} disabled={!employeeId}>התחבר</button></form></div>; }
 

@@ -17,7 +17,7 @@ const GlobalCSS = `
   .sidebar-header { text-align: center; margin-bottom: 30px; }
   .sidebar-header h1 { margin: 0; color: var(--primary-color); font-weight: 700; }
   .sidebar nav { flex-grow: 1; }
-  .sidebar nav a { display: flex; align-items: center; gap: 12px; padding: 10px 12px; margin-bottom: 4px; border-radius: 6px; text-decoration: none; color: var(--font-light); font-weight: 500; transition: all 0.2s ease; }
+  .sidebar nav a { cursor: pointer; display: flex; align-items: center; gap: 12px; padding: 10px 12px; margin-bottom: 4px; border-radius: 6px; text-decoration: none; color: var(--font-light); font-weight: 500; transition: all 0.2s ease; }
   .sidebar nav a:hover { background-color: var(--primary-light); color: var(--primary-color); }
   .sidebar nav a.active { background-color: var(--primary-light); color: var(--primary-color); font-weight: 600; }
   .sidebar-footer { margin-top: auto; border-top: 1px solid var(--border-color); padding-top: 20px; }
@@ -60,9 +60,10 @@ const GlobalCSS = `
   .payroll-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; background-color: #F8FAFC; padding: 24px; border-radius: var(--radius); margin-bottom: 24px; border: 1px solid var(--border-color); }
   .control-section h3 { margin-top: 0; border: none; padding-bottom: 0; margin-bottom: 16px; }
   .employee-select-list { max-height: 150px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 10px; background: white; }
-  .employee-select-item, .select-all-item { display: flex; align-items: center; padding: 8px 0; }
+  .employee-select-item, .select-all-item { cursor: pointer; display: flex; align-items: center; padding: 8px; border-radius: 4px; transition: background-color 0.2s; }
+  .employee-select-item:hover, .select-all-item:hover { background-color: var(--primary-light); }
   .select-all-item { padding-bottom: 10px; border-bottom: 1px solid var(--border-color); margin-bottom: 5px; }
-  .employee-select-item input[type="checkbox"], .select-all-item input[type="checkbox"] { width: auto; margin: 0 0 0 12px; }
+  .employee-select-item input[type="checkbox"], .select-all-item input[type="checkbox"] { cursor: pointer; width: auto; margin: 0 0 0 12px; }
   .payroll-table tfoot td { font-weight: 700; background-color: var(--primary-light); color: var(--primary-hover); border-top: 2px solid var(--primary-color); font-size: 16px; }
   .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
   .toast { background-color: var(--font-dark); color: white; padding: 15px 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 10px; display: flex; align-items: center; gap: 10px; animation: slideInUp 0.5s ease, fadeOut 0.5s ease 4.5s forwards; }

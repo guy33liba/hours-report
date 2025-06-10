@@ -16,8 +16,14 @@ import {
 } from "react-router-dom";
 import "./styles.css";
 
-const Icon = ({ path, size = 18 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+const Icon = ({ path, size = 18, className = "" }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    className={className}
+  >
     <path d={path}></path>
   </svg>
 );
@@ -30,12 +36,13 @@ const ICONS = {
   PAYROLL:
     "M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41s-.22-1.05-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z",
   SETTINGS:
-    "M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.69-1.62-0.92L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 l-3.84,0c-0.24,0-0.44,0.17-0.48,0.41L9.2,5.59C8.6,5.82,8.08,6.13,7.58,6.51L5.19,5.55C4.97,5.48,4.72,5.55,4.6,5.77L2.68,9.09 c-0.11,0.2-0.06,0.47,0.12,0.61L4.83,11.28c-0.05,0.3-0.07,0.62-0.07,0.94c0,0.32,0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.69,1.62,0.92l0.44,2.78 c0.04,0.24,0.24,0.41,0.48,0.41l3.84,0c0.24,0,0.44-0.17,0.48-0.41l0.44-2.78c0.59-0.23,1.12-0.54,1.62-0.92l2.39,0.96 c0.22,0.08,0.47,0.01,0.59-0.22l1.92-3.32c0.12-0.2,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z",
+    "M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.69-1.62-0.92L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 l-3.84,0c-0.24,0-0.44,0.17-0.48,0.41L9.2,5.59C8.6,5.82,8.08,6.13,7.58,6.51L5.19,5.55C4.97,5.48,4.72,5.55,4.6,5.77L2.68,9.09 c-0.11,0.2-0.06,0.47,0.12,0.61L4.83,11.28c-0.05,0.3-0.07,0.62-0.07,0.94c0,0.32,0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.69,1.62,0.92l0.44,2.78 c0.04,0.24,0.24,0.41,0.48,0.41l3.84,0c0.24,0,0.44-0.17,0.48,0.41l0.44-2.78c0.59-0.23,1.12-0.54,1.62-0.92l2.39,0.96 c0.22,0.08,0.47,0.01,0.59-0.22l1.92-3.32c0.12-0.2,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z",
   LOGOUT:
     "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2h8v-2H4V5z",
+  DOWNLOAD: "M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z",
+  SORT: "M3 18h6v-2H3v2zM3 6v2h18V6H3zm0 7h12v-2H3v2z",
 };
 
-// סטטוס "בהפסקה" הוסר
 const STATUSES = {
   PRESENT: { key: "present", text: "נוכח", colorClass: "present" },
   SICK: { key: "sick", text: "מחלה", colorClass: "sick" },
@@ -96,7 +103,6 @@ const ToastProvider = ({ children }) => {
 };
 const useToaster = () => useContext(ToastContext);
 
-// פונקציית חישוב פשוטה יותר
 const calculateHours = (attendanceEntry) => {
   if (!attendanceEntry || !attendanceEntry.clockIn) return 0;
   const clockOutTime = attendanceEntry.clockOut
@@ -125,6 +131,22 @@ const initialData = {
       hourlyRate: 60,
       status: STATUSES.ABSENT.key,
     },
+    {
+      id: 3,
+      name: "אבי לוי",
+      department: "פיתוח",
+      role: "employee",
+      hourlyRate: 90,
+      status: STATUSES.ABSENT.key,
+    },
+    {
+      id: 4,
+      name: "רותם חן",
+      department: "תמיכה",
+      role: "employee",
+      hourlyRate: 55,
+      status: STATUSES.ABSENT.key,
+    },
   ],
   attendance: [],
   scheduledAbsences: [],
@@ -133,6 +155,9 @@ const initialData = {
     overtimeRatePercent: 150,
     restrictByIp: true,
     allowedIps: "192.168.1.1, 8.8.8.8",
+    // --- NEW SETTINGS ---
+    paidVacation: true,
+    paidSickLeave: true,
   },
 };
 
@@ -233,6 +258,57 @@ const ToggleSwitch = ({ label, checked, onChange, name }) => (
   </div>
 );
 
+const useSortableData = (items, config = null) => {
+  const [sortConfig, setSortConfig] = useState(config);
+
+  const sortedItems = useMemo(() => {
+    let sortableItems = [...items];
+    if (sortConfig !== null) {
+      sortableItems.sort((a, b) => {
+        const valA = a[sortConfig.key];
+        const valB = b[sortConfig.key];
+        if (valA < valB) {
+          return sortConfig.direction === "ascending" ? -1 : 1;
+        }
+        if (valA > valB) {
+          return sortConfig.direction === "ascending" ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [items, sortConfig]);
+
+  const requestSort = (key) => {
+    let direction = "ascending";
+    if (
+      sortConfig &&
+      sortConfig.key === key &&
+      sortConfig.direction === "ascending"
+    ) {
+      direction = "descending";
+    }
+    setSortConfig({ key, direction });
+  };
+
+  return { items: sortedItems, requestSort, sortConfig };
+};
+
+const SortableHeader = ({ children, name, sortConfig, requestSort }) => {
+  const isSorted = sortConfig && sortConfig.key === name;
+  const directionClass = isSorted
+    ? sortConfig.direction === "ascending"
+      ? "asc"
+      : "desc"
+    : "";
+  return (
+    <th className="sortable" onClick={() => requestSort(name)}>
+      {children}
+      <Icon path={ICONS.SORT} className={`sort-icon ${directionClass}`} />
+    </th>
+  );
+};
+
 function Dashboard() {
   const { state } = useContext(AppContext);
 
@@ -247,40 +323,38 @@ function Dashboard() {
 
     const todayStr = new Date().toDateString();
 
-    // סופרים את כל העובדים שנכנסו היום, גם אם כבר יצאו
-    const employeesWhoWorkedToday = state.employees.filter((emp) =>
-      state.attendance.some(
-        (a) =>
-          a.employeeId === emp.id &&
-          new Date(a.clockIn).toDateString() === todayStr
-      )
-    );
-
-    employeesWhoWorkedToday.forEach((emp) => {
-      const todayEntry = state.attendance.findLast(
+    state.employees.forEach((emp) => {
+      const todayEntries = state.attendance.filter(
         (a) =>
           a.employeeId === emp.id &&
           new Date(a.clockIn).toDateString() === todayStr
       );
 
-      if (!todayEntry) return; // הגנה נוספת
+      if (todayEntries.length === 0) {
+        return;
+      }
+
+      const completedHours = todayEntries
+        .filter((entry) => entry.clockOut)
+        .reduce((sum, entry) => sum + calculateHours(entry), 0);
+
+      const lastEntry = todayEntries[todayEntries.length - 1];
+      let hoursForCalculation;
+
+      if (lastEntry.clockOut) {
+        hoursForCalculation = completedHours;
+      } else {
+        hoursForCalculation = Math.max(
+          state.settings.standardWorkDayHours,
+          completedHours
+        );
+      }
 
       const hourlyRate = Number(emp.hourlyRate) || 0;
       const standardWorkDayHours =
         Number(state.settings.standardWorkDayHours) || 0;
       const overtimeRatePercent =
         Number(state.settings.overtimeRatePercent) || 0;
-
-      let hoursForCalculation;
-
-      // הלוגיקה המרכזית: האם העובד כבר יצא?
-      if (todayEntry.clockOut) {
-        // אם כן, חשב לפי הזמן האמיתי שעבד
-        hoursForCalculation = calculateHours(todayEntry);
-      } else {
-        // אם לא, חשב לפי תחזית של יום עבודה מלא
-        hoursForCalculation = standardWorkDayHours;
-      }
 
       const regularHours = Math.min(hoursForCalculation, standardWorkDayHours);
       const otHours = Math.max(0, hoursForCalculation - standardWorkDayHours);
@@ -292,7 +366,6 @@ function Dashboard() {
         otHours * hourlyRate * (overtimeRatePercent / 100);
     });
 
-    // ספירת הנוכחים בזמן אמת נשארת כפי שהייתה
     const presentCount = state.employees.filter(
       (emp) => emp.status === STATUSES.PRESENT.key
     ).length;
@@ -306,7 +379,9 @@ function Dashboard() {
   }, [state]);
   return (
     <>
-      <h2>סקירה כללית</h2>
+      <div className="page-header">
+        <h2>סקירה כללית</h2>
+      </div>
       <div
         className="dashboard-grid"
         style={{ gridTemplateColumns: "repeat(4, 1fr)", gap: "20px" }}
@@ -359,15 +434,11 @@ function SettingsPage() {
 
   return (
     <>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
+      <div className="page-header">
         <h2>הגדרות מערכת</h2>
-        <button onClick={handleSave}>שמור שינויים</button>
+        <div className="page-actions">
+          <button onClick={handleSave}>שמור שינויים</button>
+        </div>
       </div>
       <div className="settings-grid">
         <div className="card">
@@ -387,6 +458,19 @@ function SettingsPage() {
             type="number"
             name="overtimeRatePercent"
             value={settings.overtimeRatePercent}
+            onChange={handleChange}
+          />
+          {/* --- NEW: Paid absence toggles --- */}
+          <ToggleSwitch
+            label="תשלום עבור ימי חופשה"
+            name="paidVacation"
+            checked={settings.paidVacation}
+            onChange={handleChange}
+          />
+          <ToggleSwitch
+            label="תשלום עבור ימי מחלה"
+            name="paidSickLeave"
+            checked={settings.paidSickLeave}
             onChange={handleChange}
           />
         </div>
@@ -427,12 +511,10 @@ function RealTimePresenceCard() {
         const data = await response.json();
         const userIp = data.ip;
 
-        // --- שיפור כאן ---
-        // מנקה רווחים מכל כתובת IP ברשימה לפני ההשוואה
         const allowedIps = settings.allowedIps
           .split(",")
-          .map((ip) => ip.trim()) // .trim() מסיר רווחים מההתחלה והסוף
-          .filter((ip) => ip); // מסנן החוצה מחרוזות ריקות אם יש פסיקים כפולים
+          .map((ip) => ip.trim())
+          .filter((ip) => ip);
 
         if (!allowedIps.includes(userIp)) {
           toaster(
@@ -797,12 +879,8 @@ function AbsenceManagementModal({
                 </div>
                 <button
                   onClick={() => onDelete(absence.id)}
-                  className="secondary"
-                  style={{
-                    borderColor: "var(--danger-color)",
-                    color: "var(--danger-color)",
-                    padding: "5px 10px",
-                  }}
+                  className="danger secondary"
+                  style={{ padding: "5px 10px" }}
                 >
                   מחק
                 </button>
@@ -823,6 +901,31 @@ function EmployeeList() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAbsenceModalOpen, setIsAbsenceModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("");
+
+  const filteredEmployees = useMemo(() => {
+    return state.employees
+      .filter((emp) =>
+        emp.name.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .filter(
+        (emp) => departmentFilter === "" || emp.department === departmentFilter
+      );
+  }, [state.employees, searchTerm, departmentFilter]);
+
+  const {
+    items: sortedEmployees,
+    requestSort,
+    sortConfig,
+  } = useSortableData(filteredEmployees, {
+    key: "name",
+    direction: "ascending",
+  });
+
+  const uniqueDepartments = useMemo(() => {
+    return [...new Set(state.employees.map((emp) => emp.department))];
+  }, [state.employees]);
 
   const handleOpenEdit = (employee) => {
     setSelectedEmployee(employee);
@@ -862,15 +965,9 @@ function EmployeeList() {
 
   return (
     <>
-      <div className="card">
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <h2>ניהול עובדים</h2>
+      <div className="page-header">
+        <h2>ניהול עובדים</h2>
+        <div className="page-actions">
           <button
             onClick={() => {
               setSelectedEmployee(null);
@@ -880,18 +977,59 @@ function EmployeeList() {
             הוסף עובד חדש
           </button>
         </div>
+      </div>
+
+      <div className="filter-controls">
+        <input
+          type="text"
+          placeholder="חיפוש לפי שם..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        <select
+          value={departmentFilter}
+          onChange={(e) => setDepartmentFilter(e.target.value)}
+        >
+          <option value="">כל המחלקות</option>
+          {uniqueDepartments.map((dep) => (
+            <option key={dep} value={dep}>
+              {dep}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="card">
         <table>
           <thead>
             <tr>
-              <th>שם</th>
-              <th>מחלקה</th>
-              <th>תעריף</th>
+              <SortableHeader
+                name="name"
+                sortConfig={sortConfig}
+                requestSort={requestSort}
+              >
+                שם
+              </SortableHeader>
+              <SortableHeader
+                name="department"
+                sortConfig={sortConfig}
+                requestSort={requestSort}
+              >
+                מחלקה
+              </SortableHeader>
+              <SortableHeader
+                name="hourlyRate"
+                sortConfig={sortConfig}
+                requestSort={requestSort}
+              >
+                תעריף
+              </SortableHeader>
               <th>סטטוס נוכחי</th>
               <th>פעולות</th>
             </tr>
           </thead>
           <tbody>
-            {state.employees.map((emp) => {
+            {sortedEmployees.map((emp) => {
               const statusObject =
                 Object.values(STATUSES).find((s) => s.key === emp.status) ||
                 STATUSES.ABSENT;
@@ -928,12 +1066,8 @@ function EmployeeList() {
                       היעדרויות
                     </button>
                     <button
-                      className="secondary"
+                      className="danger secondary"
                       onClick={() => handleDeleteEmployee(emp)}
-                      style={{
-                        borderColor: "var(--danger-color)",
-                        color: "var(--danger-color)",
-                      }}
                     >
                       מחק
                     </button>
@@ -968,6 +1102,41 @@ function EmployeeList() {
   );
 }
 
+function exportToCsv(filename, rows) {
+  if (!rows || !rows.length) {
+    return;
+  }
+  const separator = ",";
+  const keys = Object.keys(rows[0]);
+  const csvContent =
+    "\uFEFF" + // UTF-8 BOM for Excel
+    keys.join(separator) +
+    "\n" +
+    rows
+      .map((row) => {
+        return keys
+          .map((k) => {
+            let cell = row[k] === null || row[k] === undefined ? "" : row[k];
+            cell = String(cell).replace(/"/g, '""');
+            return `"${cell}"`;
+          })
+          .join(separator);
+      })
+      .join("\n");
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
+
 function ReportsPage() {
   const { state } = useContext(AppContext);
   const [range, setRange] = useState({ start: "", end: "" });
@@ -997,62 +1166,81 @@ function ReportsPage() {
           ot * emp.hourlyRate * (state.settings.overtimeRatePercent / 100);
       });
       return {
-        id: emp.id,
-        name: emp.name,
-        department: emp.department,
-        totalHours,
-        overtime,
-        pay,
+        ID: emp.id,
+        שם: emp.name,
+        מחלקה: emp.department,
+        "סהכ שעות": totalHours.toFixed(2),
+        "שעות נוספות": overtime.toFixed(2),
+        "שכר משוער (שח)": pay.toFixed(2),
       };
     });
   }, [range, state]);
 
+  const handleExport = () => {
+    const filename = `report_${range.start}_to_${range.end}.csv`;
+    exportToCsv(filename, reportData);
+  };
+
   return (
-    <div className="card">
-      <h2>דוחות נוכחות</h2>
-      <div style={{ display: "flex", gap: 20, marginBottom: 20 }}>
-        <input
-          type="date"
-          value={range.start}
-          onChange={(e) => setRange({ ...range, start: e.target.value })}
-        />
-        <input
-          type="date"
-          value={range.end}
-          onChange={(e) => setRange({ ...range, end: e.target.value })}
-        />
+    <>
+      <div className="page-header">
+        <h2>דוחות נוכחות</h2>
+        <div className="page-actions">
+          <button
+            className="secondary"
+            onClick={handleExport}
+            disabled={!reportData.length}
+          >
+            <Icon path={ICONS.DOWNLOAD} />
+            ייצא ל-CSV
+          </button>
+        </div>
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>שם עובד</th>
-            <th>מחלקה</th>
-            <th>סה"כ שעות</th>
-            <th>שעות נוספות</th>
-            <th>שכר משוער</th>
-          </tr>
-        </thead>
-        <tbody>
-          {reportData.length > 0 ? (
-            reportData.map((r) => (
-              <tr key={r.id}>
-                <td>{r.name}</td>
-                <td>{r.department}</td>
-                <td>{r.totalHours.toFixed(2)}</td>
-                <td>{r.overtime.toFixed(2)}</td>
-                <td>₪{r.pay.toFixed(2)}</td>
-              </tr>
-            ))
-          ) : (
+      <div className="card">
+        <div style={{ display: "flex", gap: 20, marginBottom: 20 }}>
+          <input
+            type="date"
+            value={range.start}
+            onChange={(e) => setRange({ ...range, start: e.target.value })}
+          />
+          <input
+            type="date"
+            value={range.end}
+            onChange={(e) => setRange({ ...range, end: e.target.value })}
+          />
+        </div>
+        <table>
+          <thead>
             <tr>
-              <td colSpan="5" style={{ textAlign: "center", padding: "20px" }}>
-                יש לבחור טווח תאריכים.
-              </td>
+              {reportData.length > 0 &&
+                Object.keys(reportData[0]).map((key) => (
+                  <th key={key}>{key}</th>
+                ))}
             </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {reportData.length > 0 ? (
+              reportData.map((r) => (
+                <tr key={r.ID}>
+                  {Object.values(r).map((val, index) => (
+                    <td key={index}>{val}</td>
+                  ))}
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td
+                  colSpan="6"
+                  style={{ textAlign: "center", padding: "20px" }}
+                >
+                  יש לבחור טווח תאריכים להצגת הדוח.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 
@@ -1075,15 +1263,26 @@ function PayrollPage() {
             .map((emp) => emp.id)
         : []
     );
+
   const calculatePayroll = () => {
     if (selectedEmployeeIds.length === 0 || !dateRange.start || !dateRange.end)
       return null;
+
     const startDate = new Date(dateRange.start);
     const endDate = new Date(dateRange.end);
     endDate.setHours(23, 59, 59, 999);
+
     const details = state.employees
       .filter((emp) => selectedEmployeeIds.includes(emp.id))
       .map((emp) => {
+        const {
+          standardWorkDayHours,
+          overtimeRatePercent,
+          paidVacation,
+          paidSickLeave,
+        } = state.settings;
+
+        // Work hours calculation
         const entries = state.attendance.filter(
           (a) =>
             a.employeeId === emp.id &&
@@ -1096,17 +1295,43 @@ function PayrollPage() {
           overtimePay = 0;
         entries.forEach((entry) => {
           const hours = calculateHours(entry);
-          const regularHours = Math.min(
-            hours,
-            state.settings.standardWorkDayHours
-          );
-          const ot = Math.max(0, hours - state.settings.standardWorkDayHours);
+          const regularHours = Math.min(hours, standardWorkDayHours);
+          const ot = Math.max(0, hours - standardWorkDayHours);
           totalHours += hours;
           overtimeHours += ot;
           basePay += regularHours * emp.hourlyRate;
-          overtimePay +=
-            ot * emp.hourlyRate * (state.settings.overtimeRatePercent / 100);
+          overtimePay += ot * emp.hourlyRate * (overtimeRatePercent / 100);
         });
+
+        // Absence calculation
+        let vacationDays = 0,
+          sickDays = 0;
+        state.scheduledAbsences
+          .filter(
+            (a) =>
+              a.employeeId === emp.id &&
+              (a.type === "vacation" || a.type === "sick")
+          )
+          .forEach((absence) => {
+            let current = new Date(absence.startDate);
+            let end = new Date(absence.endDate);
+            while (current <= end) {
+              if (current >= startDate && current <= endDate) {
+                if (absence.type === "vacation") vacationDays++;
+                else if (absence.type === "sick") sickDays++;
+              }
+              current.setDate(current.getDate() + 1);
+            }
+          });
+
+        const vacationPay = paidVacation
+          ? vacationDays * standardWorkDayHours * emp.hourlyRate
+          : 0;
+        const sickPay = paidSickLeave
+          ? sickDays * standardWorkDayHours * emp.hourlyRate
+          : 0;
+        const totalPay = basePay + overtimePay + vacationPay + sickPay;
+
         return {
           id: emp.id,
           name: emp.name,
@@ -1114,150 +1339,226 @@ function PayrollPage() {
           overtimeHours,
           basePay,
           overtimePay,
-          totalPay: basePay + overtimePay,
+          vacationDays,
+          vacationPay,
+          sickDays,
+          sickPay,
+          totalPay,
         };
       });
+
     const summary = details.reduce(
       (acc, curr) => ({
-        totalRegularHours: acc.totalRegularHours + curr.regularHours,
-        totalOvertime: acc.totalOvertime + curr.overtimeHours,
         totalBasePay: acc.totalBasePay + curr.basePay,
         totalOvertimePay: acc.totalOvertimePay + curr.overtimePay,
+        totalVacationPay: acc.totalVacationPay + curr.vacationPay,
+        totalSickPay: acc.totalSickPay + curr.sickPay,
         totalPay: acc.totalPay + curr.totalPay,
+        employeeCount: acc.employeeCount + 1,
       }),
       {
-        totalRegularHours: 0,
-        totalOvertime: 0,
         totalBasePay: 0,
         totalOvertimePay: 0,
+        totalVacationPay: 0,
+        totalSickPay: 0,
         totalPay: 0,
+        employeeCount: 0,
       }
     );
     return { details, summary };
   };
+
   const handleGenerate = () => setPayrollResult(calculatePayroll());
+
+  const handleExport = () => {
+    if (!payrollResult) return;
+    const filename = `payroll_${dateRange.start}_to_${dateRange.end}.csv`;
+    const dataToExport = payrollResult.details.map((d) => ({
+      שם: d.name,
+      "שעות רגילות": d.regularHours.toFixed(2),
+      "שעות נוספות": d.overtimeHours.toFixed(2),
+      "שכר בסיס": d.basePay.toFixed(2),
+      'שכר ש"נ': d.overtimePay.toFixed(2),
+      "ימי חופשה": d.vacationDays,
+      "תשלום חופשה": d.vacationPay.toFixed(2),
+      "ימי מחלה": d.sickDays,
+      "תשלום מחלה": d.sickPay.toFixed(2),
+      'סה"כ לתשלום': d.totalPay.toFixed(2),
+    }));
+    exportToCsv(filename, dataToExport);
+  };
+
   return (
-    <div className="card">
-      <h2>הפקת דוח שכר</h2>
-      <div className="payroll-controls">
-        <div className="control-section">
-          <h3>1. בחר עובדים</h3>
-          <div className="employee-select-list">
-            <div className="select-all-item">
-              <input
-                type="checkbox"
-                id="select-all"
-                onChange={handleSelectAll}
-                checked={
-                  selectedEmployeeIds.length ===
+    <>
+      <div className="page-header">
+        <h2>הפקת דוח שכר</h2>
+        <div className="page-actions">
+          {payrollResult && (
+            <button className="secondary" onClick={handleExport}>
+              <Icon path={ICONS.DOWNLOAD} />
+              ייצא ל-CSV
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="card">
+        <div className="payroll-controls">
+          <div className="control-section">
+            <h3>1. בחר עובדים</h3>
+            <div className="employee-select-list">
+              <div className="select-all-item">
+                <input
+                  type="checkbox"
+                  id="select-all"
+                  onChange={handleSelectAll}
+                  checked={
+                    selectedEmployeeIds.length ===
+                      state.employees.filter((e) => e.role === "employee")
+                        .length &&
                     state.employees.filter((e) => e.role === "employee")
-                      .length &&
-                  state.employees.filter((e) => e.role === "employee").length >
-                    0
-                }
-              />
-              <label htmlFor="select-all">בחר הכל</label>
+                      .length > 0
+                  }
+                />
+                <label htmlFor="select-all">בחר הכל</label>
+              </div>
+              {state.employees
+                .filter((emp) => emp.role === "employee")
+                .map((emp) => (
+                  <div key={emp.id} className="employee-select-item">
+                    <input
+                      type="checkbox"
+                      id={`emp-${emp.id}`}
+                      value={emp.id}
+                      checked={selectedEmployeeIds.includes(emp.id)}
+                      onChange={handleEmployeeSelection}
+                    />
+                    <label htmlFor={`emp-${emp.id}`}>{emp.name}</label>
+                  </div>
+                ))}
             </div>
-            {state.employees
-              .filter((emp) => emp.role === "employee")
-              .map((emp) => (
-                <div key={emp.id} className="employee-select-item">
-                  <input
-                    type="checkbox"
-                    id={`emp-${emp.id}`}
-                    value={emp.id}
-                    checked={selectedEmployeeIds.includes(emp.id)}
-                    onChange={handleEmployeeSelection}
-                  />
-                  <label htmlFor={`emp-${emp.id}`}>{emp.name}</label>
-                </div>
-              ))}
+          </div>
+          <div className="control-section">
+            <h3>2. בחר תקופה</h3>
+            <FormInput
+              label="מתאריך"
+              type="date"
+              value={dateRange.start}
+              onChange={(e) =>
+                setDateRange((p) => ({ ...p, start: e.target.value }))
+              }
+            />
+            <FormInput
+              label="עד תאריך"
+              type="date"
+              value={dateRange.end}
+              onChange={(e) =>
+                setDateRange((p) => ({ ...p, end: e.target.value }))
+              }
+            />
+            <button
+              onClick={handleGenerate}
+              disabled={
+                !(
+                  selectedEmployeeIds.length > 0 &&
+                  dateRange.start &&
+                  dateRange.end
+                )
+              }
+              style={{ width: "100%", marginTop: "16px" }}
+            >
+              הפק דוח שכר
+            </button>
           </div>
         </div>
-        <div className="control-section">
-          <h3>2. בחר תקופה</h3>
-          <FormInput
-            label="מתאריך"
-            type="date"
-            value={dateRange.start}
-            onChange={(e) =>
-              setDateRange((p) => ({ ...p, start: e.target.value }))
-            }
-          />
-          <FormInput
-            label="עד תאריך"
-            type="date"
-            value={dateRange.end}
-            onChange={(e) =>
-              setDateRange((p) => ({ ...p, end: e.target.value }))
-            }
-          />
-        </div>
-      </div>
-      <div style={{ textAlign: "center", marginTop: "24px" }}>
-        <button
-          onClick={handleGenerate}
-          disabled={
-            !(
-              selectedEmployeeIds.length > 0 &&
-              dateRange.start &&
-              dateRange.end
-            )
-          }
-        >
-          הפק דוח שכר
-        </button>
-      </div>
-      {payrollResult && (
-        <div
-          style={{
-            marginTop: "30px",
-            borderTop: "1px solid var(--border-color)",
-            paddingTop: "24px",
-          }}
-        >
-          <h3>
-            דוח שכר לתקופה:{" "}
-            {new Date(dateRange.start).toLocaleDateString("he-IL")} -{" "}
-            {new Date(dateRange.end).toLocaleDateString("he-IL")}
-          </h3>
-          <table className="payroll-table">
-            <thead>
-              <tr>
-                <th>שם עובד</th>
-                <th>שעות רגילות</th>
-                <th>שעות נוספות</th>
-                <th>שכר בסיס</th>
-                <th>תוספת ש"נ</th>
-                <th>סה"כ לתשלום</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payrollResult.details.map((r) => (
-                <tr key={r.id}>
-                  <td>{r.name}</td>
-                  <td>{r.regularHours.toFixed(2)}</td>
-                  <td>{r.overtimeHours.toFixed(2)}</td>
-                  <td>₪{r.basePay.toFixed(2)}</td>
-                  <td>₪{r.overtimePay.toFixed(2)}</td>
-                  <td style={{ fontWeight: 700 }}>₪{r.totalPay.toFixed(2)}</td>
+
+        {payrollResult && (
+          <div
+            style={{
+              marginTop: "30px",
+              borderTop: "1px solid var(--border-color)",
+              paddingTop: "24px",
+            }}
+          >
+            <h3>
+              דוח שכר לתקופה:{" "}
+              {new Date(dateRange.start).toLocaleDateString("he-IL")} -{" "}
+              {new Date(dateRange.end).toLocaleDateString("he-IL")}
+            </h3>
+            <div className="payroll-summary-kpis">
+              <div className="card kpi-card">
+                <h3>סה"כ לתשלום</h3>
+                <p className="kpi-value">
+                  ₪{payrollResult.summary.totalPay.toFixed(2)}
+                </p>
+              </div>
+              <div className="card kpi-card">
+                <h3>שכר בסיס</h3>
+                <p className="kpi-value">
+                  ₪{payrollResult.summary.totalBasePay.toFixed(2)}
+                </p>
+              </div>
+              <div className="card kpi-card">
+                <h3>שכר ש"נ</h3>
+                <p className="kpi-value">
+                  ₪{payrollResult.summary.totalOvertimePay.toFixed(2)}
+                </p>
+              </div>
+              <div className="card kpi-card">
+                <h3>סה"כ עובדים</h3>
+                <p className="kpi-value">
+                  {payrollResult.summary.employeeCount}
+                </p>
+              </div>
+            </div>
+
+            <table className="payroll-table">
+              <thead>
+                <tr>
+                  <th>שם עובד</th>
+                  <th>שכר בסיס</th>
+                  <th>שכר ש"נ</th>
+                  <th>חופשה</th>
+                  <th>מחלה</th>
+                  <th>סה"כ</th>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td>סה"כ</td>
-                <td>{payrollResult.summary.totalRegularHours.toFixed(2)}</td>
-                <td>{payrollResult.summary.totalOvertime.toFixed(2)}</td>
-                <td>₪{payrollResult.summary.totalBasePay.toFixed(2)}</td>
-                <td>₪{payrollResult.summary.totalOvertimePay.toFixed(2)}</td>
-                <td>₪{payrollResult.summary.totalPay.toFixed(2)}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      )}
-    </div>
+              </thead>
+              <tbody>
+                {payrollResult.details.map((r) => (
+                  <tr key={r.id}>
+                    <td>{r.name}</td>
+                    <td>₪{r.basePay.toFixed(2)}</td>
+                    <td>₪{r.overtimePay.toFixed(2)}</td>
+                    <td>
+                      ₪{r.vacationPay.toFixed(2)}
+                      <br />
+                      <small>({r.vacationDays} ימים)</small>
+                    </td>
+                    <td>
+                      ₪{r.sickPay.toFixed(2)}
+                      <br />
+                      <small>({r.sickDays} ימים)</small>
+                    </td>
+                    <td style={{ fontWeight: 700 }}>
+                      ₪{r.totalPay.toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>סה"כ</td>
+                  <td>₪{payrollResult.summary.totalBasePay.toFixed(2)}</td>
+                  <td>₪{payrollResult.summary.totalOvertimePay.toFixed(2)}</td>
+                  <td>₪{payrollResult.summary.totalVacationPay.toFixed(2)}</td>
+                  <td>₪{payrollResult.summary.totalSickPay.toFixed(2)}</td>
+                  <td>₪{payrollResult.summary.totalPay.toFixed(2)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -1310,9 +1611,20 @@ function App() {
     const d = localStorage.getItem("appData");
     if (d) {
       try {
-        dispatch({ type: "SET_INITIAL_DATA", payload: JSON.parse(d) });
+        const parsedData = JSON.parse(d);
+        // Ensure settings from new versions are merged, not overwritten
+        const mergedState = {
+          ...initialData,
+          ...parsedData,
+          settings: {
+            ...initialData.settings,
+            ...parsedData.settings,
+          },
+        };
+        dispatch({ type: "SET_INITIAL_DATA", payload: mergedState });
       } catch (e) {
         console.error("Failed to parse appData from localStorage", e);
+        dispatch({ type: "SET_INITIAL_DATA", payload: initialData });
       }
     }
     setIsLoaded(true);

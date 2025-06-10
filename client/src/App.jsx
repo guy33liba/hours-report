@@ -1,5 +1,3 @@
-// App.js
-
 import React, {
   useState,
   useEffect,
@@ -8,7 +6,6 @@ import React, {
   createContext,
   useContext,
   useReducer,
-  useRef,
 } from "react";
 import {
   BrowserRouter,
@@ -17,7 +14,7 @@ import {
   NavLink,
   Navigate,
 } from "react-router-dom";
-import "./App.css";
+import "./styles.css";
 
 const Icon = ({ path, size = 18 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
@@ -33,7 +30,7 @@ const ICONS = {
   PAYROLL:
     "M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41s-.22-1.05-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z",
   SETTINGS:
-    "M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.69-1.62-0.92L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 l-3.84,0c-0.24,0-0.44,0.17-0.48,0.41L9.2,5.59C8.6,5.82,8.08,6.13,7.58,6.51L5.19,5.55C4.97,5.48,4.72,5.55,4.6,5.77L2.68,9.09 c-0.11,0.2-0.06,0.47,0.12,0.61L4.83,11.28c-0.05,0.3-0.07,0.62-0.07,0.94c0,0.32,0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.69,1.62,0.92l0.44,2.78 c0.04,0.24,0.24,0.41,0.48,0.41l3.84,0c0.24,0,0.44-0.17-0.48-0.41l0.44-2.78c0.59-0.23,1.12-0.54,1.62-0.92l2.39,0.96 c0.22,0.08,0.47,0.01,0.59-0.22l1.92-3.32c0.12-0.2,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z",
+    "M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.69-1.62-0.92L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 l-3.84,0c-0.24,0-0.44,0.17-0.48,0.41L9.2,5.59C8.6,5.82,8.08,6.13,7.58,6.51L5.19,5.55C4.97,5.48,4.72,5.55,4.6,5.77L2.68,9.09 c-0.11,0.2-0.06,0.47,0.12,0.61L4.83,11.28c-0.05,0.3-0.07,0.62-0.07,0.94c0,0.32,0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.69,1.62,0.92l0.44,2.78 c0.04,0.24,0.24,0.41,0.48,0.41l3.84,0c0.24,0,0.44-0.17,0.48-0.41l0.44-2.78c0.59-0.23,1.12-0.54,1.62-0.92l2.39,0.96 c0.22,0.08,0.47,0.01,0.59-0.22l1.92-3.32c0.12-0.2,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z",
   LOGOUT:
     "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2h8v-2H4V5z",
   ON_BREAK:
@@ -42,28 +39,15 @@ const ICONS = {
   VACATION:
     "M21.99 8c0-.55-.45-1-1-1h-2.01V5c0-1.1-.9-2-2-2H7c-1.1 0-2 .9-2 2v2H3c-.55 0-1 .45-1 1s.45 1 1 1h18c.55 0 1-.45 1-1zM7 11h10v8H7v-8z",
 };
+
 const STATUSES = {
-  PRESENT: { key: "present", text: "נוכח", colorClass: "present", icon: null },
-  ON_BREAK: {
-    key: "on_break",
-    text: "הפסקה",
-    colorClass: "on_break",
-    icon: ICONS.ON_BREAK,
-  },
-  SICK: { key: "sick", text: "מחלה", colorClass: "sick", icon: ICONS.SICK },
-  VACATION: {
-    key: "vacation",
-    text: "חופשה",
-    colorClass: "vacation",
-    icon: ICONS.VACATION,
-  },
-  ABSENT: {
-    key: "absent",
-    text: "לא בעבודה",
-    colorClass: "absent",
-    icon: null,
-  },
+  PRESENT: { key: "present", text: "נוכח", colorClass: "present" },
+  ON_BREAK: { key: "on_break", text: "בהפסקה", colorClass: "on_break" },
+  SICK: { key: "sick", text: "מחלה", colorClass: "sick" },
+  VACATION: { key: "vacation", text: "חופשה", colorClass: "vacation" },
+  ABSENT: { key: "absent", text: "לא בעבודה", colorClass: "absent" },
 };
+
 const useLocalStorage = (key, initialValue) => {
   const [value, setValue] = useState(() => {
     try {
@@ -82,6 +66,7 @@ const useLocalStorage = (key, initialValue) => {
   }, [key, value]);
   return [value, setValue];
 };
+
 const ToastContext = createContext();
 const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
@@ -103,7 +88,7 @@ const ToastProvider = ({ children }) => {
                 t.type === "success"
                   ? "var(--success-color)"
                   : t.type === "danger"
-                  ? "var(--danger-color)" // הוספה חדשה
+                  ? "var(--danger-color)"
                   : "var(--font-dark)",
             }}
           >
@@ -115,14 +100,13 @@ const ToastProvider = ({ children }) => {
   );
 };
 const useToaster = () => useContext(ToastContext);
+
 const calculateNetHours = (attendanceEntry, settings) => {
   if (!attendanceEntry || !attendanceEntry.clockIn) return 0;
-
   const clockOutTime = attendanceEntry.clockOut
     ? new Date(attendanceEntry.clockOut)
     : new Date();
   const clockInTime = new Date(attendanceEntry.clockIn);
-
   let totalMilliseconds = clockOutTime - clockInTime;
   let totalBreakMilliseconds = 0;
 
@@ -138,7 +122,6 @@ const calculateNetHours = (attendanceEntry, settings) => {
     }, 0);
   }
 
-  // -- לוגיקה חדשה להפסקות בתשלום --
   const paidBreakMilliseconds = (settings?.maxBreakMinutes || 0) * 60 * 1000;
   const unpaidBreakMilliseconds = Math.max(
     0,
@@ -146,10 +129,10 @@ const calculateNetHours = (attendanceEntry, settings) => {
   );
 
   totalMilliseconds -= unpaidBreakMilliseconds;
-  // ------------------------------------
 
   return Math.max(0, totalMilliseconds / 36e5);
 };
+
 const initialData = {
   employees: [
     {
@@ -177,21 +160,15 @@ const initialData = {
     restrictByIp: true,
     allowedIps: "192.168.1.1, 8.8.8.8",
     alertOnLateArrival: true,
-    // --- הגדרות חדשות ---
-    autoClockOutAfter: 12, // החתמת יציאה אוטומטית אחרי 12 שעות (0 = מושבת)
-    maxBreakMinutes: 60, // מקסימום דקות הפסקה ביום שלא על חשבון העובד
+    autoClockOutAfter: 12,
+    maxBreakMinutes: 60,
   },
 };
+
 const dataReducer = (state, action) => {
   switch (action.type) {
     case "SET_INITIAL_DATA":
-      return {
-        ...action.payload,
-        settings: {
-          ...initialData.settings,
-          ...(action.payload.settings || {}),
-        },
-      };
+      return { ...initialData, ...action.payload };
     case "UPDATE_SETTINGS":
       return { ...state, settings: { ...state.settings, ...action.payload } };
     case "UPDATE_EMPLOYEE_STATUS":
@@ -204,7 +181,10 @@ const dataReducer = (state, action) => {
         ),
       };
     case "ADD_ATTENDANCE":
-      return { ...state, attendance: [...state.attendance, action.payload] };
+      return {
+        ...state,
+        attendance: [...state.attendance, { ...action.payload, breaks: [] }],
+      };
     case "UPDATE_LAST_ATTENDANCE": {
       const idx = state.attendance.findLastIndex(
         (a) => a.employeeId === action.payload.employeeId && !a.clockOut
@@ -213,6 +193,37 @@ const dataReducer = (state, action) => {
       const newAtt = [...state.attendance];
       newAtt[idx] = { ...newAtt[idx], ...action.payload.data };
       return { ...state, attendance: newAtt };
+    }
+    case "START_BREAK": {
+      const { employeeId, time } = action.payload;
+      const attIndex = state.attendance.findLastIndex(
+        (a) => a.employeeId === employeeId && !a.clockOut
+      );
+      if (attIndex === -1) return state;
+      const newAttendance = [...state.attendance];
+      const currentEntry = { ...newAttendance[attIndex] };
+      currentEntry.breaks = [
+        ...currentEntry.breaks,
+        { start: time, end: null },
+      ];
+      newAttendance[attIndex] = currentEntry;
+      return { ...state, attendance: newAttendance };
+    }
+    case "END_BREAK": {
+      const { employeeId, time } = action.payload;
+      const attIndex = state.attendance.findLastIndex(
+        (a) => a.employeeId === employeeId && !a.clockOut
+      );
+      if (attIndex === -1) return state;
+      const newAttendance = [...state.attendance];
+      const currentEntry = { ...newAttendance[attIndex] };
+      const breakIndex = currentEntry.breaks.findLastIndex((b) => !b.end);
+      if (breakIndex === -1) return state;
+      const newBreaks = [...currentEntry.breaks];
+      newBreaks[breakIndex] = { ...newBreaks[breakIndex], end: time };
+      currentEntry.breaks = newBreaks;
+      newAttendance[attIndex] = currentEntry;
+      return { ...state, attendance: newAttendance };
     }
     case "ADD_EMPLOYEE":
       return {
@@ -258,6 +269,18 @@ const dataReducer = (state, action) => {
 };
 
 const AppContext = createContext();
+const FormInput = ({ label, ...props }) => (
+  <div className="form-group">
+    <label>{label}</label>
+    <input {...props} />
+  </div>
+);
+const FormTextarea = ({ label, ...props }) => (
+  <div className="form-group">
+    <label>{label}</label>
+    <textarea {...props} />
+  </div>
+);
 const ToggleSwitch = ({ label, checked, onChange, name }) => (
   <div className="toggle-switch">
     <span>{label}</span>
@@ -272,32 +295,22 @@ const ToggleSwitch = ({ label, checked, onChange, name }) => (
     </label>
   </div>
 );
-const FormInput = ({ label, ...props }) => (
-  <div className="form-group">
-    <label>{label}</label>
-    <input {...props} />
-  </div>
-);
-const FormTextarea = ({ label, ...props }) => (
-  <div className="form-group">
-    <label>{label}</label>
-    <textarea {...props} />
-  </div>
-);
 
 function Dashboard() {
   const { state } = useContext(AppContext);
   const summary = useMemo(() => {
-    if (!state || !state.settings || !state.employees || !state.attendance) {
+    if (!state || !state.settings || !state.employees || !state.attendance)
       return { totalHours: 0, overtimeHours: 0, totalPay: 0, presentCount: 0 };
-    }
     let totalHours = 0,
       overtimeHours = 0,
       totalPay = 0;
     const todayStr = new Date().toDateString();
     const activeEmployees = state.employees.filter(
-      (emp) => emp.status !== STATUSES.ABSENT.key
+      (emp) =>
+        emp.status === STATUSES.PRESENT.key ||
+        emp.status === STATUSES.ON_BREAK.key
     );
+
     activeEmployees.forEach((emp) => {
       const todayEntries = state.attendance.filter(
         (a) =>
@@ -306,25 +319,24 @@ function Dashboard() {
       );
       let empTodayHours = 0;
       todayEntries.forEach((entry) => {
-        empTodayHours += calculateNetHours(entry);
+        empTodayHours += calculateNetHours(entry, state.settings);
       });
-      const validEmpHours = Number(empTodayHours) || 0;
-      const maxHours = Number(state.settings.standardWorkDayHours) || 9;
-      const hourlyRate = Number(emp.hourlyRate) || 0;
-      const overtimeRatePercent =
-        Number(state.settings.overtimeRatePercent) || 150;
-      totalHours += validEmpHours;
-      const empRegular = Math.min(validEmpHours, maxHours);
-      const empOvertime = Math.max(0, validEmpHours - maxHours);
-      overtimeHours += empOvertime;
+
+      const { standardWorkDayHours, overtimeRatePercent } = state.settings;
+      const regularHours = Math.min(empTodayHours, standardWorkDayHours);
+      const otHours = Math.max(0, empTodayHours - standardWorkDayHours);
+
+      totalHours += empTodayHours;
+      overtimeHours += otHours;
       totalPay +=
-        empRegular * hourlyRate +
-        empOvertime * hourlyRate * (overtimeRatePercent / 100);
+        regularHours * emp.hourlyRate +
+        otHours * emp.hourlyRate * (overtimeRatePercent / 100);
     });
+
     return {
-      totalHours: totalHours || 0,
-      overtimeHours: overtimeHours || 0,
-      totalPay: totalPay || 0,
+      totalHours,
+      overtimeHours,
+      totalPay,
       presentCount: activeEmployees.length,
     };
   }, [state]);
@@ -361,19 +373,12 @@ function Dashboard() {
 }
 
 function RealTimePresenceCard() {
-  const { dispatch } = useContext(AppContext);
+  const { state, dispatch } = useContext(AppContext);
   const toaster = useToaster();
 
-  // This logic now lives in the parent, to be passed down
-
   const handleStatusChange = async (employee, newStatusKey) => {
-    // הפכנו את הפונקציה ל-async
     if (employee.status === newStatusKey) return;
-
-    const { settings } = state; // קבלת ההגדרות מה-state
-
-    // --- בדיקת IP חדשה ---
-    // בודקים רק בפעולת "כניסה" (מעבר מ"לא בעבודה" ל"נוכח")
+    const { settings } = state;
     if (
       newStatusKey === STATUSES.PRESENT.key &&
       employee.status === STATUSES.ABSENT.key &&
@@ -383,25 +388,21 @@ function RealTimePresenceCard() {
         const response = await fetch("https://api.ipify.org?format=json");
         const data = await response.json();
         const userIp = data.ip;
-
         const allowedIps = settings.allowedIps
           .split(",")
           .map((ip) => ip.trim());
-
         if (!allowedIps.includes(userIp)) {
           toaster(
             `שגיאה: לא ניתן להחתים נוכחות מכתובת ה-IP הנוכחית (${userIp})`,
             "danger"
           );
-          return; // עצירת הפעולה אם ה-IP לא מורשה
+          return;
         }
       } catch (error) {
         toaster("שגיאה: לא ניתן היה לאמת את כתובת ה-IP. נסה שוב.", "danger");
-        console.error("IP check failed:", error);
         return;
       }
     }
-    // -------------------------
 
     const now = new Date().toISOString();
     const newStatusObject = Object.values(STATUSES).find(
@@ -414,7 +415,6 @@ function RealTimePresenceCard() {
       payload: { id: employee.id, status: newStatusKey },
     });
 
-    // ... (שאר הלוגיקה של הפונקציה נשארת זהה)
     if (
       newStatusKey === STATUSES.PRESENT.key &&
       employee.status === STATUSES.ABSENT.key
@@ -429,17 +429,13 @@ function RealTimePresenceCard() {
         },
       });
       toaster(toasterMessage, "success");
-    }
-    // Start Break (from Present to On Break)
-    else if (newStatusKey === STATUSES.ON_BREAK.key) {
+    } else if (newStatusKey === STATUSES.ON_BREAK.key) {
       dispatch({
         type: "START_BREAK",
         payload: { employeeId: employee.id, time: now },
       });
       toaster(toasterMessage);
-    }
-    // End Break (from On Break to Present)
-    else if (
+    } else if (
       newStatusKey === STATUSES.PRESENT.key &&
       employee.status === STATUSES.ON_BREAK.key
     ) {
@@ -448,10 +444,7 @@ function RealTimePresenceCard() {
         payload: { employeeId: employee.id, time: now },
       });
       toaster(toasterMessage);
-    }
-    // Clock-Out (from any active state to Absent)
-    else if (newStatusKey === STATUSES.ABSENT.key) {
-      // If employee was on break, end the break first
+    } else if (newStatusKey === STATUSES.ABSENT.key) {
       if (employee.status === STATUSES.ON_BREAK.key) {
         dispatch({
           type: "END_BREAK",
@@ -465,8 +458,6 @@ function RealTimePresenceCard() {
       toaster(toasterMessage);
     }
   };
-
-  const { state } = useContext(AppContext);
 
   return (
     <div className="card">
@@ -493,31 +484,21 @@ function EmployeeRow({ employee, onStatusChange }) {
     const isPresentOrOnBreak =
       employee.status === STATUSES.PRESENT.key ||
       employee.status === STATUSES.ON_BREAK.key;
-
     if (isPresentOrOnBreak) {
-      // Set initial time immediately
-      const todayEntry = state.attendance.findLast(
-        (a) => a.employeeId === employee.id && !a.clockOut
-      );
-      if (todayEntry) {
-        setElapsedTime(calculateNetHours(todayEntry));
-      }
-
-      // Update every second
-      interval = setInterval(() => {
+      const updateTimer = () => {
         const todayEntry = state.attendance.findLast(
           (a) => a.employeeId === employee.id && !a.clockOut
         );
-        if (todayEntry) {
-          setElapsedTime(calculateNetHours(todayEntry));
-        }
-      }, 1000);
+        if (todayEntry)
+          setElapsedTime(calculateNetHours(todayEntry, state.settings));
+      };
+      updateTimer();
+      interval = setInterval(updateTimer, 1000);
     } else {
-      setElapsedTime(0); // Reset if not working
+      setElapsedTime(0);
     }
-
-    return () => clearInterval(interval); // Cleanup on unmount or status change
-  }, [employee.status, state.attendance, employee.id]);
+    return () => clearInterval(interval);
+  }, [employee.status, state.attendance, state.settings, employee.id]);
 
   const formatTime = (hours) => {
     if (hours <= 0) return "00:00:00";
@@ -547,10 +528,9 @@ function EmployeeRow({ employee, onStatusChange }) {
     padding: "4px 10px",
     borderRadius: "6px",
     transition: "all 0.3s ease",
-    width: "120px", // Fixed width for alignment
+    width: "120px",
     justifyContent: "center",
   };
-
   if (isOnBreak) {
     statusIndicatorStyle.backgroundColor = "var(--warning-color)";
     statusIndicatorStyle.color = "#FFFFFF";
@@ -560,13 +540,12 @@ function EmployeeRow({ employee, onStatusChange }) {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "2fr 1fr 2fr", // Give more space to sides
+        gridTemplateColumns: "2fr 1fr 2fr",
         alignItems: "center",
         padding: "12px 0",
         borderBottom: "1px solid var(--border-color)",
       }}
     >
-      {/* Column 1: Employee Info & Timer */}
       <div
         style={{
           justifySelf: "start",
@@ -584,7 +563,6 @@ function EmployeeRow({ employee, onStatusChange }) {
         {!isAbsent && (
           <div
             style={{
-              textAlign: "right",
               color: "var(--primary-color)",
               fontFamily: "monospace",
               fontSize: "18px",
@@ -594,26 +572,15 @@ function EmployeeRow({ employee, onStatusChange }) {
           </div>
         )}
       </div>
-
-      {/* Column 2: Status Indicator */}
       <div style={{ justifySelf: "center" }}>
         <div style={statusIndicatorStyle}>
           <div
             className={`status-dot ${statusObject.colorClass}`}
-            style={
-              isOnBreak
-                ? {
-                    backgroundColor: "white",
-                    border: "1px solid var(--warning-color)",
-                  }
-                : {}
-            }
+            style={isOnBreak ? { backgroundColor: "white" } : {}}
           ></div>
           <span>{statusObject.text}</span>
         </div>
       </div>
-
-      {/* Column 3: Action Buttons */}
       <div style={{ justifySelf: "end", display: "flex", gap: "8px" }}>
         <button
           onClick={() => onStatusChange(employee, STATUSES.PRESENT.key)}
@@ -647,39 +614,30 @@ function EmployeeRow({ employee, onStatusChange }) {
     </div>
   );
 }
+
 function EmployeeForm({ initialData, onSave, onCancel }) {
   const [formData, setFormData] = useState({
     name: "",
     department: "",
     hourlyRate: "",
     role: "employee",
-    status: STATUSES.ABSENT.key,
   });
   useEffect(() => {
-    if (initialData) {
-      setFormData(initialData);
-    } else {
+    if (initialData) setFormData(initialData);
+    else
       setFormData({
         name: "",
         department: "",
         hourlyRate: "",
         role: "employee",
-        status: STATUSES.ABSENT.key,
       });
-    }
   }, [initialData]);
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-  const handleStatusChange = (statusKey) => {
-    setFormData((prev) => ({ ...prev, status: statusKey }));
-  };
+  const handleChange = (e) =>
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   const handleSubmit = (e) => {
     e.preventDefault();
     onSave(formData);
   };
-
   return (
     <form onSubmit={handleSubmit}>
       <h3 style={{ marginTop: 0, borderBottom: "none" }}>
@@ -723,31 +681,6 @@ function EmployeeForm({ initialData, onSave, onCancel }) {
           <option value="manager">מנהל</option>
         </select>
       </div>
-      {initialData && (
-        <div className="form-group">
-          <label>סטטוס נוכחי</label>
-          <div className="status-selector">
-            {Object.values(STATUSES).map((statusInfo) => (
-              <div
-                key={statusInfo.key}
-                className={`status-tag ${
-                  formData.status === statusInfo.key
-                    ? "selected " + statusInfo.colorClass
-                    : ""
-                }`}
-                onClick={() => handleStatusChange(statusInfo.key)}
-              >
-                {statusInfo.icon ? (
-                  <Icon path={statusInfo.icon} className="status-tag-icon" />
-                ) : (
-                  <div className={`status-dot ${statusInfo.colorClass}`}></div>
-                )}
-                <span>{statusInfo.text}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
       <div
         style={{
           display: "flex",
@@ -767,12 +700,6 @@ function EmployeeForm({ initialData, onSave, onCancel }) {
 
 function EmployeeModal({ show, onClose, employee, onSave }) {
   if (!show) return null;
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, []);
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -788,7 +715,6 @@ function EmployeeModal({ show, onClose, employee, onSave }) {
     </div>
   );
 }
-// App.js
 
 function AbsenceManagementModal({
   show,
@@ -803,20 +729,14 @@ function AbsenceManagementModal({
     startDate: "",
     endDate: "",
   });
-
   if (!show || !employee) return null;
-
   const handleAddAbsence = (e) => {
     e.preventDefault();
     if (newAbsence.startDate && newAbsence.endDate) {
-      onAdd({
-        employeeId: employee.id,
-        ...newAbsence,
-      });
-      setNewAbsence({ type: "vacation", startDate: "", endDate: "" }); // Reset form
+      onAdd({ employeeId: employee.id, ...newAbsence });
+      setNewAbsence({ type: "vacation", startDate: "", endDate: "" });
     }
   };
-
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -824,8 +744,6 @@ function AbsenceManagementModal({
           ×
         </button>
         <h3 style={{ marginTop: 0 }}>ניהול היעדרויות עבור {employee.name}</h3>
-
-        {/* Form to add new absence */}
         <form
           onSubmit={handleAddAbsence}
           className="payroll-controls"
@@ -869,8 +787,6 @@ function AbsenceManagementModal({
             הוסף היעדרות
           </button>
         </form>
-
-        {/* List of current absences */}
         <h4>היעדרויות קיימות</h4>
         {absences.length > 0 ? (
           <ul style={{ listStyle: "none", padding: 0 }}>
@@ -917,29 +833,24 @@ function AbsenceManagementModal({
 function EmployeeList() {
   const { state, dispatch } = useContext(AppContext);
   const toaster = useToaster();
-
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAbsenceModalOpen, setIsAbsenceModalOpen] = useState(false);
-
   const [selectedEmployee, setSelectedEmployee] = useState(null);
 
   const handleOpenEdit = (employee) => {
     setSelectedEmployee(employee);
     setIsEditModalOpen(true);
   };
-
   const handleOpenAbsences = (employee) => {
     setSelectedEmployee(employee);
     setIsAbsenceModalOpen(true);
   };
-
   const handleDeleteEmployee = (employee) => {
-    if (window.confirm(`האם אתה בטוח שברצונך למחוק את ${employee.name}?`)) {
+    if (window.confirm(`האם למחוק את ${employee.name}?`)) {
       dispatch({ type: "DELETE_EMPLOYEE", payload: employee.id });
-      toaster(`${employee.name} נמחק בהצלחה.`);
+      toaster(`${employee.name} נמחק.`);
     }
   };
-
   const handleSaveEmployee = (employeeData) => {
     if (selectedEmployee && selectedEmployee.id) {
       dispatch({
@@ -949,16 +860,14 @@ function EmployeeList() {
       toaster("פרטי העובד עודכנו!", "success");
     } else {
       dispatch({ type: "ADD_EMPLOYEE", payload: employeeData });
-      toaster("עובד חדש נוסף בהצלחה!", "success");
+      toaster("עובד חדש נוסף!", "success");
     }
     setIsEditModalOpen(false);
   };
-
   const handleAddAbsence = (absenceData) => {
     dispatch({ type: "ADD_ABSENCE", payload: absenceData });
-    toaster("היעדרות נוספה בהצלחה", "success");
+    toaster("היעדרות נוספה", "success");
   };
-
   const handleDeleteAbsence = (absenceId) => {
     dispatch({ type: "DELETE_ABSENCE", payload: absenceId });
     toaster("היעדרות נמחקה");
@@ -1048,19 +957,16 @@ function EmployeeList() {
           </tbody>
         </table>
       </div>
-
       <EmployeeModal
         show={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         employee={selectedEmployee}
         onSave={handleSaveEmployee}
       />
-
       <AbsenceManagementModal
         show={isAbsenceModalOpen}
         onClose={() => setIsAbsenceModalOpen(false)}
         employee={selectedEmployee}
-        // --- כאן התיקון ---
         absences={
           selectedEmployee && state.scheduledAbsences
             ? state.scheduledAbsences.filter(
@@ -1074,6 +980,7 @@ function EmployeeList() {
     </>
   );
 }
+
 function ReportsPage() {
   const { state } = useContext(AppContext);
   const [range, setRange] = useState({ start: "", end: "" });
@@ -1093,18 +1000,14 @@ function ReportsPage() {
         overtime = 0,
         pay = 0;
       entries.forEach((entry) => {
-        const hours = calculateNetHours(entry);
-        const validHours = Number(hours) || 0;
-        const maxHours = Number(state.settings.standardWorkDayHours) || 9;
-        const hourlyRate = Number(emp.hourlyRate) || 0;
-        const overtimeRatePercent =
-          Number(state.settings.overtimeRatePercent) || 150;
-        totalHours += validHours;
-        const regular = Math.min(validHours, maxHours);
-        const ot = Math.max(0, validHours - maxHours);
+        const hours = calculateNetHours(entry, state.settings);
+        totalHours += hours;
+        const regular = Math.min(hours, state.settings.standardWorkDayHours);
+        const ot = Math.max(0, hours - state.settings.standardWorkDayHours);
         overtime += ot;
         pay +=
-          regular * hourlyRate + ot * hourlyRate * (overtimeRatePercent / 100);
+          regular * emp.hourlyRate +
+          ot * emp.hourlyRate * (state.settings.overtimeRatePercent / 100);
       });
       return {
         id: emp.id,
@@ -1116,192 +1019,64 @@ function ReportsPage() {
       };
     });
   }, [range, state]);
-
   const summary = useMemo(
     () =>
       reportData.reduce(
-        (acc, curr) => {
-          acc.totalHours += curr.totalHours;
-          acc.overtime += curr.overtime;
-          acc.pay += curr.pay;
-          return acc;
-        },
+        (acc, curr) => ({
+          totalHours: acc.totalHours + curr.totalHours,
+          overtime: acc.overtime + curr.overtime,
+          pay: acc.pay + curr.pay,
+        }),
         { totalHours: 0, overtime: 0, pay: 0 }
       ),
     [reportData]
   );
-  const handleExportCSV = () => {
-    if (reportData.length === 0) return;
-    const headers = [
-      "שם עובד",
-      "מחלקה",
-      'סה"כ שעות',
-      "שעות נוספות",
-      "שכר משוער",
-    ];
-    const rows = reportData.map((r) => [
-      `"${r.name}"`,
-      `"${r.department}"`,
-      r.totalHours.toFixed(2),
-      r.overtime.toFixed(2),
-      r.pay.toFixed(2),
-    ]);
-    let csvContent =
-      "data:text/csv;charset=utf-8,\uFEFF" +
-      headers.join(",") +
-      "\n" +
-      rows.map((e) => e.join(",")).join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `report_${range.start}_to_${range.end}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-  const handlePrint = () => {
-    window.print();
-  };
-
   return (
-    <>
-      <style>{`@media print { body * { visibility: hidden; } #print-area, #print-area * { visibility: visible; } #print-area { position: absolute; left: 0; top: 0; width: 100%; } .no-print { display: none; } }`}</style>
-      <div className="card">
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-          className="no-print"
-        >
-          <h2>דוחות נוכחות</h2>
-          <div style={{ display: "flex", gap: "10px" }}>
-            <button
-              onClick={handleExportCSV}
-              className="secondary"
-              disabled={reportData.length === 0}
-            >
-              ייצא ל-CSV
-            </button>
-            <button
-              onClick={handlePrint}
-              className="secondary"
-              disabled={reportData.length === 0}
-            >
-              הדפס
-            </button>
-          </div>
-        </div>
-        <div
-          style={{ display: "flex", gap: 20, marginBottom: 20 }}
-          className="no-print"
-        >
-          <input
-            type="date"
-            value={range.start}
-            onChange={(e) => setRange({ ...range, start: e.target.value })}
-          />
-          <input
-            type="date"
-            value={range.end}
-            onChange={(e) => setRange({ ...range, end: e.target.value })}
-          />
-        </div>
-        <div id="print-area">
-          {reportData.length > 0 && (
-            <>
-              <h3
-                style={{
-                  borderBottom: "none",
-                  textAlign: "center",
-                  fontSize: "20px",
-                }}
-              >
-                סיכום לתקופה:{" "}
-                {new Date(range.start).toLocaleDateString("he-IL")} -{" "}
-                {new Date(range.end).toLocaleDateString("he-IL")}
-              </h3>
-              <div
-                className="dashboard-grid"
-                style={{
-                  gridTemplateColumns: "repeat(3, 1fr)",
-                  gap: "15px",
-                  marginBottom: "30px",
-                }}
-              >
-                <div
-                  className="card kpi-card"
-                  style={{
-                    padding: 15,
-                    border: "none",
-                    background: "var(--primary-light)",
-                  }}
-                >
-                  <h4>סה"כ שעות</h4>
-                  <p className="kpi-value">{summary.totalHours.toFixed(2)}</p>
-                </div>
-                <div
-                  className="card kpi-card"
-                  style={{
-                    padding: 15,
-                    border: "none",
-                    background: "var(--primary-light)",
-                  }}
-                >
-                  <h4>שעות נוספות</h4>
-                  <p className="kpi-value">{summary.overtime.toFixed(2)}</p>
-                </div>
-                <div
-                  className="card kpi-card"
-                  style={{
-                    padding: 15,
-                    border: "none",
-                    background: "var(--primary-light)",
-                  }}
-                >
-                  <h4>עלות שכר</h4>
-                  <p className="kpi-value">₪{summary.pay.toFixed(2)}</p>
-                </div>
-              </div>
-            </>
-          )}
-          <table>
-            <thead>
-              <tr>
-                <th>שם עובד</th>
-                <th>מחלקה</th>
-                <th>סה"כ שעות</th>
-                <th>שעות נוספות</th>
-                <th>שכר משוער</th>
-              </tr>
-            </thead>
-            <tbody>
-              {reportData.length > 0 ? (
-                reportData.map((r) => (
-                  <tr key={r.id}>
-                    <td>{r.name}</td>
-                    <td>{r.department}</td>
-                    <td>{r.totalHours.toFixed(2)}</td>
-                    <td>{r.overtime.toFixed(2)}</td>
-                    <td>₪{r.pay.toFixed(2)}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan="5"
-                    style={{ textAlign: "center", padding: "20px" }}
-                  >
-                    יש לבחור טווח תאריכים כדי להציג את הדוח.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+    <div className="card">
+      <h2>דוחות נוכחות</h2>
+      <div style={{ display: "flex", gap: 20, marginBottom: 20 }}>
+        <input
+          type="date"
+          value={range.start}
+          onChange={(e) => setRange({ ...range, start: e.target.value })}
+        />
+        <input
+          type="date"
+          value={range.end}
+          onChange={(e) => setRange({ ...range, end: e.target.value })}
+        />
       </div>
-    </>
+      <table>
+        <thead>
+          <tr>
+            <th>שם עובד</th>
+            <th>מחלקה</th>
+            <th>סה"כ שעות</th>
+            <th>שעות נוספות</th>
+            <th>שכר משוער</th>
+          </tr>
+        </thead>
+        <tbody>
+          {reportData.length > 0 ? (
+            reportData.map((r) => (
+              <tr key={r.id}>
+                <td>{r.name}</td>
+                <td>{r.department}</td>
+                <td>{r.totalHours.toFixed(2)}</td>
+                <td>{r.overtime.toFixed(2)}</td>
+                <td>₪{r.pay.toFixed(2)}</td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="5" style={{ textAlign: "center", padding: "20px" }}>
+                יש לבחור טווח תאריכים.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -1309,11 +1084,9 @@ function SettingsPage() {
   const { state, dispatch } = useContext(AppContext);
   const [settings, setSettings] = useState(state.settings);
   const toaster = useToaster();
-
   useEffect(() => {
     setSettings(state.settings);
   }, [state.settings]);
-
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setSettings((prev) => ({
@@ -1321,12 +1094,10 @@ function SettingsPage() {
       [name]: type === "checkbox" ? checked : value,
     }));
   };
-
   const handleSave = () => {
     dispatch({ type: "UPDATE_SETTINGS", payload: settings });
-    toaster("ההגדרות נשמרו בהצלחה!", "success");
+    toaster("ההגדרות נשמרו!", "success");
   };
-
   return (
     <>
       <div
@@ -1401,31 +1172,26 @@ function SettingsPage() {
     </>
   );
 }
+
 function PayrollPage() {
   const { state } = useContext(AppContext);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
   const [payrollResult, setPayrollResult] = useState(null);
   const handleEmployeeSelection = (e) => {
-    const { value, checked } = e.target;
-    const id = parseInt(value);
-    if (checked) {
-      setSelectedEmployeeIds((prev) => [...prev, id]);
-    } else {
-      setSelectedEmployeeIds((prev) => prev.filter((empId) => empId !== id));
-    }
+    const id = parseInt(e.target.value);
+    setSelectedEmployeeIds((p) =>
+      e.target.checked ? [...p, id] : p.filter((i) => i !== id)
+    );
   };
-  const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      setSelectedEmployeeIds(
-        state.employees
-          .filter((emp) => emp.role === "employee")
-          .map((emp) => emp.id)
-      );
-    } else {
-      setSelectedEmployeeIds([]);
-    }
-  };
+  const handleSelectAll = (e) =>
+    setSelectedEmployeeIds(
+      e.target.checked
+        ? state.employees
+            .filter((emp) => emp.role === "employee")
+            .map((emp) => emp.id)
+        : []
+    );
   const calculatePayroll = () => {
     if (selectedEmployeeIds.length === 0 || !dateRange.start || !dateRange.end)
       return null;
@@ -1446,18 +1212,17 @@ function PayrollPage() {
           basePay = 0,
           overtimePay = 0;
         entries.forEach((entry) => {
-          const hours = calculateNetHours(entry);
-          const validHours = Number(hours) || 0;
-          const maxHours = Number(state.settings.standardWorkDayHours) || 9;
-          const hourlyRate = Number(emp.hourlyRate) || 0;
-          const overtimeRatePercent =
-            Number(state.settings.overtimeRatePercent) || 150;
-          totalHours += validHours;
-          const regular = Math.min(validHours, maxHours);
-          const overtime = Math.max(0, validHours - maxHours);
-          overtimeHours += overtime;
-          basePay += regular * hourlyRate;
-          overtimePay += overtime * hourlyRate * (overtimeRatePercent / 100);
+          const hours = calculateNetHours(entry, state.settings);
+          const regularHours = Math.min(
+            hours,
+            state.settings.standardWorkDayHours
+          );
+          const ot = Math.max(0, hours - state.settings.standardWorkDayHours);
+          totalHours += hours;
+          overtimeHours += ot;
+          basePay += regularHours * emp.hourlyRate;
+          overtimePay +=
+            ot * emp.hourlyRate * (state.settings.overtimeRatePercent / 100);
         });
         return {
           id: emp.id,
@@ -1470,14 +1235,13 @@ function PayrollPage() {
         };
       });
     const summary = details.reduce(
-      (acc, curr) => {
-        acc.totalRegularHours += curr.regularHours;
-        acc.totalOvertime += curr.overtimeHours;
-        acc.totalBasePay += curr.basePay;
-        acc.totalOvertimePay += curr.overtimePay;
-        acc.totalPay += curr.totalPay;
-        return acc;
-      },
+      (acc, curr) => ({
+        totalRegularHours: acc.totalRegularHours + curr.regularHours,
+        totalOvertime: acc.totalOvertime + curr.overtimeHours,
+        totalBasePay: acc.totalBasePay + curr.basePay,
+        totalOvertimePay: acc.totalOvertimePay + curr.overtimePay,
+        totalPay: acc.totalPay + curr.totalPay,
+      }),
       {
         totalRegularHours: 0,
         totalOvertime: 0,
@@ -1488,63 +1252,10 @@ function PayrollPage() {
     );
     return { details, summary };
   };
-  const handleGenerate = () => {
-    setPayrollResult(calculatePayroll());
-  };
-  const handleExportCSV = () => {
-    if (!payrollResult || payrollResult.details.length === 0) return;
-    const headers = [
-      "שם עובד",
-      "שעות רגילות",
-      "שעות נוספות",
-      "שכר בסיס",
-      'תוספת ש"נ',
-      'סה"כ לתשלום',
-    ];
-    const rows = payrollResult.details.map((r) => [
-      `"${r.name}"`,
-      r.regularHours.toFixed(2),
-      r.overtimeHours.toFixed(2),
-      r.basePay.toFixed(2),
-      r.overtimePay.toFixed(2),
-      r.totalPay.toFixed(2),
-    ]);
-    let csvContent =
-      "data:text/csv;charset=utf-8,\uFEFF" +
-      headers.join(",") +
-      "\n" +
-      rows.map((e) => e.join(",")).join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute(
-      "download",
-      `payroll_${dateRange.start}_to_${dateRange.end}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-  const isReady =
-    selectedEmployeeIds.length > 0 && dateRange.start && dateRange.end;
+  const handleGenerate = () => setPayrollResult(calculatePayroll());
   return (
     <div className="card">
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <h2>הפקת דוח שכר</h2>
-        <button
-          onClick={handleExportCSV}
-          className="secondary"
-          disabled={!payrollResult}
-        >
-          ייצא ל-CSV
-        </button>
-      </div>
+      <h2>הפקת דוח שכר</h2>
       <div className="payroll-controls">
         <div className="control-section">
           <h3>1. בחר עובדים</h3>
@@ -1587,7 +1298,7 @@ function PayrollPage() {
             type="date"
             value={dateRange.start}
             onChange={(e) =>
-              setDateRange((prev) => ({ ...prev, start: e.target.value }))
+              setDateRange((p) => ({ ...p, start: e.target.value }))
             }
           />
           <FormInput
@@ -1595,13 +1306,22 @@ function PayrollPage() {
             type="date"
             value={dateRange.end}
             onChange={(e) =>
-              setDateRange((prev) => ({ ...prev, end: e.target.value }))
+              setDateRange((p) => ({ ...p, end: e.target.value }))
             }
           />
         </div>
       </div>
       <div style={{ textAlign: "center", marginTop: "24px" }}>
-        <button onClick={handleGenerate} disabled={!isReady}>
+        <button
+          onClick={handleGenerate}
+          disabled={
+            !(
+              selectedEmployeeIds.length > 0 &&
+              dateRange.start &&
+              dateRange.end
+            )
+          }
+        >
           הפק דוח שכר
         </button>
       </div>
@@ -1613,7 +1333,7 @@ function PayrollPage() {
             paddingTop: "24px",
           }}
         >
-          <h3 style={{ textAlign: "center", borderBottom: "none" }}>
+          <h3>
             דוח שכר לתקופה:{" "}
             {new Date(dateRange.start).toLocaleDateString("he-IL")} -{" "}
             {new Date(dateRange.end).toLocaleDateString("he-IL")}
@@ -1637,9 +1357,7 @@ function PayrollPage() {
                   <td>{r.overtimeHours.toFixed(2)}</td>
                   <td>₪{r.basePay.toFixed(2)}</td>
                   <td>₪{r.overtimePay.toFixed(2)}</td>
-                  <td style={{ fontWeight: 700, fontSize: "16px" }}>
-                    ₪{r.totalPay.toFixed(2)}
-                  </td>
+                  <td style={{ fontWeight: 700 }}>₪{r.totalPay.toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -1659,6 +1377,7 @@ function PayrollPage() {
     </div>
   );
 }
+
 function Login({ onLogin }) {
   const { state } = useContext(AppContext);
   const [employeeId, setEmployeeId] = useState("");
@@ -1715,61 +1434,39 @@ function App() {
   }, [state, isLoaded]);
 
   useEffect(() => {
-    // Wait until the necessary data is actually loaded into the state
     if (
       !state.employees ||
       state.employees.length === 0 ||
       !state.scheduledAbsences
-    ) {
+    )
       return;
-    }
-
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalize to beginning of the day
-
+    today.setHours(0, 0, 0, 0);
     state.employees.forEach((emp) => {
-      // Find if there's a scheduled absence for today
       const todaysAbsence = state.scheduledAbsences.find((a) => {
         const startDate = new Date(a.startDate);
         const endDate = new Date(a.endDate);
-        // Ensure dates are valid before comparing
         if (isNaN(startDate.getTime()) || isNaN(endDate.getTime()))
           return false;
         return (
           a.employeeId === emp.id && today >= startDate && today <= endDate
         );
       });
-
       if (todaysAbsence) {
-        // If employee is on a scheduled absence but status is not updated, update it
-        if (emp.status !== todaysAbsence.type) {
+        if (emp.status !== todaysAbsence.type)
           dispatch({
             type: "UPDATE_EMPLOYEE_STATUS",
             payload: { id: emp.id, status: todaysAbsence.type },
           });
-        }
       } else {
-        // If employee is NOT on a scheduled absence but status is 'vacation' or 'sick'
-        // (meaning the absence period ended), reset them to 'absent'.
-        if (emp.status === "vacation" || emp.status === "sick") {
+        if (emp.status === "vacation" || emp.status === "sick")
           dispatch({
             type: "UPDATE_EMPLOYEE_STATUS",
             payload: { id: emp.id, status: "absent" },
           });
-        }
       }
     });
-    // Make the effect dependent on the actual data it uses
   }, [state.employees, state.scheduledAbsences]);
-
-  useEffect(() => {
-    const d = localStorage.getItem("appData");
-    if (d) dispatch({ type: "SET_INITIAL_DATA", payload: JSON.parse(d) });
-    setIsLoaded(true);
-  }, []);
-  useEffect(() => {
-    if (isLoaded) localStorage.setItem("appData", JSON.stringify(state));
-  }, [state, isLoaded]);
 
   const handleLogin = (id) => {
     const user = state.employees.find((e) => e.id === parseInt(id));

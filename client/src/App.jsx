@@ -1,3 +1,5 @@
+// App.js
+
 import React, {
   useState,
   useEffect,
@@ -15,89 +17,7 @@ import {
   NavLink,
   Navigate,
 } from "react-router-dom";
-
-const GlobalCSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800&display=swap');
-  :root {
-    --primary-color: #6366F1; --primary-hover: #4F46E5; --primary-light: #EEF2FF;
-    --secondary-color: #6B7280; --danger-color: #EF4444; --warning-color: #F59E0B;
-    --success-color: #22C55E; --info-color: #3B82F6; --bg-main: #F9FAFB; --bg-sidebar: #FFFFFF;
-    --font-dark: #1F2937; --font-light: #6B7280; --border-color: #E5E7EB;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.05); --radius: 8px;
-  }
-  body { font-family: 'Heebo', sans-serif; font-size: 16px; background-color: var(--bg-main); margin: 0; color: var(--font-dark); direction: rtl; line-height: 1.6; }
-  .app-layout { display: flex; }
-  .sidebar { width: 260px; height: 100vh; position: sticky; top: 0; background-color: var(--bg-sidebar); border-left: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; }
-  .main-content { flex-grow: 1; padding: 30px; height: 100vh; overflow-y: auto; }
-  .sidebar-header { text-align: center; margin-bottom: 30px; }
-  .sidebar-header h1 { margin: 0; color: var(--primary-color); font-weight: 700; }
-  .sidebar nav { flex-grow: 1; }
-  .sidebar nav a { cursor: pointer; display: flex; align-items: center; gap: 12px; padding: 10px 12px; margin-bottom: 4px; border-radius: 6px; text-decoration: none; color: var(--font-light); font-weight: 500; transition: all 0.2s ease; }
-  .sidebar nav a:hover { background-color: var(--primary-light); color: var(--primary-color); }
-  .sidebar nav a.active { background-color: var(--primary-light); color: var(--primary-color); font-weight: 600; }
-  .sidebar-footer { margin-top: auto; border-top: 1px solid var(--border-color); padding-top: 20px; }
-  .dashboard-grid, .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 24px; }
-  h2, h3 { color: var(--font-dark); font-weight: 700; }
-  h2 { font-size: 28px; margin-bottom: 24px; }
-  h3 { font-size: 20px; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; }
-  .card { background-color: var(--bg-sidebar); border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px; margin-bottom: 24px; border: 1px solid var(--border-color); }
-  button { background-color: var(--primary-color); color: white; border: none; padding: 10px 18px; border-radius: var(--radius); cursor: pointer; font-size: 16px; font-family: 'Heebo', sans-serif; transition: all 0.2s ease-in-out; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-  button:hover:not(:disabled) { background-color: var(--primary-hover); transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
-  button:disabled { background-color: #E2E8F0; border-color: #E2E8F0; color: #94A3B8; cursor: not-allowed; }
-  button.secondary { background-color: white; color: var(--font-dark); border: 1px solid #CBD5E1; }
-  button.secondary:hover:not(:disabled) { background-color: #F8FAFC; }
-  .form-group { margin-bottom: 16px; }
-  .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; }
-  input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #CBD5E1; border-radius: 6px; box-sizing: border-box; transition: all 0.2s ease; font-size: 16px; }
-  input:focus, select:focus, textarea:focus { border-color: var(--primary-color); box-shadow: 0 0 0 2px var(--primary-light); outline: none; }
-  .toggle-switch { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; cursor: pointer; }
-  .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
-  .switch input { opacity: 0; width: 0; height: 0; }
-  .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #CBD5E1; transition: .4s; border-radius: 22px; }
-  .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
-  input:checked + .slider { background-color: var(--primary-color); }
-  input:checked + .slider:before { transform: translateX(18px); }
-  .login-container { display: flex; align-items: center; justify-content: center; height: 100vh; background-color: var(--bg-main); }
-  table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-  th, td { padding: 14px 16px; text-align: right; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
-  th { background-color: #F8FAFC; font-weight: 700; color: var(--font-light); font-size: 12px; text-transform: uppercase; }
-  .kpi-card { text-align: center; }
-  .kpi-value { font-size: 32px; font-weight: 800; color: var(--primary-color); margin: 5px 0; }
-  .status-dot { width: 10px; height: 10px; border-radius: 50%; }
-  .status-dot.present { background-color: var(--success-color); }
-  .status-dot.on_break { background-color: var(--warning-color); }
-  .status-dot.absent { background-color: #94A3B8; }
-  .status-dot.sick { background-color: var(--warning-color); }
-  .status-dot.vacation { background-color: var(--info-color); }
-  .modal-backdrop { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(15, 23, 42, 0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; animation: fadeIn 0.3s ease-out; }
-  .modal-content { background: var(--bg-sidebar); padding: 24px; border-radius: var(--radius); box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1); width: 100%; max-width: 500px; position: relative; animation: scaleUp 0.3s ease-out; }
-  .modal-close-btn { position: absolute; top: 16px; left: 16px; background: none; border: none; color: var(--font-light); font-size: 24px; cursor: pointer; line-height: 1; }
-  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes scaleUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-  .payroll-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; background-color: #F8FAFC; padding: 24px; border-radius: var(--radius); margin-bottom: 24px; border: 1px solid var(--border-color); }
-  .control-section h3 { margin-top: 0; border: none; padding-bottom: 0; margin-bottom: 16px; }
-  .employee-select-list { max-height: 150px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 10px; background: white; }
-  .employee-select-item, .select-all-item { cursor: pointer; display: flex; align-items: center; padding: 8px; border-radius: 4px; transition: background-color 0.2s; }
-  .employee-select-item:hover, .select-all-item:hover { background-color: var(--primary-light); }
-  .select-all-item { padding-bottom: 10px; border-bottom: 1px solid var(--border-color); margin-bottom: 5px; }
-  .employee-select-item input[type="checkbox"], .select-all-item input[type="checkbox"] { cursor: pointer; width: auto; margin: 0 0 0 12px; }
-  .payroll-table tfoot td { font-weight: 700; background-color: var(--primary-light); color: var(--primary-hover); border-top: 2px solid var(--primary-color); font-size: 16px; }
-  .status-selector { display: flex; flex-wrap: wrap; gap: 12px; }
-  .status-tag { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border-color); background-color: var(--bg-sidebar); cursor: pointer; transition: all 0.2s ease-in-out; font-size: 14px; font-weight: 500; color: var(--font-light); }
-  .status-tag:hover { border-color: var(--primary-color); color: var(--primary-color); box-shadow: 0 0 0 3px var(--primary-light); }
-  .status-tag .status-tag-icon { width: 14px; height: 14px; opacity: 0.7; }
-  .status-tag.selected { font-weight: 600; border-color: transparent; box-shadow: none; }
-  .status-tag.selected.present { background-color: #D1FAE5; color: #065F46; }
-  .status-tag.selected.on_break { background-color: #FEF3C7; color: #92400E; }
-  .status-tag.selected.absent { background-color: #F3F4F6; color: #4B5563; }
-  .status-tag.selected.sick { background-color: #FFE4E6; color: #9F1239; }
-  .status-tag.selected.vacation { background-color: #E0E7FF; color: #3730A3; }
-  .status-tag.selected .status-tag-icon { opacity: 1; color: inherit; }
-  .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
-  .toast { background-color: var(--font-dark); color: white; padding: 15px 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 10px; display: flex; align-items: center; gap: 10px; animation: slideInUp 0.5s ease, fadeOut 0.5s ease 4.5s forwards; }
-  @keyframes slideInUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-  @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
-`;
+import "./App.css";
 
 const Icon = ({ path, size = 18 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
@@ -113,7 +33,7 @@ const ICONS = {
   PAYROLL:
     "M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41s-.22-1.05-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z",
   SETTINGS:
-    "M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.69-1.62-0.92L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 l-3.84,0c-0.24,0-0.44,0.17-0.48,0.41L9.2,5.59C8.6,5.82,8.08,6.13,7.58,6.51L5.19,5.55C4.97,5.48,4.72,5.55,4.6,5.77L2.68,9.09 c-0.11,0.2-0.06,0.47,0.12,0.61L4.83,11.28c-0.05,0.3-0.07,0.62-0.07,0.94c0,0.32,0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.69,1.62,0.92l0.44,2.78 c0.04,0.24,0.24,0.41,0.48,0.41l3.84,0c0.24,0,0.44-0.17,0.48-0.41l0.44-2.78c0.59-0.23,1.12-0.54,1.62-0.92l2.39,0.96 c0.22,0.08,0.47,0.01,0.59-0.22l1.92-3.32c0.12-0.2,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z",
+    "M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.69-1.62-0.92L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 l-3.84,0c-0.24,0-0.44,0.17-0.48,0.41L9.2,5.59C8.6,5.82,8.08,6.13,7.58,6.51L5.19,5.55C4.97,5.48,4.72,5.55,4.6,5.77L2.68,9.09 c-0.11,0.2-0.06,0.47,0.12,0.61L4.83,11.28c-0.05,0.3-0.07,0.62-0.07,0.94c0,0.32,0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.69,1.62,0.92l0.44,2.78 c0.04,0.24,0.24,0.41,0.48,0.41l3.84,0c0.24,0,0.44-0.17-0.48-0.41l0.44-2.78c0.59-0.23,1.12-0.54,1.62-0.92l2.39,0.96 c0.22,0.08,0.47,0.01,0.59-0.22l1.92-3.32c0.12-0.2,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z",
   LOGOUT:
     "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2h8v-2H4V5z",
   ON_BREAK:
@@ -126,7 +46,7 @@ const STATUSES = {
   PRESENT: { key: "present", text: "נוכח", colorClass: "present", icon: null },
   ON_BREAK: {
     key: "on_break",
-    text: "בהפסקה",
+    text: "הפסקה",
     colorClass: "on_break",
     icon: ICONS.ON_BREAK,
   },
@@ -193,9 +113,39 @@ const ToastProvider = ({ children }) => {
   );
 };
 const useToaster = () => useContext(ToastContext);
-const calculateHours = (start, end) =>
-  end ? (new Date(end) - new Date(start)) / 36e5 : 0;
+const calculateNetHours = (attendanceEntry) => {
+  if (!attendanceEntry || !attendanceEntry.clockIn) return 0;
 
+  // If clock-out is not defined, use the current time for calculation
+  const clockOutTime = attendanceEntry.clockOut
+    ? new Date(attendanceEntry.clockOut)
+    : new Date();
+  const clockInTime = new Date(attendanceEntry.clockIn);
+
+  let totalMilliseconds = clockOutTime - clockInTime;
+
+  // Subtract break times
+  if (attendanceEntry.breaks && attendanceEntry.breaks.length > 0) {
+    const totalBreakMilliseconds = attendanceEntry.breaks.reduce(
+      (acc, breakItem) => {
+        if (breakItem.start && breakItem.end) {
+          return acc + (new Date(breakItem.end) - new Date(breakItem.start));
+        }
+        // If a break is still ongoing, calculate duration until now
+        if (breakItem.start && !breakItem.end) {
+          return acc + (new Date() - new Date(breakItem.start));
+        }
+        return acc;
+      },
+      0
+    );
+
+    totalMilliseconds -= totalBreakMilliseconds;
+  }
+
+  // Return hours, ensuring it's not negative
+  return Math.max(0, totalMilliseconds / 36e5);
+};
 const initialData = {
   employees: [
     {
@@ -333,13 +283,7 @@ function Dashboard() {
       );
       let empTodayHours = 0;
       todayEntries.forEach((entry) => {
-        empTodayHours += calculateHours(
-          entry.clockIn,
-          entry.clockOut ||
-            (emp.status !== STATUSES.ABSENT.key
-              ? new Date().toISOString()
-              : null)
-        );
+        empTodayHours += calculateNetHours(entry);
       });
       const validEmpHours = Number(empTodayHours) || 0;
       const maxHours = Number(state.settings.standardWorkDayHours) || 9;
@@ -393,96 +337,226 @@ function Dashboard() {
   );
 }
 
+
 function RealTimePresenceCard() {
-  const { state, dispatch } = useContext(AppContext);
+  const { dispatch } = useContext(AppContext);
   const toaster = useToaster();
+  
+  // This logic now lives in the parent, to be passed down
   const handleStatusChange = (employee, newStatusKey) => {
     if (employee.status === newStatusKey) return;
-    const now = new Date().toISOString();
-    const newStatusObject = Object.values(STATUSES).find(
-      (s) => s.key === newStatusKey
-    );
-    const toasterMessage = `${employee.name} שינה סטטוס ל: ${newStatusObject.text}`;
 
-    if (newStatusKey === STATUSES.PRESENT.key) {
-      dispatch({
-        type: "ADD_ATTENDANCE",
-        payload: {
-          id: Date.now(),
-          employeeId: employee.id,
-          clockIn: now,
-          clockOut: null,
-        },
-      });
+    const now = new Date().toISOString();
+    const newStatusObject = Object.values(STATUSES).find(s => s.key === newStatusKey);
+    const toasterMessage = `${employee.name} שינה סטטוס ל: ${newStatusObject.text}`;
+    
+    // Dispatch the status change first
+    dispatch({ type: "UPDATE_EMPLOYEE_STATUS", payload: { id: employee.id, status: newStatusKey }});
+
+    // Clock-In (from Absent to Present)
+    if (newStatusKey === STATUSES.PRESENT.key && employee.status === STATUSES.ABSENT.key) {
+      dispatch({ type: "ADD_ATTENDANCE", payload: { id: Date.now(), employeeId: employee.id, clockIn: now, clockOut: null }});
       toaster(toasterMessage, "success");
-    } else if (
-      employee.status === STATUSES.PRESENT.key &&
-      newStatusKey === STATUSES.ABSENT.key
-    ) {
-      dispatch({
-        type: "UPDATE_LAST_ATTENDANCE",
-        payload: { employeeId: employee.id, data: { clockOut: now } },
-      });
-      toaster(toasterMessage);
-    } else {
+    }
+    // Start Break (from Present to On Break)
+    else if (newStatusKey === STATUSES.ON_BREAK.key) {
+      dispatch({ type: "START_BREAK", payload: { employeeId: employee.id, time: now }});
       toaster(toasterMessage);
     }
-    dispatch({
-      type: "UPDATE_EMPLOYEE_STATUS",
-      payload: { id: employee.id, status: newStatusKey },
-    });
+    // End Break (from On Break to Present)
+    else if (newStatusKey === STATUSES.PRESENT.key && employee.status === STATUSES.ON_BREAK.key) {
+      dispatch({ type: "END_BREAK", payload: { employeeId: employee.id, time: now }});
+       toaster(toasterMessage);
+    }
+    // Clock-Out (from any active state to Absent)
+    else if (newStatusKey === STATUSES.ABSENT.key) {
+      // If employee was on break, end the break first
+      if (employee.status === STATUSES.ON_BREAK.key) {
+        dispatch({ type: "END_BREAK", payload: { employeeId: employee.id, time: now }});
+      }
+      dispatch({ type: "UPDATE_LAST_ATTENDANCE", payload: { employeeId: employee.id, data: { clockOut: now } }});
+      toaster(toasterMessage);
+    }
   };
+
+  const { state } = useContext(AppContext);
+
   return (
     <div className="card">
       <h3>נוכחות בזמן אמת</h3>
       {state.employees
         .filter((e) => e.role === "employee")
         .map((emp) => (
-          <div
-            key={emp.id}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "10px 0",
-              borderBottom: "1px solid var(--border-color)",
-            }}
-          >
-            <div>
-              <div style={{ fontWeight: 500 }}>{emp.name}</div>
-              <div style={{ fontSize: "14px", color: "var(--font-light)" }}>
-                {emp.department}
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: "8px" }}>
-              <button
-                onClick={() => handleStatusChange(emp, STATUSES.PRESENT.key)}
-                disabled={emp.status !== STATUSES.ABSENT.key}
-                className="secondary"
-              >
-                {STATUSES.PRESENT.text}
-              </button>
-              <button
-                onClick={() => handleStatusChange(emp, STATUSES.ON_BREAK.key)}
-                disabled={emp.status !== STATUSES.PRESENT.key}
-                className="secondary"
-              >
-                {STATUSES.ON_BREAK.text}
-              </button>
-              <button
-                onClick={() => handleStatusChange(emp, STATUSES.ABSENT.key)}
-                disabled={emp.status === STATUSES.ABSENT.key}
-                className="secondary"
-              >
-                יציאה
-              </button>
-            </div>
-          </div>
+          <EmployeeRow 
+            key={emp.id} 
+            employee={emp} 
+            onStatusChange={handleStatusChange} 
+          />
         ))}
     </div>
   );
 }
 
+
+function EmployeeRow({ employee, onStatusChange }) {
+  const { state } = useContext(AppContext);
+  const [elapsedTime, setElapsedTime] = useState(0);
+
+  useEffect(() => {
+    let interval;
+    const isPresentOrOnBreak =
+      employee.status === STATUSES.PRESENT.key ||
+      employee.status === STATUSES.ON_BREAK.key;
+
+    if (isPresentOrOnBreak) {
+      // Set initial time immediately
+      const todayEntry = state.attendance.findLast(
+        (a) => a.employeeId === employee.id && !a.clockOut
+      );
+      if (todayEntry) {
+        setElapsedTime(calculateNetHours(todayEntry));
+      }
+
+      // Update every second
+      interval = setInterval(() => {
+        const todayEntry = state.attendance.findLast(
+          (a) => a.employeeId === employee.id && !a.clockOut
+        );
+        if (todayEntry) {
+          setElapsedTime(calculateNetHours(todayEntry));
+        }
+      }, 1000);
+    } else {
+      setElapsedTime(0); // Reset if not working
+    }
+
+    return () => clearInterval(interval); // Cleanup on unmount or status change
+  }, [employee.status, state.attendance, employee.id]);
+
+  const formatTime = (hours) => {
+    if (hours <= 0) return "00:00:00";
+    const totalSeconds = Math.floor(hours * 3600);
+    const h = Math.floor(totalSeconds / 3600)
+      .toString()
+      .padStart(2, "0");
+    const m = Math.floor((totalSeconds % 3600) / 60)
+      .toString()
+      .padStart(2, "0");
+    const s = (totalSeconds % 60).toString().padStart(2, "0");
+    return `${h}:${m}:${s}`;
+  };
+
+  const statusObject =
+    Object.values(STATUSES).find((s) => s.key === employee.status) ||
+    STATUSES.ABSENT;
+  const isWorking = employee.status === STATUSES.PRESENT.key;
+  const isOnBreak = employee.status === STATUSES.ON_BREAK.key;
+  const isAbsent = employee.status === STATUSES.ABSENT.key;
+
+  const statusIndicatorStyle = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
+    fontWeight: 500,
+    padding: "4px 10px",
+    borderRadius: "6px",
+    transition: "all 0.3s ease",
+    width: "120px", // Fixed width for alignment
+    justifyContent: "center",
+  };
+
+  if (isOnBreak) {
+    statusIndicatorStyle.backgroundColor = "var(--warning-color)";
+    statusIndicatorStyle.color = "#FFFFFF";
+  }
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "2fr 1fr 2fr", // Give more space to sides
+        alignItems: "center",
+        padding: "12px 0",
+        borderBottom: "1px solid var(--border-color)",
+      }}
+    >
+      {/* Column 1: Employee Info & Timer */}
+      <div
+        style={{
+          justifySelf: "start",
+          display: "flex",
+          alignItems: "center",
+          gap: "20px",
+        }}
+      >
+        <div>
+          <div style={{ fontWeight: 500 }}>{employee.name}</div>
+          <div style={{ fontSize: "14px", color: "var(--font-light)" }}>
+            {employee.department}
+          </div>
+        </div>
+        {!isAbsent && (
+          <div
+            style={{
+              textAlign: "right",
+              color: "var(--primary-color)",
+              fontFamily: "monospace",
+              fontSize: "18px",
+            }}
+          >
+            {formatTime(elapsedTime)}
+          </div>
+        )}
+      </div>
+
+      {/* Column 2: Status Indicator */}
+      <div style={{ justifySelf: "center" }}>
+        <div style={statusIndicatorStyle}>
+          <div
+            className={`status-dot ${statusObject.colorClass}`}
+            style={
+              isOnBreak
+                ? {
+                    backgroundColor: "white",
+                    border: "1px solid var(--warning-color)",
+                  }
+                : {}
+            }
+          ></div>
+          <span>{statusObject.text}</span>
+        </div>
+      </div>
+
+      {/* Column 3: Action Buttons */}
+      <div style={{ justifySelf: "end", display: "flex", gap: "8px" }}>
+        <button
+          onClick={() => onStatusChange(employee, STATUSES.PRESENT.key)}
+          className={isWorking  ? "secondary" : ""}
+          disabled={isWorking}
+          title={isOnBreak ? "חזרה לעבודה" : "התחלת עבודה"}
+        >
+          {isOnBreak ? "חזור לעבודה" : "כניסה"}
+        </button>
+        <button
+          onClick={() => onStatusChange(employee, STATUSES.ON_BREAK.key)}
+          className={isWorking ? "warning" : "secondary"}
+          disabled={!isWorking}
+          title="יציאה להפסקה"
+        >
+          הפסקה
+        </button>
+        <button
+          onClick={() => onStatusChange(employee, STATUSES.ABSENT.key)}
+          className={isAbsent ? "secondary" : ""}
+          disabled={isAbsent}
+          title="סיום עבודה"
+        >
+          יציאה
+        </button>
+      </div>
+    </div>
+  );
+}
 function EmployeeForm({ initialData, onSave, onCancel }) {
   const [formData, setFormData] = useState({
     name: "",
@@ -759,7 +833,7 @@ function ReportsPage() {
         overtime = 0,
         pay = 0;
       entries.forEach((entry) => {
-        const hours = calculateHours(entry.clockIn, entry.clockOut);
+        const hours = calculateNetHours(entry);
         const validHours = Number(hours) || 0;
         const maxHours = Number(state.settings.standardWorkDayHours) || 9;
         const hourlyRate = Number(emp.hourlyRate) || 0;
@@ -1094,7 +1168,7 @@ function PayrollPage() {
           basePay = 0,
           overtimePay = 0;
         entries.forEach((entry) => {
-          const hours = calculateHours(entry.clockIn, entry.clockOut);
+          const hours = calculateNetHours(entry);
           const validHours = Number(hours) || 0;
           const maxHours = Number(state.settings.standardWorkDayHours) || 9;
           const hourlyRate = Number(emp.hourlyRate) || 0;
@@ -1384,7 +1458,6 @@ function App() {
   return (
     <AppContext.Provider value={{ state, dispatch }}>
       <ToastProvider>
-        <style>{GlobalCSS}</style>
         <BrowserRouter>
           {!currentUser ? (
             <Login onLogin={handleLogin} />

@@ -577,7 +577,11 @@ function EmployeeRow({ employee, onStatusChange }) {
         <button
           onClick={() => onStatusChange(employee, STATUSES.PRESENT.key)}
           className={isWorking ? "secondary" : ""}
-          disabled={isWorking}
+          disabled={
+            isWorking ||
+            employee.status === "vacation" ||
+            employee.status === "sick"
+          }
           title={isOnBreak ? "חזרה לעבודה" : "התחלת עבודה"}
         >
           {isOnBreak ? "חזור לעבודה" : "כניסה"}
@@ -743,38 +747,180 @@ function EmployeeModal({ show, onClose, employee, onSave }) {
     </div>
   );
 }
+// App.js
+
+function AbsenceManagementModal({
+  show,
+  onClose,
+  employee,
+  absences,
+  onAdd,
+  onDelete,
+}) {
+  const [newAbsence, setNewAbsence] = useState({
+    type: "vacation",
+    startDate: "",
+    endDate: "",
+  });
+
+  if (!show || !employee) return null;
+
+  const handleAddAbsence = (e) => {
+    e.preventDefault();
+    if (newAbsence.startDate && newAbsence.endDate) {
+      onAdd({
+        employeeId: employee.id,
+        ...newAbsence,
+      });
+      setNewAbsence({ type: "vacation", startDate: "", endDate: "" }); // Reset form
+    }
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="modal-close-btn">
+          ×
+        </button>
+        <h3 style={{ marginTop: 0 }}>ניהול היעדרויות עבור {employee.name}</h3>
+
+        {/* Form to add new absence */}
+        <form
+          onSubmit={handleAddAbsence}
+          className="payroll-controls"
+          style={{ padding: "16px", marginBottom: "24px" }}
+        >
+          <div className="form-group">
+            <label>סוג היעדרות</label>
+            <select
+              value={newAbsence.type}
+              onChange={(e) =>
+                setNewAbsence({ ...newAbsence, type: e.target.value })
+              }
+            >
+              <option value="vacation">חופשה</option>
+              <option value="sick">מחלה</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label>מתאריך</label>
+            <input
+              type="date"
+              value={newAbsence.startDate}
+              onChange={(e) =>
+                setNewAbsence({ ...newAbsence, startDate: e.target.value })
+              }
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>עד תאריך</label>
+            <input
+              type="date"
+              value={newAbsence.endDate}
+              onChange={(e) =>
+                setNewAbsence({ ...newAbsence, endDate: e.target.value })
+              }
+              required
+            />
+          </div>
+          <button type="submit" style={{ gridColumn: "1 / -1" }}>
+            הוסף היעדרות
+          </button>
+        </form>
+
+        {/* List of current absences */}
+        <h4>היעדרויות קיימות</h4>
+        {absences.length > 0 ? (
+          <ul style={{ listStyle: "none", padding: 0 }}>
+            {absences.map((absence) => (
+              <li
+                key={absence.id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "8px",
+                  borderBottom: "1px solid var(--border-color)",
+                }}
+              >
+                <div>
+                  <span style={{ fontWeight: 500 }}>
+                    {STATUSES[absence.type.toUpperCase()].text}
+                  </span>
+                  :  {new Date(absence.startDate).toLocaleDateString("he-IL")} -{" "}
+                  {new Date(absence.endDate).toLocaleDateString("he-IL")}
+                </div>
+                <button
+                  onClick={() => onDelete(absence.id)}
+                  className="secondary"
+                  style={{
+                    borderColor: "var(--danger-color)",
+                    color: "var(--danger-color)",
+                    padding: "5px 10px",
+                  }}
+                >
+                  מחק
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>אין היעדרויות מתוכננות עבור עובד זה.</p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function EmployeeList() {
   const { state, dispatch } = useContext(AppContext);
   const toaster = useToaster();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState(null);
-  const handleAddNew = () => {
-    setEditingEmployee(null);
-    setIsModalOpen(true);
+
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isAbsenceModalOpen, setIsAbsenceModalOpen] = useState(false);
+
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+
+  const handleOpenEdit = (employee) => {
+    setSelectedEmployee(employee);
+    setIsEditModalOpen(true);
   };
-  const handleEdit = (employee) => {
-    setEditingEmployee(employee);
-    setIsModalOpen(true);
+
+  const handleOpenAbsences = (employee) => {
+    setSelectedEmployee(employee);
+    setIsAbsenceModalOpen(true);
   };
-  const handleDelete = (employee) => {
+
+  const handleDeleteEmployee = (employee) => {
     if (window.confirm(`האם אתה בטוח שברצונך למחוק את ${employee.name}?`)) {
       dispatch({ type: "DELETE_EMPLOYEE", payload: employee.id });
       toaster(`${employee.name} נמחק בהצלחה.`);
     }
   };
-  const handleSave = (employeeData) => {
-    if (editingEmployee) {
+
+  const handleSaveEmployee = (employeeData) => {
+    if (selectedEmployee && selectedEmployee.id) {
       dispatch({
         type: "UPDATE_EMPLOYEE",
-        payload: { ...employeeData, id: editingEmployee.id },
+        payload: { ...employeeData, id: selectedEmployee.id },
       });
       toaster("פרטי העובד עודכנו!", "success");
     } else {
       dispatch({ type: "ADD_EMPLOYEE", payload: employeeData });
       toaster("עובד חדש נוסף בהצלחה!", "success");
     }
-    setIsModalOpen(false);
+    setIsEditModalOpen(false);
+  };
+
+  const handleAddAbsence = (absenceData) => {
+    dispatch({ type: "ADD_ABSENCE", payload: absenceData });
+    toaster("היעדרות נוספה בהצלחה", "success");
+  };
+
+  const handleDeleteAbsence = (absenceId) => {
+    dispatch({ type: "DELETE_ABSENCE", payload: absenceId });
+    toaster("היעדרות נמחקה");
   };
 
   return (
@@ -788,7 +934,14 @@ function EmployeeList() {
           }}
         >
           <h2>ניהול עובדים</h2>
-          <button onClick={handleAddNew}>הוסף עובד חדש</button>
+          <button
+            onClick={() => {
+              setSelectedEmployee(null);
+              setIsEditModalOpen(true);
+            }}
+          >
+            הוסף עובד חדש
+          </button>
         </div>
         <table>
           <thead>
@@ -796,7 +949,7 @@ function EmployeeList() {
               <th>שם</th>
               <th>מחלקה</th>
               <th>תעריף</th>
-              <th>סטטוס</th>
+              <th>סטטוס נוכחי</th>
               <th>פעולות</th>
             </tr>
           </thead>
@@ -824,18 +977,23 @@ function EmployeeList() {
                       <span>{statusObject.text}</span>
                     </div>
                   </td>
-                  <td>
+                  <td style={{ display: "flex", gap: "8px" }}>
                     <button
                       className="secondary"
-                      onClick={() => handleEdit(emp)}
+                      onClick={() => handleOpenEdit(emp)}
                     >
                       ערוך
                     </button>
                     <button
                       className="secondary"
-                      onClick={() => handleDelete(emp)}
+                      onClick={() => handleOpenAbsences(emp)}
+                    >
+                      היעדרויות
+                    </button>
+                    <button
+                      className="secondary"
+                      onClick={() => handleDeleteEmployee(emp)}
                       style={{
-                        marginRight: 10,
                         borderColor: "var(--danger-color)",
                         color: "var(--danger-color)",
                       }}
@@ -849,16 +1007,32 @@ function EmployeeList() {
           </tbody>
         </table>
       </div>
+
       <EmployeeModal
-        show={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        employee={editingEmployee}
-        onSave={handleSave}
+        show={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        employee={selectedEmployee}
+        onSave={handleSaveEmployee}
+      />
+
+      <AbsenceManagementModal
+        show={isAbsenceModalOpen}
+        onClose={() => setIsAbsenceModalOpen(false)}
+        employee={selectedEmployee}
+        // --- כאן התיקון ---
+        absences={
+          selectedEmployee && state.scheduledAbsences
+            ? state.scheduledAbsences.filter(
+                (a) => a.employeeId === selectedEmployee.id
+              )
+            : []
+        }
+        onAdd={handleAddAbsence}
+        onDelete={handleDeleteAbsence}
       />
     </>
   );
 }
-
 function ReportsPage() {
   const { state } = useContext(AppContext);
   const [range, setRange] = useState({ start: "", end: "" });
@@ -1470,6 +1644,64 @@ function App() {
   const [state, dispatch] = useReducer(dataReducer, initialData);
   const [currentUser, setCurrentUser] = useLocalStorage("currentUser", null);
   const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    const d = localStorage.getItem("appData");
+    if (d) dispatch({ type: "SET_INITIAL_DATA", payload: JSON.parse(d) });
+    setIsLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (isLoaded) localStorage.setItem("appData", JSON.stringify(state));
+  }, [state, isLoaded]);
+
+  useEffect(() => {
+    // Wait until the necessary data is actually loaded into the state
+    if (
+      !state.employees ||
+      state.employees.length === 0 ||
+      !state.scheduledAbsences
+    ) {
+      return;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize to beginning of the day
+
+    state.employees.forEach((emp) => {
+      // Find if there's a scheduled absence for today
+      const todaysAbsence = state.scheduledAbsences.find((a) => {
+        const startDate = new Date(a.startDate);
+        const endDate = new Date(a.endDate);
+        // Ensure dates are valid before comparing
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime()))
+          return false;
+        return (
+          a.employeeId === emp.id && today >= startDate && today <= endDate
+        );
+      });
+
+      if (todaysAbsence) {
+        // If employee is on a scheduled absence but status is not updated, update it
+        if (emp.status !== todaysAbsence.type) {
+          dispatch({
+            type: "UPDATE_EMPLOYEE_STATUS",
+            payload: { id: emp.id, status: todaysAbsence.type },
+          });
+        }
+      } else {
+        // If employee is NOT on a scheduled absence but status is 'vacation' or 'sick'
+        // (meaning the absence period ended), reset them to 'absent'.
+        if (emp.status === "vacation" || emp.status === "sick") {
+          dispatch({
+            type: "UPDATE_EMPLOYEE_STATUS",
+            payload: { id: emp.id, status: "absent" },
+          });
+        }
+      }
+    });
+    // Make the effect dependent on the actual data it uses
+  }, [state.employees, state.scheduledAbsences]);
 
   useEffect(() => {
     const d = localStorage.getItem("appData");

@@ -33,16 +33,11 @@ const ICONS = {
     "M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.69-1.62-0.92L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 l-3.84,0c-0.24,0-0.44,0.17-0.48,0.41L9.2,5.59C8.6,5.82,8.08,6.13,7.58,6.51L5.19,5.55C4.97,5.48,4.72,5.55,4.6,5.77L2.68,9.09 c-0.11,0.2-0.06,0.47,0.12,0.61L4.83,11.28c-0.05,0.3-0.07,0.62-0.07,0.94c0,0.32,0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.69,1.62,0.92l0.44,2.78 c0.04,0.24,0.24,0.41,0.48,0.41l3.84,0c0.24,0,0.44-0.17,0.48-0.41l0.44-2.78c0.59-0.23,1.12-0.54,1.62-0.92l2.39,0.96 c0.22,0.08,0.47,0.01,0.59-0.22l1.92-3.32c0.12-0.2,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z",
   LOGOUT:
     "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2h8v-2H4V5z",
-  ON_BREAK:
-    "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z",
-  SICK: "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z",
-  VACATION:
-    "M21.99 8c0-.55-.45-1-1-1h-2.01V5c0-1.1-.9-2-2-2H7c-1.1 0-2 .9-2 2v2H3c-.55 0-1 .45-1 1s.45 1 1 1h18c.55 0 1-.45 1-1zM7 11h10v8H7v-8z",
 };
 
+// סטטוס "בהפסקה" הוסר
 const STATUSES = {
   PRESENT: { key: "present", text: "נוכח", colorClass: "present" },
-  ON_BREAK: { key: "on_break", text: "בהפסקה", colorClass: "on_break" },
   SICK: { key: "sick", text: "מחלה", colorClass: "sick" },
   VACATION: { key: "vacation", text: "חופשה", colorClass: "vacation" },
   ABSENT: { key: "absent", text: "לא בעבודה", colorClass: "absent" },
@@ -101,35 +96,14 @@ const ToastProvider = ({ children }) => {
 };
 const useToaster = () => useContext(ToastContext);
 
-const calculateNetHours = (attendanceEntry, settings) => {
+// פונקציית חישוב פשוטה יותר
+const calculateHours = (attendanceEntry) => {
   if (!attendanceEntry || !attendanceEntry.clockIn) return 0;
   const clockOutTime = attendanceEntry.clockOut
     ? new Date(attendanceEntry.clockOut)
     : new Date();
   const clockInTime = new Date(attendanceEntry.clockIn);
-  let totalMilliseconds = clockOutTime - clockInTime;
-  let totalBreakMilliseconds = 0;
-
-  if (attendanceEntry.breaks && attendanceEntry.breaks.length > 0) {
-    totalBreakMilliseconds = attendanceEntry.breaks.reduce((acc, breakItem) => {
-      if (breakItem.start && breakItem.end) {
-        return acc + (new Date(breakItem.end) - new Date(breakItem.start));
-      }
-      if (breakItem.start && !breakItem.end) {
-        return acc + (new Date() - new Date(breakItem.start));
-      }
-      return acc;
-    }, 0);
-  }
-
-  const paidBreakMilliseconds = (settings?.maxBreakMinutes || 0) * 60 * 1000;
-  const unpaidBreakMilliseconds = Math.max(
-    0,
-    totalBreakMilliseconds - paidBreakMilliseconds
-  );
-
-  totalMilliseconds -= unpaidBreakMilliseconds;
-
+  const totalMilliseconds = clockOutTime - clockInTime;
   return Math.max(0, totalMilliseconds / 36e5);
 };
 
@@ -159,9 +133,6 @@ const initialData = {
     overtimeRatePercent: 150,
     restrictByIp: true,
     allowedIps: "192.168.1.1, 8.8.8.8",
-    alertOnLateArrival: true,
-    autoClockOutAfter: 12,
-    maxBreakMinutes: 60,
   },
 };
 
@@ -181,10 +152,7 @@ const dataReducer = (state, action) => {
         ),
       };
     case "ADD_ATTENDANCE":
-      return {
-        ...state,
-        attendance: [...state.attendance, { ...action.payload, breaks: [] }],
-      };
+      return { ...state, attendance: [...state.attendance, action.payload] };
     case "UPDATE_LAST_ATTENDANCE": {
       const idx = state.attendance.findLastIndex(
         (a) => a.employeeId === action.payload.employeeId && !a.clockOut
@@ -193,37 +161,6 @@ const dataReducer = (state, action) => {
       const newAtt = [...state.attendance];
       newAtt[idx] = { ...newAtt[idx], ...action.payload.data };
       return { ...state, attendance: newAtt };
-    }
-    case "START_BREAK": {
-      const { employeeId, time } = action.payload;
-      const attIndex = state.attendance.findLastIndex(
-        (a) => a.employeeId === employeeId && !a.clockOut
-      );
-      if (attIndex === -1) return state;
-      const newAttendance = [...state.attendance];
-      const currentEntry = { ...newAttendance[attIndex] };
-      currentEntry.breaks = [
-        ...currentEntry.breaks,
-        { start: time, end: null },
-      ];
-      newAttendance[attIndex] = currentEntry;
-      return { ...state, attendance: newAttendance };
-    }
-    case "END_BREAK": {
-      const { employeeId, time } = action.payload;
-      const attIndex = state.attendance.findLastIndex(
-        (a) => a.employeeId === employeeId && !a.clockOut
-      );
-      if (attIndex === -1) return state;
-      const newAttendance = [...state.attendance];
-      const currentEntry = { ...newAttendance[attIndex] };
-      const breakIndex = currentEntry.breaks.findLastIndex((b) => !b.end);
-      if (breakIndex === -1) return state;
-      const newBreaks = [...currentEntry.breaks];
-      newBreaks[breakIndex] = { ...newBreaks[breakIndex], end: time };
-      currentEntry.breaks = newBreaks;
-      newAttendance[attIndex] = currentEntry;
-      return { ...state, attendance: newAttendance };
     }
     case "ADD_EMPLOYEE":
       return {
@@ -298,49 +235,75 @@ const ToggleSwitch = ({ label, checked, onChange, name }) => (
 
 function Dashboard() {
   const { state } = useContext(AppContext);
+
   const summary = useMemo(() => {
-    if (!state || !state.settings || !state.employees || !state.attendance)
+    if (!state || !state.settings || !state.employees || !state.attendance) {
       return { totalHours: 0, overtimeHours: 0, totalPay: 0, presentCount: 0 };
-    let totalHours = 0,
-      overtimeHours = 0,
-      totalPay = 0;
+    }
+
+    let totalProjectedHours = 0;
+    let totalProjectedOvertime = 0;
+    let totalProjectedPay = 0;
+
     const todayStr = new Date().toDateString();
-    const activeEmployees = state.employees.filter(
-      (emp) =>
-        emp.status === STATUSES.PRESENT.key ||
-        emp.status === STATUSES.ON_BREAK.key
+
+    // סופרים את כל העובדים שנכנסו היום, גם אם כבר יצאו
+    const employeesWhoWorkedToday = state.employees.filter((emp) =>
+      state.attendance.some(
+        (a) =>
+          a.employeeId === emp.id &&
+          new Date(a.clockIn).toDateString() === todayStr
+      )
     );
 
-    activeEmployees.forEach((emp) => {
-      const todayEntries = state.attendance.filter(
+    employeesWhoWorkedToday.forEach((emp) => {
+      const todayEntry = state.attendance.findLast(
         (a) =>
           a.employeeId === emp.id &&
           new Date(a.clockIn).toDateString() === todayStr
       );
-      let empTodayHours = 0;
-      todayEntries.forEach((entry) => {
-        empTodayHours += calculateNetHours(entry, state.settings);
-      });
 
-      const { standardWorkDayHours, overtimeRatePercent } = state.settings;
-      const regularHours = Math.min(empTodayHours, standardWorkDayHours);
-      const otHours = Math.max(0, empTodayHours - standardWorkDayHours);
+      if (!todayEntry) return; // הגנה נוספת
 
-      totalHours += empTodayHours;
-      overtimeHours += otHours;
-      totalPay +=
-        regularHours * emp.hourlyRate +
-        otHours * emp.hourlyRate * (overtimeRatePercent / 100);
+      const hourlyRate = Number(emp.hourlyRate) || 0;
+      const standardWorkDayHours =
+        Number(state.settings.standardWorkDayHours) || 0;
+      const overtimeRatePercent =
+        Number(state.settings.overtimeRatePercent) || 0;
+
+      let hoursForCalculation;
+
+      // הלוגיקה המרכזית: האם העובד כבר יצא?
+      if (todayEntry.clockOut) {
+        // אם כן, חשב לפי הזמן האמיתי שעבד
+        hoursForCalculation = calculateHours(todayEntry);
+      } else {
+        // אם לא, חשב לפי תחזית של יום עבודה מלא
+        hoursForCalculation = standardWorkDayHours;
+      }
+
+      const regularHours = Math.min(hoursForCalculation, standardWorkDayHours);
+      const otHours = Math.max(0, hoursForCalculation - standardWorkDayHours);
+
+      totalProjectedHours += hoursForCalculation;
+      totalProjectedOvertime += otHours;
+      totalProjectedPay +=
+        regularHours * hourlyRate +
+        otHours * hourlyRate * (overtimeRatePercent / 100);
     });
 
+    // ספירת הנוכחים בזמן אמת נשארת כפי שהייתה
+    const presentCount = state.employees.filter(
+      (emp) => emp.status === STATUSES.PRESENT.key
+    ).length;
+
     return {
-      totalHours,
-      overtimeHours,
-      totalPay,
-      presentCount: activeEmployees.length,
+      totalHours: totalProjectedHours,
+      overtimeHours: totalProjectedOvertime,
+      totalPay: totalProjectedPay,
+      presentCount: presentCount,
     };
   }, [state]);
-
   return (
     <>
       <h2>סקירה כללית</h2>
@@ -372,6 +335,83 @@ function Dashboard() {
   );
 }
 
+function SettingsPage() {
+  const { state, dispatch } = useContext(AppContext);
+  const [settings, setSettings] = useState(state.settings);
+  const toaster = useToaster();
+
+  useEffect(() => {
+    setSettings(state.settings);
+  }, [state.settings]);
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setSettings((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  const handleSave = () => {
+    dispatch({ type: "UPDATE_SETTINGS", payload: settings });
+    toaster("ההגדרות נשמרו!", "success");
+  };
+
+  return (
+    <>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <h2>הגדרות מערכת</h2>
+        <button onClick={handleSave}>שמור שינויים</button>
+      </div>
+      <div className="settings-grid">
+        <div className="card">
+          <h3>מדיניות נוכחות</h3>
+          <FormInput
+            label="יום עבודה סטנדרטי (שעות)"
+            type="number"
+            name="standardWorkDayHours"
+            value={settings.standardWorkDayHours}
+            onChange={handleChange}
+          />
+        </div>
+        <div className="card">
+          <h3>מדיניות שכר</h3>
+          <FormInput
+            label="תעריף שעות נוספות (%)"
+            type="number"
+            name="overtimeRatePercent"
+            value={settings.overtimeRatePercent}
+            onChange={handleChange}
+          />
+        </div>
+        <div className="card">
+          <h3>אבטחה</h3>
+          <ToggleSwitch
+            label="הגבל החתמה לפי IP"
+            name="restrictByIp"
+            checked={settings.restrictByIp}
+            onChange={handleChange}
+          />
+          {settings.restrictByIp && (
+            <FormTextarea
+              label="כתובות IP מורשות (מופרד בפסיק)"
+              name="allowedIps"
+              value={settings.allowedIps}
+              onChange={handleChange}
+            />
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 function RealTimePresenceCard() {
   const { state, dispatch } = useContext(AppContext);
   const toaster = useToaster();
@@ -379,18 +419,21 @@ function RealTimePresenceCard() {
   const handleStatusChange = async (employee, newStatusKey) => {
     if (employee.status === newStatusKey) return;
     const { settings } = state;
-    if (
-      newStatusKey === STATUSES.PRESENT.key &&
-      employee.status === STATUSES.ABSENT.key &&
-      settings.restrictByIp
-    ) {
+
+    if (newStatusKey === STATUSES.PRESENT.key && settings.restrictByIp) {
       try {
         const response = await fetch("https://api.ipify.org?format=json");
+        if (!response.ok) throw new Error("Network response was not ok");
         const data = await response.json();
         const userIp = data.ip;
+
+        // --- שיפור כאן ---
+        // מנקה רווחים מכל כתובת IP ברשימה לפני ההשוואה
         const allowedIps = settings.allowedIps
           .split(",")
-          .map((ip) => ip.trim());
+          .map((ip) => ip.trim()) // .trim() מסיר רווחים מההתחלה והסוף
+          .filter((ip) => ip); // מסנן החוצה מחרוזות ריקות אם יש פסיקים כפולים
+
         if (!allowedIps.includes(userIp)) {
           toaster(
             `שגיאה: לא ניתן להחתים נוכחות מכתובת ה-IP הנוכחית (${userIp})`,
@@ -400,6 +443,7 @@ function RealTimePresenceCard() {
         }
       } catch (error) {
         toaster("שגיאה: לא ניתן היה לאמת את כתובת ה-IP. נסה שוב.", "danger");
+        console.error("IP check failed:", error);
         return;
       }
     }
@@ -415,10 +459,7 @@ function RealTimePresenceCard() {
       payload: { id: employee.id, status: newStatusKey },
     });
 
-    if (
-      newStatusKey === STATUSES.PRESENT.key &&
-      employee.status === STATUSES.ABSENT.key
-    ) {
+    if (newStatusKey === STATUSES.PRESENT.key) {
       dispatch({
         type: "ADD_ATTENDANCE",
         payload: {
@@ -429,28 +470,7 @@ function RealTimePresenceCard() {
         },
       });
       toaster(toasterMessage, "success");
-    } else if (newStatusKey === STATUSES.ON_BREAK.key) {
-      dispatch({
-        type: "START_BREAK",
-        payload: { employeeId: employee.id, time: now },
-      });
-      toaster(toasterMessage);
-    } else if (
-      newStatusKey === STATUSES.PRESENT.key &&
-      employee.status === STATUSES.ON_BREAK.key
-    ) {
-      dispatch({
-        type: "END_BREAK",
-        payload: { employeeId: employee.id, time: now },
-      });
-      toaster(toasterMessage);
     } else if (newStatusKey === STATUSES.ABSENT.key) {
-      if (employee.status === STATUSES.ON_BREAK.key) {
-        dispatch({
-          type: "END_BREAK",
-          payload: { employeeId: employee.id, time: now },
-        });
-      }
       dispatch({
         type: "UPDATE_LAST_ATTENDANCE",
         payload: { employeeId: employee.id, data: { clockOut: now } },
@@ -458,7 +478,6 @@ function RealTimePresenceCard() {
       toaster(toasterMessage);
     }
   };
-
   return (
     <div className="card">
       <h3>נוכחות בזמן אמת</h3>
@@ -481,16 +500,12 @@ function EmployeeRow({ employee, onStatusChange }) {
 
   useEffect(() => {
     let interval;
-    const isPresentOrOnBreak =
-      employee.status === STATUSES.PRESENT.key ||
-      employee.status === STATUSES.ON_BREAK.key;
-    if (isPresentOrOnBreak) {
+    if (employee.status === STATUSES.PRESENT.key) {
       const updateTimer = () => {
         const todayEntry = state.attendance.findLast(
           (a) => a.employeeId === employee.id && !a.clockOut
         );
-        if (todayEntry)
-          setElapsedTime(calculateNetHours(todayEntry, state.settings));
+        if (todayEntry) setElapsedTime(calculateHours(todayEntry));
       };
       updateTimer();
       interval = setInterval(updateTimer, 1000);
@@ -498,7 +513,7 @@ function EmployeeRow({ employee, onStatusChange }) {
       setElapsedTime(0);
     }
     return () => clearInterval(interval);
-  }, [employee.status, state.attendance, state.settings, employee.id]);
+  }, [employee.status, state.attendance, employee.id]);
 
   const formatTime = (hours) => {
     if (hours <= 0) return "00:00:00";
@@ -516,31 +531,14 @@ function EmployeeRow({ employee, onStatusChange }) {
   const statusObject =
     Object.values(STATUSES).find((s) => s.key === employee.status) ||
     STATUSES.ABSENT;
-  const isWorking = employee.status === STATUSES.PRESENT.key;
-  const isOnBreak = employee.status === STATUSES.ON_BREAK.key;
+  const isPresent = employee.status === STATUSES.PRESENT.key;
   const isAbsent = employee.status === STATUSES.ABSENT.key;
-
-  const statusIndicatorStyle = {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "8px",
-    fontWeight: 500,
-    padding: "4px 10px",
-    borderRadius: "6px",
-    transition: "all 0.3s ease",
-    width: "120px",
-    justifyContent: "center",
-  };
-  if (isOnBreak) {
-    statusIndicatorStyle.backgroundColor = "var(--warning-color)";
-    statusIndicatorStyle.color = "#FFFFFF";
-  }
 
   return (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "2fr 1fr 2fr",
+        gridTemplateColumns: "2fr 1fr 1fr",
         alignItems: "center",
         padding: "12px 0",
         borderBottom: "1px solid var(--border-color)",
@@ -560,7 +558,7 @@ function EmployeeRow({ employee, onStatusChange }) {
             {employee.department}
           </div>
         </div>
-        {!isAbsent && (
+        {isPresent && (
           <div
             style={{
               color: "var(--primary-color)",
@@ -573,40 +571,29 @@ function EmployeeRow({ employee, onStatusChange }) {
         )}
       </div>
       <div style={{ justifySelf: "center" }}>
-        <div style={statusIndicatorStyle}>
-          <div
-            className={`status-dot ${statusObject.colorClass}`}
-            style={isOnBreak ? { backgroundColor: "white" } : {}}
-          ></div>
+        <div
+          style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
+        >
+          <div className={`status-dot ${statusObject.colorClass}`}></div>
           <span>{statusObject.text}</span>
         </div>
       </div>
       <div style={{ justifySelf: "end", display: "flex", gap: "8px" }}>
         <button
           onClick={() => onStatusChange(employee, STATUSES.PRESENT.key)}
-          className={isWorking ? "secondary" : ""}
+          className={isPresent ? "secondary" : ""}
           disabled={
-            isWorking ||
+            isPresent ||
             employee.status === "vacation" ||
             employee.status === "sick"
           }
-          title={isOnBreak ? "חזרה לעבודה" : "התחלת עבודה"}
         >
-          {isOnBreak ? "חזור לעבודה" : "כניסה"}
-        </button>
-        <button
-          onClick={() => onStatusChange(employee, STATUSES.ON_BREAK.key)}
-          className={isWorking ? "warning" : "secondary"}
-          disabled={!isWorking}
-          title="יציאה להפסקה"
-        >
-          הפסקה
+          כניסה
         </button>
         <button
           onClick={() => onStatusChange(employee, STATUSES.ABSENT.key)}
           className={isAbsent ? "secondary" : ""}
           disabled={isAbsent}
-          title="סיום עבודה"
         >
           יציאה
         </button>
@@ -1000,7 +987,7 @@ function ReportsPage() {
         overtime = 0,
         pay = 0;
       entries.forEach((entry) => {
-        const hours = calculateNetHours(entry, state.settings);
+        const hours = calculateHours(entry);
         totalHours += hours;
         const regular = Math.min(hours, state.settings.standardWorkDayHours);
         const ot = Math.max(0, hours - state.settings.standardWorkDayHours);
@@ -1019,18 +1006,7 @@ function ReportsPage() {
       };
     });
   }, [range, state]);
-  const summary = useMemo(
-    () =>
-      reportData.reduce(
-        (acc, curr) => ({
-          totalHours: acc.totalHours + curr.totalHours,
-          overtime: acc.overtime + curr.overtime,
-          pay: acc.pay + curr.pay,
-        }),
-        { totalHours: 0, overtime: 0, pay: 0 }
-      ),
-    [reportData]
-  );
+
   return (
     <div className="card">
       <h2>דוחות נוכחות</h2>
@@ -1080,99 +1056,6 @@ function ReportsPage() {
   );
 }
 
-function SettingsPage() {
-  const { state, dispatch } = useContext(AppContext);
-  const [settings, setSettings] = useState(state.settings);
-  const toaster = useToaster();
-  useEffect(() => {
-    setSettings(state.settings);
-  }, [state.settings]);
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setSettings((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-  const handleSave = () => {
-    dispatch({ type: "UPDATE_SETTINGS", payload: settings });
-    toaster("ההגדרות נשמרו!", "success");
-  };
-  return (
-    <>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <h2>הגדרות מערכת</h2>
-        <button onClick={handleSave}>שמור שינויים</button>
-      </div>
-      <div className="settings-grid">
-        <div className="card">
-          <h3>מדיניות נוכחות</h3>
-          <FormInput
-            label="יום עבודה סטנדרטי (שעות)"
-            type="number"
-            name="standardWorkDayHours"
-            value={settings.standardWorkDayHours}
-            onChange={handleChange}
-          />
-          <ToggleSwitch
-            label="התראה על איחור"
-            name="alertOnLateArrival"
-            checked={settings.alertOnLateArrival}
-            onChange={handleChange}
-          />
-          <FormInput
-            label="החתמת יציאה אוטומטית אחרי (שעות, 0 לביטול)"
-            type="number"
-            name="autoClockOutAfter"
-            value={settings.autoClockOutAfter}
-            onChange={handleChange}
-          />
-        </div>
-        <div className="card">
-          <h3>מדיניות שכר והפסקות</h3>
-          <FormInput
-            label="תעריף שעות נוספות (%)"
-            type="number"
-            name="overtimeRatePercent"
-            value={settings.overtimeRatePercent}
-            onChange={handleChange}
-          />
-          <FormInput
-            label="סה''כ דקות הפסקה בתשלום ליום"
-            type="number"
-            name="maxBreakMinutes"
-            value={settings.maxBreakMinutes}
-            onChange={handleChange}
-          />
-        </div>
-        <div className="card">
-          <h3>אבטחה</h3>
-          <ToggleSwitch
-            label="הגבל החתמה לפי IP"
-            name="restrictByIp"
-            checked={settings.restrictByIp}
-            onChange={handleChange}
-          />
-          {settings.restrictByIp && (
-            <FormTextarea
-              label="כתובות IP מורשות (מופרד בפסיק)"
-              name="allowedIps"
-              value={settings.allowedIps}
-              onChange={handleChange}
-            />
-          )}
-        </div>
-      </div>
-    </>
-  );
-}
-
 function PayrollPage() {
   const { state } = useContext(AppContext);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
@@ -1212,7 +1095,7 @@ function PayrollPage() {
           basePay = 0,
           overtimePay = 0;
         entries.forEach((entry) => {
-          const hours = calculateNetHours(entry, state.settings);
+          const hours = calculateHours(entry);
           const regularHours = Math.min(
             hours,
             state.settings.standardWorkDayHours
@@ -1425,12 +1308,20 @@ function App() {
 
   useEffect(() => {
     const d = localStorage.getItem("appData");
-    if (d) dispatch({ type: "SET_INITIAL_DATA", payload: JSON.parse(d) });
+    if (d) {
+      try {
+        dispatch({ type: "SET_INITIAL_DATA", payload: JSON.parse(d) });
+      } catch (e) {
+        console.error("Failed to parse appData from localStorage", e);
+      }
+    }
     setIsLoaded(true);
   }, []);
 
   useEffect(() => {
-    if (isLoaded) localStorage.setItem("appData", JSON.stringify(state));
+    if (isLoaded) {
+      localStorage.setItem("appData", JSON.stringify(state));
+    }
   }, [state, isLoaded]);
 
   useEffect(() => {

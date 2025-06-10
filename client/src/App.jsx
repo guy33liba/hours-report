@@ -192,7 +192,11 @@ const dataReducer = (state, action) => {
         ...state,
         employees: [
           ...state.employees,
-          { ...action.payload, id: Date.now(), status: STATUSES.ABSENT.key },
+          {
+            ...action.payload,
+            id: state.employees.length,
+            status: STATUSES.ABSENT.key,
+          },
         ],
       };
     case "UPDATE_EMPLOYEE":

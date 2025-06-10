@@ -115,37 +115,39 @@ const ToastProvider = ({ children }) => {
   );
 };
 const useToaster = () => useContext(ToastContext);
-const calculateNetHours = (attendanceEntry) => {
+const calculateNetHours = (attendanceEntry, settings) => {
   if (!attendanceEntry || !attendanceEntry.clockIn) return 0;
 
-  // If clock-out is not defined, use the current time for calculation
   const clockOutTime = attendanceEntry.clockOut
     ? new Date(attendanceEntry.clockOut)
     : new Date();
   const clockInTime = new Date(attendanceEntry.clockIn);
 
   let totalMilliseconds = clockOutTime - clockInTime;
+  let totalBreakMilliseconds = 0;
 
-  // Subtract break times
   if (attendanceEntry.breaks && attendanceEntry.breaks.length > 0) {
-    const totalBreakMilliseconds = attendanceEntry.breaks.reduce(
-      (acc, breakItem) => {
-        if (breakItem.start && breakItem.end) {
-          return acc + (new Date(breakItem.end) - new Date(breakItem.start));
-        }
-        // If a break is still ongoing, calculate duration until now
-        if (breakItem.start && !breakItem.end) {
-          return acc + (new Date() - new Date(breakItem.start));
-        }
-        return acc;
-      },
-      0
-    );
-
-    totalMilliseconds -= totalBreakMilliseconds;
+    totalBreakMilliseconds = attendanceEntry.breaks.reduce((acc, breakItem) => {
+      if (breakItem.start && breakItem.end) {
+        return acc + (new Date(breakItem.end) - new Date(breakItem.start));
+      }
+      if (breakItem.start && !breakItem.end) {
+        return acc + (new Date() - new Date(breakItem.start));
+      }
+      return acc;
+    }, 0);
   }
 
-  // Return hours, ensuring it's not negative
+  // -- לוגיקה חדשה להפסקות בתשלום --
+  const paidBreakMilliseconds = (settings?.maxBreakMinutes || 0) * 60 * 1000;
+  const unpaidBreakMilliseconds = Math.max(
+    0,
+    totalBreakMilliseconds - paidBreakMilliseconds
+  );
+
+  totalMilliseconds -= unpaidBreakMilliseconds;
+  // ------------------------------------
+
   return Math.max(0, totalMilliseconds / 36e5);
 };
 const initialData = {
@@ -175,6 +177,9 @@ const initialData = {
     restrictByIp: true,
     allowedIps: "192.168.1.1, 8.8.8.8",
     alertOnLateArrival: true,
+    // --- הגדרות חדשות ---
+    autoClockOutAfter: 12, // החתמת יציאה אוטומטית אחרי 12 שעות (0 = מושבת)
+    maxBreakMinutes: 60, // מקסימום דקות הפסקה ביום שלא על חשבון העובד
   },
 };
 const dataReducer = (state, action) => {
@@ -1304,9 +1309,11 @@ function SettingsPage() {
   const { state, dispatch } = useContext(AppContext);
   const [settings, setSettings] = useState(state.settings);
   const toaster = useToaster();
+
   useEffect(() => {
     setSettings(state.settings);
   }, [state.settings]);
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setSettings((prev) => ({
@@ -1314,10 +1321,12 @@ function SettingsPage() {
       [name]: type === "checkbox" ? checked : value,
     }));
   };
+
   const handleSave = () => {
     dispatch({ type: "UPDATE_SETTINGS", payload: settings });
     toaster("ההגדרות נשמרו בהצלחה!", "success");
   };
+
   return (
     <>
       <div
@@ -1346,14 +1355,28 @@ function SettingsPage() {
             checked={settings.alertOnLateArrival}
             onChange={handleChange}
           />
+          <FormInput
+            label="החתמת יציאה אוטומטית אחרי (שעות, 0 לביטול)"
+            type="number"
+            name="autoClockOutAfter"
+            value={settings.autoClockOutAfter}
+            onChange={handleChange}
+          />
         </div>
         <div className="card">
-          <h3>מדיניות שכר</h3>
+          <h3>מדיניות שכר והפסקות</h3>
           <FormInput
             label="תעריף שעות נוספות (%)"
             type="number"
             name="overtimeRatePercent"
             value={settings.overtimeRatePercent}
+            onChange={handleChange}
+          />
+          <FormInput
+            label="סה''כ דקות הפסקה בתשלום ליום"
+            type="number"
+            name="maxBreakMinutes"
+            value={settings.maxBreakMinutes}
             onChange={handleChange}
           />
         </div>

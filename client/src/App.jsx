@@ -155,7 +155,6 @@ const initialData = {
     overtimeRatePercent: 150,
     restrictByIp: true,
     allowedIps: "192.168.1.1, 8.8.8.8",
-    // --- NEW SETTINGS ---
     paidVacation: true,
     paidSickLeave: true,
   },
@@ -192,11 +191,7 @@ const dataReducer = (state, action) => {
         ...state,
         employees: [
           ...state.employees,
-          {
-            ...action.payload,
-            id: state.employees.length,
-            status: STATUSES.ABSENT.key,
-          },
+          { ...action.payload, id: Date.now(), status: STATUSES.ABSENT.key },
         ],
       };
     case "UPDATE_EMPLOYEE":
@@ -262,6 +257,7 @@ const ToggleSwitch = ({ label, checked, onChange, name }) => (
   </div>
 );
 
+// --- FIXED: More robust sorting hook ---
 const useSortableData = (items, config = null) => {
   const [sortConfig, setSortConfig] = useState(config);
 
@@ -271,10 +267,22 @@ const useSortableData = (items, config = null) => {
       sortableItems.sort((a, b) => {
         const valA = a[sortConfig.key];
         const valB = b[sortConfig.key];
-        if (valA < valB) {
+
+        // Check if the values are numbers for numeric sort
+        if (typeof valA === "number" && typeof valB === "number") {
+          return sortConfig.direction === "ascending"
+            ? valA - valB
+            : valB - valA;
+        }
+
+        // Otherwise, use string comparison
+        const strA = String(valA).toLowerCase();
+        const strB = String(valB).toLowerCase();
+
+        if (strA < strB) {
           return sortConfig.direction === "ascending" ? -1 : 1;
         }
-        if (valA > valB) {
+        if (strA > strB) {
           return sortConfig.direction === "ascending" ? 1 : -1;
         }
         return 0;
@@ -302,9 +310,9 @@ const SortableHeader = ({ children, name, sortConfig, requestSort }) => {
   const isSorted = sortConfig && sortConfig.key === name;
   const directionClass = isSorted
     ? sortConfig.direction === "ascending"
-      ? "asc"
-      : "desc"
-    : "";
+      ? "desc"
+      : "asc"
+    : ""; // Flipped for up/down arrow logic
   return (
     <th className="sortable" onClick={() => requestSort(name)}>
       {children}
@@ -464,7 +472,6 @@ function SettingsPage() {
             value={settings.overtimeRatePercent}
             onChange={handleChange}
           />
-          {/* --- NEW: Paid absence toggles --- */}
           <ToggleSwitch
             label="תשלום עבור ימי חופשה"
             name="paidVacation"
@@ -1007,6 +1014,7 @@ function EmployeeList() {
         <table>
           <thead>
             <tr>
+              {/* --- FIXED: Only sortable columns are wrapped --- */}
               <SortableHeader
                 name="name"
                 sortConfig={sortConfig}
@@ -1616,7 +1624,6 @@ function App() {
     if (d) {
       try {
         const parsedData = JSON.parse(d);
-        // Ensure settings from new versions are merged, not overwritten
         const mergedState = {
           ...initialData,
           ...parsedData,

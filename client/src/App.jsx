@@ -230,6 +230,21 @@ const dataReducer = (state, action) => {
           (a) => a.employeeId !== action.payload
         ),
       };
+    case "ADD_ABSENCE":
+      return {
+        ...state,
+        scheduledAbsences: [
+          ...state.scheduledAbsences,
+          { ...action.payload, id: Date.now() },
+        ],
+      };
+    case "DELETE_ABSENCE":
+      return {
+        ...state,
+        scheduledAbsences: state.scheduledAbsences.filter(
+          (a) => a.id !== action.payload
+        ),
+      };
     default:
       return state;
   }

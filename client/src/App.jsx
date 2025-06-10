@@ -102,6 +102,8 @@ const ToastProvider = ({ children }) => {
               backgroundColor:
                 t.type === "success"
                   ? "var(--success-color)"
+                  : t.type === "danger"
+                  ? "var(--danger-color)" // הוספה חדשה
                   : "var(--font-dark)",
             }}
           >
@@ -358,8 +360,43 @@ function RealTimePresenceCard() {
   const toaster = useToaster();
 
   // This logic now lives in the parent, to be passed down
-  const handleStatusChange = (employee, newStatusKey) => {
+
+  const handleStatusChange = async (employee, newStatusKey) => {
+    // הפכנו את הפונקציה ל-async
     if (employee.status === newStatusKey) return;
+
+    const { settings } = state; // קבלת ההגדרות מה-state
+
+    // --- בדיקת IP חדשה ---
+    // בודקים רק בפעולת "כניסה" (מעבר מ"לא בעבודה" ל"נוכח")
+    if (
+      newStatusKey === STATUSES.PRESENT.key &&
+      employee.status === STATUSES.ABSENT.key &&
+      settings.restrictByIp
+    ) {
+      try {
+        const response = await fetch("https://api.ipify.org?format=json");
+        const data = await response.json();
+        const userIp = data.ip;
+
+        const allowedIps = settings.allowedIps
+          .split(",")
+          .map((ip) => ip.trim());
+
+        if (!allowedIps.includes(userIp)) {
+          toaster(
+            `שגיאה: לא ניתן להחתים נוכחות מכתובת ה-IP הנוכחית (${userIp})`,
+            "danger"
+          );
+          return; // עצירת הפעולה אם ה-IP לא מורשה
+        }
+      } catch (error) {
+        toaster("שגיאה: לא ניתן היה לאמת את כתובת ה-IP. נסה שוב.", "danger");
+        console.error("IP check failed:", error);
+        return;
+      }
+    }
+    // -------------------------
 
     const now = new Date().toISOString();
     const newStatusObject = Object.values(STATUSES).find(
@@ -367,13 +404,12 @@ function RealTimePresenceCard() {
     );
     const toasterMessage = `${employee.name} שינה סטטוס ל: ${newStatusObject.text}`;
 
-    // Dispatch the status change first
     dispatch({
       type: "UPDATE_EMPLOYEE_STATUS",
       payload: { id: employee.id, status: newStatusKey },
     });
 
-    // Clock-In (from Absent to Present)
+    // ... (שאר הלוגיקה של הפונקציה נשארת זהה)
     if (
       newStatusKey === STATUSES.PRESENT.key &&
       employee.status === STATUSES.ABSENT.key

@@ -166,6 +166,7 @@ const initialData = {
     },
   ],
   attendance: [],
+  scheduledAbsences: [],
   settings: {
     standardWorkDayHours: 8.5,
     overtimeRatePercent: 150,
@@ -337,44 +338,74 @@ function Dashboard() {
   );
 }
 
-
 function RealTimePresenceCard() {
   const { dispatch } = useContext(AppContext);
   const toaster = useToaster();
-  
+
   // This logic now lives in the parent, to be passed down
   const handleStatusChange = (employee, newStatusKey) => {
     if (employee.status === newStatusKey) return;
 
     const now = new Date().toISOString();
-    const newStatusObject = Object.values(STATUSES).find(s => s.key === newStatusKey);
+    const newStatusObject = Object.values(STATUSES).find(
+      (s) => s.key === newStatusKey
+    );
     const toasterMessage = `${employee.name} שינה סטטוס ל: ${newStatusObject.text}`;
-    
+
     // Dispatch the status change first
-    dispatch({ type: "UPDATE_EMPLOYEE_STATUS", payload: { id: employee.id, status: newStatusKey }});
+    dispatch({
+      type: "UPDATE_EMPLOYEE_STATUS",
+      payload: { id: employee.id, status: newStatusKey },
+    });
 
     // Clock-In (from Absent to Present)
-    if (newStatusKey === STATUSES.PRESENT.key && employee.status === STATUSES.ABSENT.key) {
-      dispatch({ type: "ADD_ATTENDANCE", payload: { id: Date.now(), employeeId: employee.id, clockIn: now, clockOut: null }});
+    if (
+      newStatusKey === STATUSES.PRESENT.key &&
+      employee.status === STATUSES.ABSENT.key
+    ) {
+      dispatch({
+        type: "ADD_ATTENDANCE",
+        payload: {
+          id: Date.now(),
+          employeeId: employee.id,
+          clockIn: now,
+          clockOut: null,
+        },
+      });
       toaster(toasterMessage, "success");
     }
     // Start Break (from Present to On Break)
     else if (newStatusKey === STATUSES.ON_BREAK.key) {
-      dispatch({ type: "START_BREAK", payload: { employeeId: employee.id, time: now }});
+      dispatch({
+        type: "START_BREAK",
+        payload: { employeeId: employee.id, time: now },
+      });
       toaster(toasterMessage);
     }
     // End Break (from On Break to Present)
-    else if (newStatusKey === STATUSES.PRESENT.key && employee.status === STATUSES.ON_BREAK.key) {
-      dispatch({ type: "END_BREAK", payload: { employeeId: employee.id, time: now }});
-       toaster(toasterMessage);
+    else if (
+      newStatusKey === STATUSES.PRESENT.key &&
+      employee.status === STATUSES.ON_BREAK.key
+    ) {
+      dispatch({
+        type: "END_BREAK",
+        payload: { employeeId: employee.id, time: now },
+      });
+      toaster(toasterMessage);
     }
     // Clock-Out (from any active state to Absent)
     else if (newStatusKey === STATUSES.ABSENT.key) {
       // If employee was on break, end the break first
       if (employee.status === STATUSES.ON_BREAK.key) {
-        dispatch({ type: "END_BREAK", payload: { employeeId: employee.id, time: now }});
+        dispatch({
+          type: "END_BREAK",
+          payload: { employeeId: employee.id, time: now },
+        });
       }
-      dispatch({ type: "UPDATE_LAST_ATTENDANCE", payload: { employeeId: employee.id, data: { clockOut: now } }});
+      dispatch({
+        type: "UPDATE_LAST_ATTENDANCE",
+        payload: { employeeId: employee.id, data: { clockOut: now } },
+      });
       toaster(toasterMessage);
     }
   };
@@ -387,16 +418,15 @@ function RealTimePresenceCard() {
       {state.employees
         .filter((e) => e.role === "employee")
         .map((emp) => (
-          <EmployeeRow 
-            key={emp.id} 
-            employee={emp} 
-            onStatusChange={handleStatusChange} 
+          <EmployeeRow
+            key={emp.id}
+            employee={emp}
+            onStatusChange={handleStatusChange}
           />
         ))}
     </div>
   );
 }
-
 
 function EmployeeRow({ employee, onStatusChange }) {
   const { state } = useContext(AppContext);
@@ -531,7 +561,7 @@ function EmployeeRow({ employee, onStatusChange }) {
       <div style={{ justifySelf: "end", display: "flex", gap: "8px" }}>
         <button
           onClick={() => onStatusChange(employee, STATUSES.PRESENT.key)}
-          className={isWorking  ? "secondary" : ""}
+          className={isWorking ? "secondary" : ""}
           disabled={isWorking}
           title={isOnBreak ? "חזרה לעבודה" : "התחלת עבודה"}
         >

@@ -25,9 +25,16 @@ pool.query("SELECT NOW()", (err, res) => {
 const app = express();
 
 // Middlewares
-app.use(cors({ origin: "*" })); 
-app.use(express.json()); 
+app.use(cors({ origin: "*" })); // מאפשר גישה מכל מקור (לצורכי פיתוח)
+app.use(express.json()); // מאפשר לשרת לקרוא גוף בקשה בפורמט JSON
 
+// =================================================================
+// --- API Routes (נקודות קצה) ---
+// =================================================================
+
+// --- Employee Routes ---
+
+// GET /api/employees - קבלת כל העובדים
 app.get("/api/employees", async (req, res) => {
   try {
     // הוספנו alias לשדות כדי להתאים למה שה-frontend מצפה (למשל hourlyRate במקום hourly_rate)

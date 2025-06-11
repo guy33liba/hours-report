@@ -16,6 +16,8 @@ import {
 } from "react-router-dom";
 import "./styles.css";
 
+const API_BASE_URL = "http://localhost:5000/api";
+
 // --- Reusable Components ---
 const LoadingSpinner = () => <div className="loader"></div>;
 
@@ -49,6 +51,22 @@ function ConfirmationModal({
     </div>
   );
 }
+
+function LoginModal({ show, onClose, onLogin }) {
+  if (!show) return null;
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="modal-close-btn">
+          ×
+        </button>
+        <Login onLogin={onLogin} />
+      </div>
+    </div>
+  );
+}
+
 
 const Icon = ({ path, size = 18, className = "" }) => (
   <svg
@@ -189,7 +207,7 @@ const ICONS = {
   PAYROLL:
     "M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41s-.22-1.05-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z",
   SETTINGS:
-    "M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.69-1.62-0.92L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 l-3.84,0c-0.24,0-0.44,0.17-0.48,0.41L9.2,5.59C8.6,5.82,8.08,6.13,7.58,6.51L5.19,5.55C4.97,5.48,4.72,5.55,4.6,5.77L2.68,9.09 c-0.11,0.2-0.06,0.47,0.12,0.61L4.83,11.28c-0.05,0.3-0.07,0.62-0.07,0.94c0,0.32,0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.69,1.62,0.92l0.44,2.78 c0.04,0.24,0.24,0.41,0.48,0.41l3.84,0c0.24,0,0.44,0.17,0.48,0.41l0.44-2.78c0.59-0.23,1.12-0.54,1.62-0.92l2.39,0.96 c0.22,0.08,0.47,0.01,0.59-0.22l1.92-3.32c0.12-0.2,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z",
+    "M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.69-1.62-0.92L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 l-3.84,0c-0.24,0-0.44,0.17-0.48,0.41L9.2,5.59C8.6,5.82,8.08,6.13,7.58,6.51L5.19,5.55C4.97,5.48,4.72,5.55,4.6,5.77L2.68,9.09 c-0.11,0.2-0.06,0.47,0.12,0.61L4.83,11.28c-0.05,0.3-0.07,0.62-0.07,0.94c0,0.32,0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.69,1.62,0.92l0.44,2.78 c0.04,0.24,0.24,0.41,0.48,0.41l3.84,0c0.24,0-0.44,0.17-0.48,0.41l0.44-2.78c0.59-0.23,1.12-0.54,1.62-0.92l2.39,0.96 c0.22,0.08,0.47,0.01,0.59-0.22l1.92-3.32c0.12-0.2,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z",
   LOGOUT:
     "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2h8v-2H4V5z",
   DOWNLOAD: "M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z",
@@ -258,7 +276,7 @@ const useSortableData = (items, config = null) => {
   const sortedItems = useMemo(() => {
     let sortableItems = [...items];
     if (sortConfig !== null) {
-      sortableItems.sort((a, b) => {
+      sortableItems ((a, b) => {
         const valA = a[sortConfig.key];
         const valB = b[sortConfig.key];
         if (typeof valA === "number" && typeof valB === "number") {
@@ -458,6 +476,8 @@ function AbsenceManagementModal({
   );
 }
 function Dashboard() {
+  const { currentUser } = useContext(AppContext);
+
   return (
     <>
       <div className="page-header">
@@ -470,7 +490,8 @@ function Dashboard() {
         </p>
       </div>
       <div className="dashboard-grid">
-        <RealTimePresenceCard />
+         {/* --- שינוי --- : הצגת כרטיס הנוכחות רק אם המשתמש מחובר */}
+        {currentUser && <RealTimePresenceCard />}
       </div>
     </>
   );
@@ -560,13 +581,21 @@ function RealTimePresenceCard() {
   const [isLoading, setIsLoading] = useState(true);
   const toaster = useToaster();
   const [openAttendance, setOpenAttendance] = useState([]);
+  const { currentUser } = useContext(AppContext); // קבלת המשתמש המחובר
+
   useEffect(() => {
+    // טעינת הנתונים רק אם יש משתמש מחובר
+    if (!currentUser) {
+        setIsLoading(false);
+        return;
+    }
+
     Promise.all([
-      fetch("http://localhost:3001/api/employees").then((res) => {
+      fetch(`${API_BASE_URL}/employees`).then((res) => {
         if (!res.ok) throw new Error("Failed to fetch employees");
         return res.json();
       }),
-      fetch("http://localhost:3001/api/attendance/today/open").then((res) => {
+      fetch(`${API_BASE_URL}/attendance/today/open`).then((res) => {
         if (!res.ok) throw new Error("Failed to fetch attendance");
         return res.json();
       }),
@@ -582,14 +611,15 @@ function RealTimePresenceCard() {
       .finally(() => {
         setIsLoading(false);
       });
-  }, [toaster]);
+  }, [toaster, currentUser]); // הוספת currentUser כתלות
+
   const updateEmployeeInList = (updatedEmployee) => {
     setEmployees((prev) =>
       prev.map((emp) =>
         emp._id === updatedEmployee._id ? updatedEmployee : emp
       )
     );
-    fetch("http://localhost:3001/api/attendance/today/open")
+    fetch(`${API_BASE_URL}/attendance/today/open`)
       .then((res) => res.json())
       .then(setOpenAttendance);
   };
@@ -599,8 +629,15 @@ function RealTimePresenceCard() {
       {isLoading ? (
         <LoadingSpinner />
       ) : (
+        // --- שינוי ---
+        // אם המשתמש הוא מנהל, נציג את כל העובדים
+        // אם המשתמש הוא עובד, נציג רק את השורה שלו
         employees
-          .filter((e) => e.role === "employee")
+          .filter((e) => {
+              if (currentUser.role === 'manager') return e.role === 'employee';
+              if (currentUser.role === 'employee') return e._id === currentUser._id;
+              return false;
+          })
           .map((emp) => {
             const attendanceRecord = openAttendance.find(
               (att) => att.employee === emp._id
@@ -642,14 +679,11 @@ function EmployeeRow({ employee, attendanceRecord, onStatusUpdate }) {
     if (isLoading) return;
     setIsLoading(true);
     try {
-      const response = await fetch(
-        "http://localhost:3001/api/attendance/clock-in",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ employeeId: employee._id }),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/attendance/clock-in`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employeeId: employee._id }),
+      });
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || "Clock-in failed");
@@ -668,14 +702,11 @@ function EmployeeRow({ employee, attendanceRecord, onStatusUpdate }) {
     if (isLoading) return;
     setIsLoading(true);
     try {
-      const response = await fetch(
-        "http://localhost:3001/api/attendance/clock-out",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ employeeId: employee._id }),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/attendance/clock-out`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employeeId: employee._id }),
+      });
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || "Clock-out failed");
@@ -780,12 +811,13 @@ function EmployeeList() {
   const [isAbsenceModalOpen, setIsAbsenceModalOpen] = useState(false);
   const [absencesForEmployee, setAbsencesForEmployee] = useState([]);
   const [isLoadingAbsences, setIsLoadingAbsences] = useState(false);
-  const API_URL = "http://localhost:3001/api/employees";
-  const ABSENCE_API_URL = "http://localhost:3001/api/absences";
+
+  const EMPLOYEES_API_URL = `${API_BASE_URL}/employees`;
+  const ABSENCE_API_URL = `${API_BASE_URL}/absences`;
 
   useEffect(() => {
     setIsLoading(true);
-    fetch(API_URL)
+    fetch(EMPLOYEES_API_URL)
       .then((res) => {
         if (!res.ok) throw new Error("Network response was not ok");
         return res.json();
@@ -800,7 +832,8 @@ function EmployeeList() {
       .finally(() => {
         setIsLoading(false);
       });
-  }, [toaster]);
+  }, [toaster, EMPLOYEES_API_URL]);
+
   const filteredEmployees = useMemo(() => {
     return employees
       .filter((emp) =>
@@ -843,7 +876,9 @@ function EmployeeList() {
   };
   const handleSaveEmployee = (employeeData) => {
     const isUpdating = selectedEmployee && selectedEmployee._id;
-    const url = isUpdating ? `${API_URL}/${selectedEmployee._id}` : API_URL;
+    const url = isUpdating
+      ? `${EMPLOYEES_API_URL}/${selectedEmployee._id}`
+      : EMPLOYEES_API_URL;
     const method = isUpdating ? "PUT" : "POST";
     fetch(url, {
       method: method,
@@ -875,7 +910,7 @@ function EmployeeList() {
   };
   const handleConfirmDelete = () => {
     if (!employeeToDelete) return;
-    fetch(`${API_URL}/${employeeToDelete._id}`, { method: "DELETE" })
+    fetch(`${EMPLOYEES_API_URL}/${employeeToDelete._id}`, { method: "DELETE" })
       .then((res) => {
         if (res.ok) {
           setEmployees((prev) =>
@@ -1121,11 +1156,11 @@ function PayrollPage() {
   const [payrollData, setPayrollData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [yearMonth, setYearMonth] = useState(
-    new Date().toISOString().slice(0, 7) // Defaults to current month, e.g., "2023-10"
+    new Date().toISOString().slice(0, 7)
   );
 
   useEffect(() => {
-    fetch("http://localhost:3001/api/employees")
+    fetch(`${API_BASE_URL}/employees`)
       .then((res) => res.json())
       .then(setAllEmployees)
       .catch((err) => toaster("שגיאה בטעינת עובדים", "danger"));
@@ -1169,7 +1204,7 @@ function PayrollPage() {
     setPayrollData(null);
 
     try {
-      const response = await fetch("http://localhost:3001/api/payroll/report", {
+      const response = await fetch(`${API_BASE_URL}/payroll/report`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1229,7 +1264,6 @@ function PayrollPage() {
         item.grossPay.toFixed(2),
       ].join(",")
     );
-    // Add BOM for Excel to recognize UTF-8
     const csvContent =
       "data:text/csv;charset=utf-8,\uFEFF" +
       [headers.join(","), ...rows].join("\n");
@@ -1406,11 +1440,12 @@ function PayrollPage() {
     </>
   );
 }
+
 function Login({ onLogin }) {
   const [allUsers, setAllUsers] = useState([]);
   const [employeeId, setEmployeeId] = useState("");
   useEffect(() => {
-    fetch("http://localhost:3001/api/employees")
+    fetch(`${API_BASE_URL}/employees`)
       .then((res) => res.json())
       .then((data) => setAllUsers(data))
       .catch((err) => console.error("Could not fetch users for login", err));
@@ -1423,109 +1458,151 @@ function Login({ onLogin }) {
     }
   };
   return (
-    <div className="login-container">
-      <form
-        className="card"
-        style={{ width: "350px", textAlign: "center" }}
-        onSubmit={handleLoginSubmit}
+    <form
+      style={{ width: "350px", textAlign: "center" }}
+      onSubmit={handleLoginSubmit}
+    >
+      <h2 style={{ marginTop: 0 }}>התחברות למערכת</h2>
+      <select
+        value={employeeId}
+        onChange={(e) => setEmployeeId(e.target.value)}
+        required
+        style={{
+          width: "100%",
+          padding: "12px",
+          marginBottom: "20px",
+          borderRadius: "8px",
+        }}
       >
-        <h2>התחברות למערכת</h2>
-        <select
-          value={employeeId}
-          onChange={(e) => setEmployeeId(e.target.value)}
-          required
-          style={{
-            width: "100%",
-            padding: "12px",
-            marginBottom: "20px",
-            borderRadius: "8px",
-          }}
-        >
-          <option value="">בחר/י שם...</option>
-          {allUsers.map((emp) => (
-            <option key={emp._id} value={emp._id}>
-              {emp.name}
-            </option>
-          ))}
-        </select>
-        <button type="submit" style={{ width: "100%" }} disabled={!employeeId}>
-          התחבר
-        </button>
-      </form>
-    </div>
+        <option value="">בחר/י שם...</option>
+        {allUsers.map((emp) => (
+          <option key={emp._id} value={emp._id}>
+            {emp.name} ({emp.role})
+          </option>
+        ))}
+      </select>
+      <button type="submit" style={{ width: "100%" }} disabled={!employeeId}>
+        התחבר
+      </button>
+    </form>
   );
 }
+
 function App() {
   const [state, dispatch] = useReducer(appReducer, initialAppState);
   const [currentUser, setCurrentUser] = useLocalStorage("currentUser", null);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+
   const handleLogin = (user) => {
     if (user) {
       setCurrentUser(user);
+      setIsLoginModalOpen(false);
     }
   };
   const handleLogout = () => setCurrentUser(null);
+  
+  // --- שינוי ---
+  // העברת currentUser לתוך הקונטקסט כדי שקומפוננטות-בנות יוכלו לגשת אליו
+  const appContextValue = useMemo(
+    () => ({ state, dispatch, currentUser }), 
+    [state, dispatch, currentUser]
+  );
+
   return (
-    <AppContext.Provider value={{ state, dispatch }}>
+    <AppContext.Provider value={appContextValue}>
       <ToastProvider>
         <BrowserRouter>
-          {!currentUser ? (
-            <Login onLogin={handleLogin} />
-          ) : (
-            <div className="app-layout">
-              <aside className="sidebar">
-                <div className="sidebar-header">
-                  <h1>Attend.ly</h1>
-                </div>
-                <nav>
-                  <NavLink to="/">
-                    <Icon path={ICONS.DASHBOARD} /> סקירה כללית
-                  </NavLink>
-                  <NavLink to="/employees">
-                    <Icon path={ICONS.EMPLOYEES} /> ניהול עובדים
-                  </NavLink>
-                  <NavLink to="/reports">
-                    <Icon path={ICONS.REPORTS} /> דוחות
-                  </NavLink>
-                  <NavLink to="/payroll">
-                    <Icon path={ICONS.PAYROLL} /> חישוב שכר
-                  </NavLink>
-                  <NavLink to="/settings">
-                    <Icon path={ICONS.SETTINGS} /> הגדרות
-                  </NavLink>
-                </nav>
-                <div className="sidebar-footer">
-                  <span style={{ fontSize: "25px" }}>
-                    שלום, {currentUser.name}
-                  </span>
+          <div className="app-layout">
+            <aside className="sidebar">
+              <div className="sidebar-header">
+                <h1>Attend.ly</h1>
+              </div>
+              <nav>
+                <NavLink to="/">
+                  <Icon path={ICONS.DASHBOARD} /> סקירה כללית
+                </NavLink>
+                {currentUser && currentUser.role === "manager" && (
+                  <>
+                    <NavLink to="/employees">
+                      <Icon path={ICONS.EMPLOYEES} /> ניהול עובדים
+                    </NavLink>
+                    <NavLink to="/reports">
+                      <Icon path={ICONS.REPORTS} /> דוחות
+                    </NavLink>
+                    <NavLink to="/payroll">
+                      <Icon path={ICONS.PAYROLL} /> חישוב שכר
+                    </NavLink>
+                    <NavLink to="/settings">
+                      <Icon path={ICONS.SETTINGS} /> הגדרות
+                    </NavLink>
+                  </>
+                )}
+              </nav>
+              <div className="sidebar-footer">
+                {currentUser ? (
+                  <>
+                    <span style={{ fontSize: "20px", marginBottom: "10px" }}>
+                      שלום, {currentUser.name}
+                    </span>
+                    <button
+                      onClick={handleLogout}
+                      className="secondary"
+                      style={{
+                        width: "100%",
+                        padding: "10px",
+                        border: "1px solid var(--font-dark)",
+                      }}
+                    >
+                      התנתקות
+                    </button>
+                  </>
+                ) : (
                   <button
-                    onClick={handleLogout}
-                    className="secondary"
-                    style={{
-                      width: "100%",
-                      padding: "10px",
-                      border: "1px solid black",
-                    }}
+                    onClick={() => setIsLoginModalOpen(true)}
+                    style={{ width: "100%", padding: "10px" }}
                   >
-                    התנתקות
+                    התחברות
                   </button>
-                </div>
-              </aside>
-              <main className="main-content">
-                <Routes>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/employees" element={<EmployeeList />} />
-                  <Route path="/reports" element={<ReportsPage />} />
-                  <Route path="/settings" element={<SettingsPage />} />
-                  <Route path="/payroll" element={<PayrollPage />} />
-                  <Route path="*" element={<Navigate to="/" />} />
-                </Routes>
-              </main>
-            </div>
-          )}
+                )}
+              </div>
+            </aside>
+            <main className="main-content">
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                
+                {/* --- שינוי --- : קומפוננטה ייעודית להגנה על נתיבים */}
+                <Route element={<ProtectedRoute isAllowed={currentUser && currentUser.role === 'manager'} />}>
+                    <Route path="/employees" element={<EmployeeList />} />
+                    <Route path="/reports" element={<ReportsPage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/payroll" element={<PayrollPage />} />
+                </Route>
+
+                <Route path="*" element={<Navigate to="/" />} />
+              </Routes>
+            </main>
+          </div>
+
+          <LoginModal
+            show={isLoginModalOpen}
+            onClose={() => setIsLoginModalOpen(false)}
+            onLogin={handleLogin}
+          />
         </BrowserRouter>
       </ToastProvider>
     </AppContext.Provider>
   );
 }
+
+// --- שינוי ---
+// קומפוננטה ייעודית להגנה על נתיבים (דרך מומלצת)
+import { Outlet } from "react-router-dom";
+const ProtectedRoute = ({ isAllowed, redirectPath = '/', children }) => {
+    if (!isAllowed) {
+        return <Navigate to={redirectPath} replace />;
+    }
+    return children ? children : <Outlet />;
+};
+
 
 export default App;

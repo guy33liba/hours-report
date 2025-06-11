@@ -10,10 +10,9 @@ import React, {
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from "react-router-dom";
 import "./styles.css";
 
-// --- NEW: Reusable LoadingSpinner component ---
+// --- Reusable Components ---
 const LoadingSpinner = () => <div className="loader"></div>;
 
-// --- NEW: Reusable ConfirmationModal component ---
 function ConfirmationModal({
  show,
  onClose,
@@ -50,6 +49,105 @@ const Icon = ({ path, size = 18, className = "" }) => (
   <path d={path}></path>
  </svg>
 );
+
+const FormInput = ({ label, ...props }) => (
+ <div className="form-group">
+  <label>{label}</label>
+  <input {...props} />
+ </div>
+);
+const FormTextarea = ({ label, ...props }) => (
+ <div className="form-group">
+  <label>{label}</label>
+  <textarea {...props} />
+ </div>
+);
+const ToggleSwitch = ({ label, checked, onChange, name }) => (
+ <div className="toggle-switch">
+  <span>{label}</span>
+  <label className="switch">
+   <input type="checkbox" name={name} checked={checked} onChange={onChange} />
+   <span className="slider"></span>
+  </label>
+ </div>
+);
+
+// --- START: ADDED MISSING EmployeeForm COMPONENT ---
+function EmployeeForm({ initialData, onSave, onCancel }) {
+ const [formData, setFormData] = useState({
+  name: "",
+  department: "",
+  hourlyRate: "",
+  role: "employee",
+ });
+
+ useEffect(() => {
+  if (initialData) {
+   // Make sure not to pass null/undefined values to the form
+   setFormData({
+    name: initialData.name || "",
+    department: initialData.department || "",
+    hourlyRate: initialData.hourlyRate || "",
+    role: initialData.role || "employee",
+   });
+  } else {
+   // Reset form for new employee
+   setFormData({ name: "", department: "", hourlyRate: "", role: "employee" });
+  }
+ }, [initialData]);
+
+ const handleChange = (e) => {
+  setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+ };
+
+ const handleSubmit = (e) => {
+  e.preventDefault();
+  onSave(formData);
+ };
+
+ return (
+  <form onSubmit={handleSubmit}>
+   <h3 style={{ marginTop: 0, borderBottom: "none" }}>
+    {initialData ? "עריכת פרטי עובד" : "הוספת עובד חדש"}
+   </h3>
+   <p style={{ marginTop: 0, marginBottom: "24px", color: "var(--font-light)" }}>
+    מלא את הפרטים הבאים כדי להוסיף או לעדכן עובד במערכת.
+   </p>
+   <FormInput label="שם מלא" name="name" value={formData.name} onChange={handleChange} required />
+   <FormInput
+    label="מחלקה"
+    name="department"
+    value={formData.department}
+    onChange={handleChange}
+    required
+   />
+   <FormInput
+    label="תעריף שעתי (₪)"
+    type="number"
+    name="hourlyRate"
+    value={formData.hourlyRate}
+    onChange={handleChange}
+    required
+   />
+   <div className="form-group">
+    <label>תפקיד</label>
+    <select name="role" value={formData.role} onChange={handleChange}>
+     <option value="employee">עובד</option>
+     <option value="manager">מנהל</option>
+    </select>
+   </div>
+   <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "24px" }}>
+    <button type="button" className="secondary" onClick={onCancel}>
+     ביטול
+    </button>
+    <button type="submit">שמור</button>
+   </div>
+  </form>
+ );
+}
+// --- END: ADDED MISSING EmployeeForm COMPONENT ---
+
+// Constants and Global Hooks...
 const ICONS = {
  DASHBOARD: "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z",
  EMPLOYEES:
@@ -129,134 +227,6 @@ const calculateHours = (attendanceEntry) => {
  const totalMilliseconds = clockOutTime - clockInTime;
  return Math.max(0, totalMilliseconds / 36e5);
 };
-const initialData = {
- employees: [
-  {
-   id: 1,
-   name: "ישראל ישראלי",
-   department: "פיתוח",
-   role: "manager",
-   hourlyRate: 120,
-   status: STATUSES.ABSENT.key,
-  },
-  {
-   id: 2,
-   name: "דנה כהן",
-   department: "שיווק",
-   role: "employee",
-   hourlyRate: 60,
-   status: STATUSES.ABSENT.key,
-  },
-  {
-   id: 3,
-   name: "אבי לוי",
-   department: "פיתוח",
-   role: "employee",
-   hourlyRate: 90,
-   status: STATUSES.ABSENT.key,
-  },
-  {
-   id: 4,
-   name: "רותם חן",
-   department: "תמיכה",
-   role: "employee",
-   hourlyRate: 55,
-   status: STATUSES.ABSENT.key,
-  },
- ],
- attendance: [],
- scheduledAbsences: [],
- settings: {
-  standardWorkDayHours: 8.5,
-  overtimeRatePercent: 150,
-  restrictByIp: true,
-  allowedIps: "192.168.1.1, 8.8.8.8",
-  paidVacation: true,
-  paidSickLeave: true,
- },
-};
-const dataReducer = (state, action) => {
- switch (action.type) {
-  case "SET_INITIAL_DATA":
-   return { ...initialData, ...action.payload };
-  case "UPDATE_SETTINGS":
-   return { ...state, settings: { ...state.settings, ...action.payload } };
-  case "UPDATE_EMPLOYEE_STATUS":
-   return {
-    ...state,
-    employees: state.employees.map((e) =>
-     e.id === action.payload.id ? { ...e, status: action.payload.status } : e
-    ),
-   };
-  case "ADD_ATTENDANCE":
-   return { ...state, attendance: [...state.attendance, action.payload] };
-  case "UPDATE_LAST_ATTENDANCE": {
-   const idx = state.attendance.findLastIndex(
-    (a) => a.employeeId === action.payload.employeeId && !a.clockOut
-   );
-   if (idx === -1) return state;
-   const newAtt = [...state.attendance];
-   newAtt[idx] = { ...newAtt[idx], ...action.payload.data };
-   return { ...state, attendance: newAtt };
-  }
-  case "ADD_EMPLOYEE":
-   return {
-    ...state,
-    employees: [
-     ...state.employees,
-     { ...action.payload, id: Date.now(), status: STATUSES.ABSENT.key },
-    ],
-   };
-  case "UPDATE_EMPLOYEE":
-   return {
-    ...state,
-    employees: state.employees.map((e) =>
-     e.id === action.payload.id ? { ...e, ...action.payload } : e
-    ),
-   };
-  case "DELETE_EMPLOYEE":
-   return {
-    ...state,
-    employees: state.employees.filter((e) => e.id !== action.payload),
-    attendance: state.attendance.filter((a) => a.employeeId !== action.payload),
-   };
-  case "ADD_ABSENCE":
-   return {
-    ...state,
-    scheduledAbsences: [...state.scheduledAbsences, { ...action.payload, id: Date.now() }],
-   };
-  case "DELETE_ABSENCE":
-   return {
-    ...state,
-    scheduledAbsences: state.scheduledAbsences.filter((a) => a.id !== action.payload),
-   };
-  default:
-   return state;
- }
-};
-const AppContext = createContext();
-const FormInput = ({ label, ...props }) => (
- <div className="form-group">
-  <label>{label}</label>
-  <input {...props} />
- </div>
-);
-const FormTextarea = ({ label, ...props }) => (
- <div className="form-group">
-  <label>{label}</label>
-  <textarea {...props} />
- </div>
-);
-const ToggleSwitch = ({ label, checked, onChange, name }) => (
- <div className="toggle-switch">
-  <span>{label}</span>
-  <label className="switch">
-   <input type="checkbox" name={name} checked={checked} onChange={onChange} />
-   <span className="slider"></span>
-  </label>
- </div>
-);
-
 const useSortableData = (items, config = null) => {
  const [sortConfig, setSortConfig] = useState(config);
  const sortedItems = useMemo(() => {
@@ -301,371 +271,35 @@ const SortableHeader = ({ children, name, sortConfig, requestSort }) => {
  );
 };
 
-function Dashboard() {
- const { state } = useContext(AppContext);
- const summary = useMemo(() => {
-  if (!state || !state.settings || !state.employees || !state.attendance) {
-   return { totalHours: 0, overtimeHours: 0, totalPay: 0, presentCount: 0 };
-  }
-  let totalProjectedHours = 0;
-  let totalProjectedOvertime = 0;
-  let totalProjectedPay = 0;
-  const todayStr = new Date().toDateString();
-  state.employees.forEach((emp) => {
-   const todayEntries = state.attendance.filter(
-    (a) => a.employeeId === emp.id && new Date(a.clockIn).toDateString() === todayStr
-   );
-   if (todayEntries.length === 0) {
-    return;
-   }
-   const completedHours = todayEntries
-    .filter((entry) => entry.clockOut)
-    .reduce((sum, entry) => sum + calculateHours(entry), 0);
-   const lastEntry = todayEntries[todayEntries.length - 1];
-   let hoursForCalculation;
-   if (lastEntry.clockOut) {
-    hoursForCalculation = completedHours;
-   } else {
-    hoursForCalculation = Math.max(state.settings.standardWorkDayHours, completedHours);
-   }
-   const hourlyRate = Number(emp.hourlyRate) || 0;
-   const standardWorkDayHours = Number(state.settings.standardWorkDayHours) || 0;
-   const overtimeRatePercent = Number(state.settings.overtimeRatePercent) || 0;
-   const regularHours = Math.min(hoursForCalculation, standardWorkDayHours);
-   const otHours = Math.max(0, hoursForCalculation - standardWorkDayHours);
-   totalProjectedHours += hoursForCalculation;
-   totalProjectedOvertime += otHours;
-   totalProjectedPay +=
-    regularHours * hourlyRate + otHours * hourlyRate * (overtimeRatePercent / 100);
-  });
-  const presentCount = state.employees.filter((emp) => emp.status === STATUSES.PRESENT.key).length;
-  return {
-   totalHours: totalProjectedHours,
-   overtimeHours: totalProjectedOvertime,
-   totalPay: totalProjectedPay,
-   presentCount: presentCount,
-  };
- }, [state]);
- return (
-  <>
-   <div className="page-header">
-    <h2>סקירה כללית</h2>
-   </div>
-   <div className="dashboard-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", gap: "20px" }}>
-    <div className="card kpi-card">
-     <h3>סה"כ שעות היום</h3>
-     <p className="kpi-value">{summary.totalHours.toFixed(2)}</p>
-    </div>
-    <div className="card kpi-card">
-     <h3>שעות נוספות</h3>
-     <p className="kpi-value">{summary.overtimeHours.toFixed(2)}</p>
-    </div>
-    <div className="card kpi-card">
-     <h3>עובדים נוכחים</h3>
-     <p className="kpi-value">{summary.presentCount}</p>
-    </div>
-    <div className="card kpi-card">
-     <h3>שכר מוערך להיום</h3>
-     <p className="kpi-value">₪{summary.totalPay.toFixed(2)}</p>
-    </div>
-   </div>
-   <div className="dashboard-grid">
-    <RealTimePresenceCard />
-   </div>
-  </>
- );
-}
-function SettingsPage() {
- const { state, dispatch } = useContext(AppContext);
- const [settings, setSettings] = useState(state.settings);
- const toaster = useToaster();
- useEffect(() => {
-  setSettings(state.settings);
- }, [state.settings]);
- const handleChange = (e) => {
-  const { name, value, type, checked } = e.target;
-  setSettings((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
- };
- const handleSave = () => {
-  dispatch({ type: "UPDATE_SETTINGS", payload: settings });
-  toaster("ההגדרות נשמרו!", "success");
- };
- return (
-  <>
-   <div className="page-header">
-    <h2>הגדרות מערכת</h2>
-    <div className="page-actions">
-     <button onClick={handleSave}>שמור שינויים</button>
-    </div>
-   </div>
-   <div className="settings-grid">
-    <div className="card">
-     <h3>מדיניות נוכחות</h3>
-     <FormInput
-      label="יום עבודה סטנדרטי (שעות)"
-      type="number"
-      name="standardWorkDayHours"
-      value={settings.standardWorkDayHours}
-      onChange={handleChange}
-     />
-    </div>
-    <div className="card">
-     <h3>מדיניות שכר</h3>
-     <FormInput
-      label="תעריף שעות נוספות (%)"
-      type="number"
-      name="overtimeRatePercent"
-      value={settings.overtimeRatePercent}
-      onChange={handleChange}
-     />
-     <ToggleSwitch
-      label="תשלום עבור ימי חופשה"
-      name="paidVacation"
-      checked={settings.paidVacation}
-      onChange={handleChange}
-     />
-     <ToggleSwitch
-      label="תשלום עבור ימי מחלה"
-      name="paidSickLeave"
-      checked={settings.paidSickLeave}
-      onChange={handleChange}
-     />
-    </div>
-    <div className="card">
-     <h3>אבטחה</h3>
-     <ToggleSwitch
-      label="הגבל החתמה לפי IP"
-      name="restrictByIp"
-      checked={settings.restrictByIp}
-      onChange={handleChange}
-     />
-     {settings.restrictByIp && (
-      <FormTextarea
-       label="כתובות IP מורשות (מופרד בפסיק)"
-       name="allowedIps"
-       value={settings.allowedIps}
-       onChange={handleChange}
-      />
-     )}
-    </div>
-   </div>
-  </>
- );
-}
+// Simplified Global State Management
+const initialAppState = {
+ settings: {
+  standardWorkDayHours: 8.5,
+  overtimeRatePercent: 150,
+  restrictByIp: true,
+  allowedIps: "192.168.1.1, 8.8.8.8",
+  paidVacation: true,
+  paidSickLeave: true,
+ },
+ attendance: [],
+ scheduledAbsences: [],
+};
+const appReducer = (state, action) => {
+ switch (action.type) {
+  case "SET_SETTINGS":
+   return { ...state, settings: action.payload };
+  case "SET_ATTENDANCE":
+   return { ...state, attendance: action.payload };
+  case "SET_ABSENCES":
+   return { ...state, scheduledAbsences: action.payload };
+  default:
+   return state;
+ }
+};
+const AppContext = createContext();
 
-function RealTimePresenceCard() {
- const { state } = useContext(AppContext);
- return (
-  <div className="card">
-   <h3>נוכחות בזמן אמת</h3>
-   {state.employees
-    .filter((e) => e.role === "employee")
-    .map((emp) => (
-     <EmployeeRow key={emp.id} employee={emp} />
-    ))}
-  </div>
- );
-}
+// --- Main Page and Modal Components ---
 
-// --- UPDATED: EmployeeRow now manages its own state, including loading for async operations ---
-function EmployeeRow({ employee }) {
- const { state, dispatch } = useContext(AppContext);
- const toaster = useToaster();
- const [elapsedTime, setElapsedTime] = useState(0);
- const [isLoading, setIsLoading] = useState(false); // Loading state for this specific row
-
- useEffect(() => {
-  let interval;
-  if (employee.status === STATUSES.PRESENT.key) {
-   const updateTimer = () => {
-    const todayEntry = state.attendance.findLast(
-     (a) => a.employeeId === employee.id && !a.clockOut
-    );
-    if (todayEntry) setElapsedTime(calculateHours(todayEntry));
-   };
-   updateTimer();
-   interval = setInterval(updateTimer, 1000);
-  } else {
-   setElapsedTime(0);
-  }
-  return () => clearInterval(interval);
- }, [employee.status, state.attendance, employee.id]);
-
- const handleStatusChange = async (newStatusKey) => {
-  if (employee.status === newStatusKey || isLoading) return;
-
-  setIsLoading(true);
-  try {
-   const { settings } = state;
-
-   if (newStatusKey === STATUSES.PRESENT.key && settings.restrictByIp) {
-    try {
-     const response = await fetch("https://api.ipify.org?format=json");
-     if (!response.ok) throw new Error("Network response was not ok");
-     const data = await response.json();
-     const userIp = data.ip;
-
-     const allowedIps = settings.allowedIps
-      .split(",")
-      .map((ip) => ip.trim())
-      .filter((ip) => ip);
-     if (!allowedIps.includes(userIp)) {
-      toaster(`שגיאה: לא ניתן להחתים נוכחות מכתובת ה-IP הנוכחית (${userIp})`, "danger");
-      return; // Early return stops the process
-     }
-    } catch (error) {
-     toaster("שגיאה: לא ניתן היה לאמת את כתובת ה-IP. נסה שוב.", "danger");
-     console.error("IP check failed:", error);
-     return; // Early return stops the process
-    }
-   }
-
-   const now = new Date().toISOString();
-   const newStatusObject = Object.values(STATUSES).find((s) => s.key === newStatusKey);
-   const toasterMessage = `${employee.name} שינה סטטוס ל: ${newStatusObject.text}`;
-
-   dispatch({ type: "UPDATE_EMPLOYEE_STATUS", payload: { id: employee.id, status: newStatusKey } });
-
-   if (newStatusKey === STATUSES.PRESENT.key) {
-    dispatch({
-     type: "ADD_ATTENDANCE",
-     payload: { id: Date.now(), employeeId: employee.id, clockIn: now, clockOut: null },
-    });
-    toaster(toasterMessage, "success");
-   } else if (newStatusKey === STATUSES.ABSENT.key) {
-    dispatch({
-     type: "UPDATE_LAST_ATTENDANCE",
-     payload: { employeeId: employee.id, data: { clockOut: now } },
-    });
-    toaster(toasterMessage);
-   }
-  } finally {
-   setIsLoading(false);
-  }
- };
-
- const formatTime = (hours) => {
-  if (hours <= 0) return "00:00:00";
-  const totalSeconds = Math.floor(hours * 3600);
-  const h = Math.floor(totalSeconds / 3600)
-   .toString()
-   .padStart(2, "0");
-  const m = Math.floor((totalSeconds % 3600) / 60)
-   .toString()
-   .padStart(2, "0");
-  const s = (totalSeconds % 60).toString().padStart(2, "0");
-  return `${h}:${m}:${s}`;
- };
-
- const statusObject =
-  Object.values(STATUSES).find((s) => s.key === employee.status) || STATUSES.ABSENT;
- const isPresent = employee.status === STATUSES.PRESENT.key;
- const isAbsent = employee.status === STATUSES.ABSENT.key;
- const isNotClockable = employee.status === "vacation" || employee.status === "sick";
-
- return (
-  <div
-   style={{
-    display: "grid",
-    gridTemplateColumns: "2fr 1fr 1fr",
-    alignItems: "center",
-    padding: "12px 0",
-    borderBottom: "1px solid var(--border-color)",
-   }}
-  >
-   <div style={{ justifySelf: "start", display: "flex", alignItems: "center", gap: "20px" }}>
-    <div>
-     <div style={{ fontWeight: 500 }}>{employee.name}</div>
-     <div style={{ fontSize: "14px", color: "var(--font-light)" }}>{employee.department}</div>
-    </div>
-    {isPresent && (
-     <div style={{ color: "var(--primary-color)", fontFamily: "monospace", fontSize: "18px" }}>
-      {formatTime(elapsedTime)}
-     </div>
-    )}
-   </div>
-   <div style={{ justifySelf: "center" }}>
-    <div style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
-     <div className={`status-dot ${statusObject.colorClass}`}></div>
-     <span>{statusObject.text}</span>
-    </div>
-   </div>
-   <div style={{ justifySelf: "end", display: "flex", gap: "8px" }}>
-    <button
-     onClick={() => handleStatusChange(STATUSES.PRESENT.key)}
-     className={isPresent ? "secondary" : ""}
-     disabled={isPresent || isNotClockable || isLoading}
-    >
-     {isLoading ? <LoadingSpinner /> : "כניסה"}
-    </button>
-    <button
-     onClick={() => handleStatusChange(STATUSES.ABSENT.key)}
-     className={isAbsent ? "secondary" : ""}
-     disabled={isAbsent || isLoading}
-    >
-     יציאה
-    </button>
-   </div>
-  </div>
- );
-}
-
-function EmployeeForm({ initialData, onSave, onCancel }) {
- const [formData, setFormData] = useState({
-  name: "",
-  department: "",
-  hourlyRate: "",
-  role: "employee",
- });
- useEffect(() => {
-  if (initialData) setFormData(initialData);
-  else setFormData({ name: "", department: "", hourlyRate: "", role: "employee" });
- }, [initialData]);
- const handleChange = (e) => setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
- const handleSubmit = (e) => {
-  e.preventDefault();
-  onSave(formData);
- };
- return (
-  <form onSubmit={handleSubmit}>
-   <h3 style={{ marginTop: 0, borderBottom: "none" }}>
-    {initialData ? "עריכת פרטי עובד" : "הוספת עובד חדש"}
-   </h3>
-   <p style={{ marginTop: 0, marginBottom: "24px", color: "var(--font-light)" }}>
-    מלא את הפרטים הבאים כדי להוסיף או לעדכן עובד במערכת.
-   </p>
-   <FormInput label="שם מלא" name="name" value={formData.name} onChange={handleChange} required />
-   <FormInput
-    label="מחלקה"
-    name="department"
-    value={formData.department}
-    onChange={handleChange}
-    required
-   />
-   <FormInput
-    label="תעריף שעתי (₪)"
-    type="number"
-    name="hourlyRate"
-    value={formData.hourlyRate}
-    onChange={handleChange}
-    required
-   />
-   <div className="form-group">
-    <label>תפקיד</label>
-    <select name="role" value={formData.role} onChange={handleChange}>
-     <option value="employee">עובד</option>
-     <option value="manager">מנהל</option>
-    </select>
-   </div>
-   <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "24px" }}>
-    <button type="button" className="secondary" onClick={onCancel}>
-     ביטול
-    </button>
-    <button type="submit">שמור</button>
-   </div>
-  </form>
- );
-}
 function EmployeeModal({ show, onClose, employee, onSave }) {
  if (!show) return null;
  return (
@@ -679,7 +313,10 @@ function EmployeeModal({ show, onClose, employee, onSave }) {
   </div>
  );
 }
+
 function AbsenceManagementModal({ show, onClose, employee, absences, onAdd, onDelete }) {
+ // This component will also need to be refactored to use an API
+ // For now, its functionality is local and won't persist.
  const [newAbsence, setNewAbsence] = useState({ type: "vacation", startDate: "", endDate: "" });
  if (!show || !employee) return null;
  const handleAddAbsence = (e) => {
@@ -749,7 +386,7 @@ function AbsenceManagementModal({ show, onClose, employee, absences, onAdd, onDe
        >
         <div>
          <span style={{ fontWeight: 500 }}>{STATUSES[absence.type.toUpperCase()].text}</span>:  
-         {new Date(absence.startDate).toLocaleDateString("he-IL")} -{" "}
+         {new Date(absence.startDate).toLocaleDateString("he-IL")} -
          {new Date(absence.endDate).toLocaleDateString("he-IL")}
         </div>
         <button
@@ -770,25 +407,303 @@ function AbsenceManagementModal({ show, onClose, employee, absences, onAdd, onDe
  );
 }
 
-// --- UPDATED: EmployeeList now uses ConfirmationModal ---
-function EmployeeList() {
- const toaster = useToaster();
+function Dashboard() {
+ return (
+  <>
+   <div className="page-header">
+    <h2>סקירה כללית</h2>
+   </div>
+   <div className="card">
+    <p>דף הסקירה הכללית ייבנה מחדש כדי להציג נתונים מהשרת.</p>
+   </div>
+   <div className="dashboard-grid">
+    <RealTimePresenceCard />
+   </div>
+  </>
+ );
+}
 
+function SettingsPage() {
+ const { state, dispatch } = useContext(AppContext);
+ const [settings, setSettings] = useState(state.settings);
+ const toaster = useToaster();
+ useEffect(() => {
+  setSettings(state.settings);
+ }, [state.settings]);
+ const handleChange = (e) => {
+  const { name, value, type, checked } = e.target;
+  setSettings((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+ };
+ const handleSave = () => {
+  dispatch({ type: "SET_SETTINGS", payload: settings });
+  toaster("ההגדרות נשמרו!", "success");
+ };
+ return (
+  <>
+   <div className="page-header">
+    <h2>הגדרות מערכת</h2>
+    <div className="page-actions">
+     <button onClick={handleSave}>שמור שינויים</button>
+    </div>
+   </div>
+   <div className="settings-grid">
+    <div className="card">
+     <h3>מדיניות נוכחות</h3>
+     <FormInput
+      label="יום עבודה סטנדרטי (שעות)"
+      type="number"
+      name="standardWorkDayHours"
+      value={settings.standardWorkDayHours}
+      onChange={handleChange}
+     />
+    </div>
+    <div className="card">
+     <h3>מדיניות שכר</h3>
+     <FormInput
+      label="תעריף שעות נוספות (%)"
+      type="number"
+      name="overtimeRatePercent"
+      value={settings.overtimeRatePercent}
+      onChange={handleChange}
+     />
+     <ToggleSwitch
+      label="תשלום עבור ימי חופשה"
+      name="paidVacation"
+      checked={settings.paidVacation}
+      onChange={handleChange}
+     />
+     <ToggleSwitch
+      label="תשלום עבור ימי מחלה"
+      name="paidSickLeave"
+      checked={settings.paidSickLeave}
+      onChange={handleChange}
+     />
+    </div>
+    <div className="card">
+     <h3>אבטחה</h3>
+     <ToggleSwitch
+      label="הגבל החתמה לפי IP"
+      name="restrictByIp"
+      checked={settings.restrictByIp}
+      onChange={handleChange}
+     />
+     {settings.restrictByIp && (
+      <FormTextarea
+       label="כתובות IP מורשות (מופרד בפסיק)"
+       name="allowedIps"
+       value={settings.allowedIps}
+       onChange={handleChange}
+      />
+     )}
+    </div>
+   </div>
+  </>
+ );
+}
+
+function RealTimePresenceCard() {
  const [employees, setEmployees] = useState([]);
  const [isLoading, setIsLoading] = useState(true);
+ const toaster = useToaster();
+ const [openAttendance, setOpenAttendance] = useState([]);
 
+ useEffect(() => {
+  Promise.all([
+   fetch("http://localhost:3001/api/employees").then((res) => {
+    if (!res.ok) throw new Error("Failed to fetch employees");
+    return res.json();
+   }),
+   fetch("http://localhost:3001/api/attendance/today/open").then((res) => {
+    if (!res.ok) throw new Error("Failed to fetch attendance");
+    return res.json();
+   }),
+  ])
+   .then(([employeesData, attendanceData]) => {
+    setEmployees(employeesData);
+    setOpenAttendance(attendanceData);
+   })
+   .catch((err) => {
+    console.error(err);
+    toaster("שגיאה בטעינת נתוני נוכחות", "danger");
+   })
+   .finally(() => {
+    setIsLoading(false);
+   });
+ }, [toaster]);
+
+ const updateEmployeeInList = (updatedEmployee) => {
+  setEmployees((prev) =>
+   prev.map((emp) => (emp._id === updatedEmployee._id ? updatedEmployee : emp))
+  );
+  fetch("http://localhost:3001/api/attendance/today/open")
+   .then((res) => res.json())
+   .then(setOpenAttendance);
+ };
+
+ return (
+  <div className="card">
+   <h3>נוכחות בזמן אמת</h3>
+   {isLoading ? (
+    <LoadingSpinner />
+   ) : (
+    employees
+     .filter((e) => e.role === "employee")
+     .map((emp) => {
+      const attendanceRecord = openAttendance.find((att) => att.employee === emp._id);
+      return (
+       <EmployeeRow
+        key={emp._id}
+        employee={emp}
+        attendanceRecord={attendanceRecord}
+        onStatusUpdate={updateEmployeeInList}
+       />
+      );
+     })
+   )}
+  </div>
+ );
+}
+
+function EmployeeRow({ employee, attendanceRecord, onStatusUpdate }) {
+ const toaster = useToaster();
+ const [elapsedTime, setElapsedTime] = useState(0);
+ const [isLoading, setIsLoading] = useState(false);
+
+ useEffect(() => {
+  let interval;
+  if (employee.status === STATUSES.PRESENT.key && attendanceRecord) {
+   const updateTimer = () => {
+    const clockInTime = new Date(attendanceRecord.clockIn);
+    const now = new Date();
+    const diff = now - clockInTime;
+    setElapsedTime(Math.max(0, diff / 36e5));
+   };
+   updateTimer();
+   interval = setInterval(updateTimer, 1000);
+  } else {
+   setElapsedTime(0);
+  }
+  return () => clearInterval(interval);
+ }, [employee.status, attendanceRecord]);
+
+ const handleClockIn = async () => {
+  if (isLoading) return;
+  setIsLoading(true);
+  try {
+   const response = await fetch("http://localhost:3001/api/attendance/clock-in", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ employeeId: employee._id }),
+   });
+   if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || "Clock-in failed");
+   }
+   const updatedEmployee = await response.json();
+   onStatusUpdate(updatedEmployee);
+   toaster(`${updatedEmployee.name} החתים כניסה.`, "success");
+  } catch (error) {
+   console.error("Clock-in failed:", error);
+   toaster(`שגיאה בהחתמת כניסה: ${error.message}`, "danger");
+  } finally {
+   setIsLoading(false);
+  }
+ };
+ const handleClockOut = async () => {
+  if (isLoading) return;
+  setIsLoading(true);
+  try {
+   const response = await fetch("http://localhost:3001/api/attendance/clock-out", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ employeeId: employee._id }),
+   });
+   if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || "Clock-out failed");
+   }
+   const updatedEmployee = await response.json();
+   onStatusUpdate(updatedEmployee);
+   toaster(`${updatedEmployee.name} החתים יציאה.`, "success");
+  } catch (error) {
+   console.error("Clock-out failed:", error);
+   toaster(`שגיאה בהחתמת יציאה: ${error.message}`, "danger");
+  } finally {
+   setIsLoading(false);
+  }
+ };
+ const formatTime = (hours) => {
+  if (hours <= 0) return "00:00:00";
+  const totalSeconds = Math.floor(hours * 3600);
+  const h = Math.floor(totalSeconds / 3600)
+   .toString()
+   .padStart(2, "0");
+  const m = Math.floor((totalSeconds % 3600) / 60)
+   .toString()
+   .padStart(2, "0");
+  const s = (totalSeconds % 60).toString().padStart(2, "0");
+  return `${h}:${m}:${s}`;
+ };
+ const statusObject =
+  Object.values(STATUSES).find((s) => s.key === employee.status) || STATUSES.ABSENT;
+ const isPresent = employee.status === STATUSES.PRESENT.key;
+ const isNotClockable = employee.status === "vacation" || employee.status === "sick";
+
+ return (
+  <div
+   style={{
+    display: "grid",
+    gridTemplateColumns: "2fr 1fr 1fr",
+    alignItems: "center",
+    padding: "12px 0",
+    borderBottom: "1px solid var(--border-color)",
+   }}
+  >
+   <div style={{ justifySelf: "start", display: "flex", alignItems: "center", gap: "20px" }}>
+    <div>
+     <div style={{ fontWeight: 500 }}>{employee.name}</div>
+     <div style={{ fontSize: "14px", color: "var(--font-light)" }}>{employee.department}</div>
+    </div>
+    {isPresent && (
+     <div style={{ color: "var(--primary-color)", fontFamily: "monospace", fontSize: "18px" }}>
+      {formatTime(elapsedTime)}
+     </div>
+    )}
+   </div>
+   <div style={{ justifySelf: "center" }}>
+    <div style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+     <div className={`status-dot ${statusObject.colorClass}`}></div>
+     <span>{statusObject.text}</span>
+    </div>
+   </div>
+   <div style={{ justifySelf: "end", display: "flex", gap: "8px" }}>
+    <button
+     onClick={handleClockIn}
+     className={isPresent ? "secondary" : ""}
+     disabled={isPresent || isNotClockable || isLoading}
+    >
+     {isLoading ? <LoadingSpinner /> : "כניסה"}
+    </button>
+    <button onClick={handleClockOut} disabled={!isPresent || isLoading}>
+     יציאה
+    </button>
+   </div>
+  </div>
+ );
+}
+
+function EmployeeList() {
+ const toaster = useToaster();
+ const [employees, setEmployees] = useState([]);
+ const [isLoading, setIsLoading] = useState(true);
  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-
  const [selectedEmployee, setSelectedEmployee] = useState(null);
  const [employeeToDelete, setEmployeeToDelete] = useState(null);
-
  const [searchTerm, setSearchTerm] = useState("");
  const [departmentFilter, setDepartmentFilter] = useState("");
-
  const API_URL = "http://localhost:3001/api/employees";
 
- // --- 1. Fetch all employees from server on component mount ---
  useEffect(() => {
   setIsLoading(true);
   fetch(API_URL)
@@ -807,56 +722,41 @@ function EmployeeList() {
     setIsLoading(false);
    });
  }, [toaster]);
-
- // --- Filtering and Sorting Logic (no changes needed here) ---
  const filteredEmployees = useMemo(() => {
   return employees
    .filter((emp) => emp.name.toLowerCase().includes(searchTerm.toLowerCase()))
    .filter((emp) => departmentFilter === "" || emp.department === departmentFilter);
  }, [employees, searchTerm, departmentFilter]);
-
  const {
   items: sortedEmployees,
   requestSort,
   sortConfig,
- } = useSortableData(filteredEmployees, {
-  key: "name",
-  direction: "ascending",
- });
-
+ } = useSortableData(filteredEmployees, { key: "name", direction: "ascending" });
  const uniqueDepartments = useMemo(() => {
   return [...new Set(employees.map((emp) => emp.department))];
  }, [employees]);
-
- // --- Modal Handling ---
  const handleOpenEdit = (employee) => {
   setSelectedEmployee(employee);
   setIsEditModalOpen(true);
  };
-
  const handleOpenAdd = () => {
-  setSelectedEmployee(null); // No initial data for new employee
+  setSelectedEmployee(null);
   setIsEditModalOpen(true);
  };
-
  const handleOpenDeleteConfirm = (employee) => {
   setEmployeeToDelete(employee);
   setIsConfirmModalOpen(true);
  };
-
  const closeModal = () => {
   setIsEditModalOpen(false);
   setIsConfirmModalOpen(false);
   setSelectedEmployee(null);
   setEmployeeToDelete(null);
  };
-
- // --- 2. Save Employee (Handles both ADD and UPDATE) ---
  const handleSaveEmployee = (employeeData) => {
-  const isUpdating = selectedEmployee && selectedEmployee.id;
-  const url = isUpdating ? `${API_URL}/${selectedEmployee.id}` : API_URL;
+  const isUpdating = selectedEmployee && selectedEmployee._id;
+  const url = isUpdating ? `${API_URL}/${selectedEmployee._id}` : API_URL;
   const method = isUpdating ? "PUT" : "POST";
-
   fetch(url, {
    method: method,
    headers: { "Content-Type": "application/json" },
@@ -868,11 +768,11 @@ function EmployeeList() {
    })
    .then((savedEmployee) => {
     if (isUpdating) {
-     // Replace the old employee data with the updated one
-     setEmployees((prev) => prev.map((emp) => (emp.id === savedEmployee.id ? savedEmployee : emp)));
+     setEmployees((prev) =>
+      prev.map((emp) => (emp._id === savedEmployee._id ? savedEmployee : emp))
+     );
      toaster("פרטי העובד עודכנו!", "success");
     } else {
-     // Add the new employee to the list
      setEmployees((prev) => [...prev, savedEmployee]);
      toaster("עובד חדש נוסף!", "success");
     }
@@ -883,17 +783,12 @@ function EmployeeList() {
     toaster("שגיאה בשמירת נתוני העובד", "danger");
    });
  };
-
- // --- 3. Delete Employee ---
  const handleConfirmDelete = () => {
   if (!employeeToDelete) return;
-
-  fetch(`${API_URL}/${employeeToDelete.id}`, {
-   method: "DELETE",
-  })
+  fetch(`${API_URL}/${employeeToDelete._id}`, { method: "DELETE" })
    .then((res) => {
     if (res.ok) {
-     setEmployees((prev) => prev.filter((emp) => emp.id !== employeeToDelete.id));
+     setEmployees((prev) => prev.filter((emp) => emp._id !== employeeToDelete._id));
      toaster(`${employeeToDelete.name} נמחק.`);
     } else {
      throw new Error("Deletion failed");
@@ -905,11 +800,6 @@ function EmployeeList() {
     toaster("שגיאה במחיקת העובד.", "danger");
    });
  };
-
- // ---- (Absence management is not yet moved to backend, so it's commented out for now) ----
- // const [isAbsenceModalOpen, setIsAbsenceModalOpen] = useState(false);
- // const handleOpenAbsences = (employee) => { ... };
-
  return (
   <>
    <div className="page-header">
@@ -918,7 +808,6 @@ function EmployeeList() {
      <button onClick={handleOpenAdd}>הוסף עובד חדש</button>
     </div>
    </div>
-
    <div className="filter-controls">
     <input
      type="text"
@@ -935,7 +824,6 @@ function EmployeeList() {
      ))}
     </select>
    </div>
-
    <div className="card">
     <table>
      <thead>
@@ -968,12 +856,10 @@ function EmployeeList() {
        </tr>
       ) : (
        sortedEmployees.map((emp) => {
-        // The status is still coming from the employee object, which is now from the server.
-        // In a real scenario, this status would also be updated via API.
         const statusObject =
          Object.values(STATUSES).find((s) => s.key === emp.status) || STATUSES.ABSENT;
         return (
-         <tr key={emp.id}>
+         <tr key={emp._id}>
           <td>{emp.name}</td>
           <td>{emp.department}</td>
           <td>₪{emp.hourlyRate}/שעה</td>
@@ -1001,16 +887,12 @@ function EmployeeList() {
      </tbody>
     </table>
    </div>
-
    <EmployeeModal
     show={isEditModalOpen}
     onClose={closeModal}
     employee={selectedEmployee}
     onSave={handleSaveEmployee}
    />
-
-   {/* <AbsenceManagementModal ... /> */}
-
    <ConfirmationModal
     show={isConfirmModalOpen}
     onClose={closeModal}
@@ -1027,398 +909,53 @@ function EmployeeList() {
  );
 }
 
-function exportToCsv(filename, rows) {
- if (!rows || !rows.length) {
-  return;
- }
- const separator = ",";
- const keys = Object.keys(rows[0]);
- const csvContent =
-  "\uFEFF" +
-  keys.join(separator) +
-  "\n" +
-  rows
-   .map((row) => {
-    return keys
-     .map((k) => {
-      let cell = row[k] === null || row[k] === undefined ? "" : row[k];
-      cell = String(cell).replace(/"/g, '""');
-      return `"${cell}"`;
-     })
-     .join(separator);
-   })
-   .join("\n");
- const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
- const link = document.createElement("a");
- if (link.download !== undefined) {
-  const url = URL.createObjectURL(blob);
-  link.setAttribute("href", url);
-  link.setAttribute("download", filename);
-  link.style.visibility = "hidden";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
- }
-}
 function ReportsPage() {
- const { state } = useContext(AppContext);
- const [range, setRange] = useState({ start: "", end: "" });
- const reportData = useMemo(() => {
-  if (!range.start || !range.end || !state.settings) return [];
-  const startDate = new Date(range.start);
-  const endDate = new Date(range.end);
-  endDate.setHours(23, 59, 59, 999);
-  return state.employees.map((emp) => {
-   const entries = state.attendance.filter(
-    (a) =>
-     a.employeeId === emp.id && new Date(a.clockIn) >= startDate && new Date(a.clockIn) <= endDate
-   );
-   let totalHours = 0,
-    overtime = 0,
-    pay = 0;
-   entries.forEach((entry) => {
-    const hours = calculateHours(entry);
-    totalHours += hours;
-    const regular = Math.min(hours, state.settings.standardWorkDayHours);
-    const ot = Math.max(0, hours - state.settings.standardWorkDayHours);
-    overtime += ot;
-    pay +=
-     regular * emp.hourlyRate + ot * emp.hourlyRate * (state.settings.overtimeRatePercent / 100);
-   });
-   return {
-    ID: emp.id,
-    שם: emp.name,
-    מחלקה: emp.department,
-    "סהכ שעות": totalHours.toFixed(2),
-    "שעות נוספות": overtime.toFixed(2),
-    "שכר משוער (שח)": pay.toFixed(2),
-   };
-  });
- }, [range, state]);
- const handleExport = () => {
-  const filename = `report_${range.start}_to_${range.end}.csv`;
-  exportToCsv(filename, reportData);
- };
  return (
   <>
    <div className="page-header">
     <h2>דוחות נוכחות</h2>
-    <div className="page-actions">
-     <button className="secondary" onClick={handleExport} disabled={!reportData.length}>
-      <Icon path={ICONS.DOWNLOAD} />
-      ייצא ל-CSV
-     </button>
-    </div>
    </div>
    <div className="card">
-    <div style={{ display: "flex", gap: 20, marginBottom: 20 }}>
-     <input
-      type="date"
-      value={range.start}
-      onChange={(e) => setRange({ ...range, start: e.target.value })}
-     />
-     <input
-      type="date"
-      value={range.end}
-      onChange={(e) => setRange({ ...range, end: e.target.value })}
-     />
-    </div>
-    <table>
-     <thead>
-      <tr>
-       {reportData.length > 0 && Object.keys(reportData[0]).map((key) => <th key={key}>{key}</th>)}
-      </tr>
-     </thead>
-     <tbody>
-      {reportData.length > 0 ? (
-       reportData.map((r) => (
-        <tr key={r.ID}>
-         {Object.values(r).map((val, index) => (
-          <td key={index}>{val}</td>
-         ))}
-        </tr>
-       ))
-      ) : (
-       <tr>
-        <td colSpan="6" style={{ textAlign: "center", padding: "20px" }}>
-         יש לבחור טווח תאריכים להצגת הדוח.
-        </td>
-       </tr>
-      )}
-     </tbody>
-    </table>
+    <p>דף זה זקוק לשכתוב כדי למשוך נתונים מהשרת.</p>
    </div>
   </>
  );
 }
 function PayrollPage() {
- const { state } = useContext(AppContext);
- const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
- const [dateRange, setDateRange] = useState({ start: "", end: "" });
- const [payrollResult, setPayrollResult] = useState(null);
- const handleEmployeeSelection = (e) => {
-  const id = parseInt(e.target.value);
-  setSelectedEmployeeIds((p) => (e.target.checked ? [...p, id] : p.filter((i) => i !== id)));
- };
- const handleSelectAll = (e) =>
-  setSelectedEmployeeIds(
-   e.target.checked
-    ? state.employees.filter((emp) => emp.role === "employee").map((emp) => emp.id)
-    : []
-  );
- const calculatePayroll = () => {
-  if (selectedEmployeeIds.length === 0 || !dateRange.start || !dateRange.end) return null;
-  const startDate = new Date(dateRange.start);
-  const endDate = new Date(dateRange.end);
-  endDate.setHours(23, 59, 59, 999);
-  const details = state.employees
-   .filter((emp) => selectedEmployeeIds.includes(emp.id))
-   .map((emp) => {
-    const { standardWorkDayHours, overtimeRatePercent, paidVacation, paidSickLeave } =
-     state.settings;
-    const entries = state.attendance.filter(
-     (a) =>
-      a.employeeId === emp.id && new Date(a.clockIn) >= startDate && new Date(a.clockIn) <= endDate
-    );
-    let totalHours = 0,
-     overtimeHours = 0,
-     basePay = 0,
-     overtimePay = 0;
-    entries.forEach((entry) => {
-     const hours = calculateHours(entry);
-     const regularHours = Math.min(hours, standardWorkDayHours);
-     const ot = Math.max(0, hours - standardWorkDayHours);
-     totalHours += hours;
-     overtimeHours += ot;
-     basePay += regularHours * emp.hourlyRate;
-     overtimePay += ot * emp.hourlyRate * (overtimeRatePercent / 100);
-    });
-    let vacationDays = 0,
-     sickDays = 0;
-    state.scheduledAbsences
-     .filter((a) => a.employeeId === emp.id && (a.type === "vacation" || a.type === "sick"))
-     .forEach((absence) => {
-      let current = new Date(absence.startDate);
-      let end = new Date(absence.endDate);
-      while (current <= end) {
-       if (current >= startDate && current <= endDate) {
-        if (absence.type === "vacation") vacationDays++;
-        else if (absence.type === "sick") sickDays++;
-       }
-       current.setDate(current.getDate() + 1);
-      }
-     });
-    const vacationPay = paidVacation ? vacationDays * standardWorkDayHours * emp.hourlyRate : 0;
-    const sickPay = paidSickLeave ? sickDays * standardWorkDayHours * emp.hourlyRate : 0;
-    const totalPay = basePay + overtimePay + vacationPay + sickPay;
-    return {
-     id: emp.id,
-     name: emp.name,
-     regularHours: totalHours - overtimeHours,
-     overtimeHours,
-     basePay,
-     overtimePay,
-     vacationDays,
-     vacationPay,
-     sickDays,
-     sickPay,
-     totalPay,
-    };
-   });
-  const summary = details.reduce(
-   (acc, curr) => ({
-    totalBasePay: acc.totalBasePay + curr.basePay,
-    totalOvertimePay: acc.totalOvertimePay + curr.overtimePay,
-    totalVacationPay: acc.totalVacationPay + curr.vacationPay,
-    totalSickPay: acc.totalSickPay + curr.sickPay,
-    totalPay: acc.totalPay + curr.totalPay,
-    employeeCount: acc.employeeCount + 1,
-   }),
-   {
-    totalBasePay: 0,
-    totalOvertimePay: 0,
-    totalVacationPay: 0,
-    totalSickPay: 0,
-    totalPay: 0,
-    employeeCount: 0,
-   }
-  );
-  return { details, summary };
- };
- const handleGenerate = () => setPayrollResult(calculatePayroll());
- const handleExport = () => {
-  if (!payrollResult) return;
-  const filename = `payroll_${dateRange.start}_to_${dateRange.end}.csv`;
-  const dataToExport = payrollResult.details.map((d) => ({
-   שם: d.name,
-   "שעות רגילות": d.regularHours.toFixed(2),
-   "שעות נוספות": d.overtimeHours.toFixed(2),
-   "שכר בסיס": d.basePay.toFixed(2),
-   'שכר ש"נ': d.overtimePay.toFixed(2),
-   "ימי חופשה": d.vacationDays,
-   "תשלום חופשה": d.vacationPay.toFixed(2),
-   "ימי מחלה": d.sickDays,
-   "תשלום מחלה": d.sickPay.toFixed(2),
-   'סה"כ לתשלום': d.totalPay.toFixed(2),
-  }));
-  exportToCsv(filename, dataToExport);
- };
  return (
   <>
    <div className="page-header">
     <h2>הפקת דוח שכר</h2>
-    <div className="page-actions">
-     {payrollResult && (
-      <button className="secondary" onClick={handleExport}>
-       <Icon path={ICONS.DOWNLOAD} />
-       ייצא ל-CSV
-      </button>
-     )}
-    </div>
    </div>
    <div className="card">
-    <div className="payroll-controls">
-     <div className="control-section">
-      <h3>1. בחר עובדים</h3>
-      <div className="employee-select-list">
-       <div className="select-all-item">
-        <input
-         type="checkbox"
-         id="select-all"
-         onChange={handleSelectAll}
-         checked={
-          selectedEmployeeIds.length ===
-           state.employees.filter((e) => e.role === "employee").length &&
-          state.employees.filter((e) => e.role === "employee").length > 0
-         }
-        />
-        <label htmlFor="select-all">בחר הכל</label>
-       </div>
-       {state.employees
-        .filter((emp) => emp.role === "employee")
-        .map((emp) => (
-         <div key={emp.id} className="employee-select-item">
-          <input
-           type="checkbox"
-           id={`emp-${emp.id}`}
-           value={emp.id}
-           checked={selectedEmployeeIds.includes(emp.id)}
-           onChange={handleEmployeeSelection}
-          />
-          <label htmlFor={`emp-${emp.id}`}>{emp.name}</label>
-         </div>
-        ))}
-      </div>
-     </div>
-     <div className="control-section">
-      <h3>2. בחר תקופה</h3>
-      <FormInput
-       label="מתאריך"
-       type="date"
-       value={dateRange.start}
-       onChange={(e) => setDateRange((p) => ({ ...p, start: e.target.value }))}
-      />
-      <FormInput
-       label="עד תאריך"
-       type="date"
-       value={dateRange.end}
-       onChange={(e) => setDateRange((p) => ({ ...p, end: e.target.value }))}
-      />
-      <button
-       onClick={handleGenerate}
-       disabled={!(selectedEmployeeIds.length > 0 && dateRange.start && dateRange.end)}
-       style={{ width: "100%", marginTop: "16px" }}
-      >
-       הפק דוח שכר
-      </button>
-     </div>
-    </div>
-    {payrollResult && (
-     <div
-      style={{ marginTop: "30px", borderTop: "1px solid var(--border-color)", paddingTop: "24px" }}
-     >
-      <h3>
-       דוח שכר לתקופה: {new Date(dateRange.start).toLocaleDateString("he-IL")} -{" "}
-       {new Date(dateRange.end).toLocaleDateString("he-IL")}
-      </h3>
-      <div className="payroll-summary-kpis">
-       <div className="card kpi-card">
-        <h3>סה"כ לתשלום</h3>
-        <p className="kpi-value">₪{payrollResult.summary.totalPay.toFixed(2)}</p>
-       </div>
-       <div className="card kpi-card">
-        <h3>שכר בסיס</h3>
-        <p className="kpi-value">₪{payrollResult.summary.totalBasePay.toFixed(2)}</p>
-       </div>
-       <div className="card kpi-card">
-        <h3>שכר ש"נ</h3>
-        <p className="kpi-value">₪{payrollResult.summary.totalOvertimePay.toFixed(2)}</p>
-       </div>
-       <div className="card kpi-card">
-        <h3>סה"כ עובדים</h3>
-        <p className="kpi-value">{payrollResult.summary.employeeCount}</p>
-       </div>
-      </div>
-      <table className="payroll-table">
-       <thead>
-        <tr>
-         <th>שם עובד</th>
-         <th>שכר בסיס</th>
-         <th>שכר ש"נ</th>
-         <th>חופשה</th>
-         <th>מחלה</th>
-         <th>סה"כ</th>
-        </tr>
-       </thead>
-       <tbody>
-        {payrollResult.details.map((r) => (
-         <tr key={r.id}>
-          <td>{r.name}</td>
-          <td>₪{r.basePay.toFixed(2)}</td>
-          <td>₪{r.overtimePay.toFixed(2)}</td>
-          <td>
-           ₪{r.vacationPay.toFixed(2)}
-           <br />
-           <small>({r.vacationDays} ימים)</small>
-          </td>
-          <td>
-           ₪{r.sickPay.toFixed(2)}
-           <br />
-           <small>({r.sickDays} ימים)</small>
-          </td>
-          <td style={{ fontWeight: 700 }}>₪{r.totalPay.toFixed(2)}</td>
-         </tr>
-        ))}
-       </tbody>
-       <tfoot>
-        <tr>
-         <td>סה"כ</td>
-         <td>₪{payrollResult.summary.totalBasePay.toFixed(2)}</td>
-         <td>₪{payrollResult.summary.totalOvertimePay.toFixed(2)}</td>
-         <td>₪{payrollResult.summary.totalVacationPay.toFixed(2)}</td>
-         <td>₪{payrollResult.summary.totalSickPay.toFixed(2)}</td>
-         <td>₪{payrollResult.summary.totalPay.toFixed(2)}</td>
-        </tr>
-       </tfoot>
-      </table>
-     </div>
-    )}
+    <p>דף זה זקוק לשכתוב כדי למשוך נתונים מהשרת.</p>
    </div>
   </>
  );
 }
+
 function Login({ onLogin }) {
- const { state } = useContext(AppContext);
+ const [allUsers, setAllUsers] = useState([]);
  const [employeeId, setEmployeeId] = useState("");
+ useEffect(() => {
+  fetch("http://localhost:3001/api/employees")
+   .then((res) => res.json())
+   .then((data) => setAllUsers(data))
+   .catch((err) => console.error("Could not fetch users for login", err));
+ }, []);
+ const handleLoginSubmit = (e) => {
+  e.preventDefault();
+  const user = allUsers.find((u) => u._id === employeeId);
+  if (user) {
+   onLogin(user);
+  }
+ };
  return (
   <div className="login-container">
    <form
     className="card"
     style={{ width: "350px", textAlign: "center" }}
-    onSubmit={(e) => {
-     e.preventDefault();
-     onLogin(employeeId);
-    }}
+    onSubmit={handleLoginSubmit}
    >
     <h2>התחברות למערכת</h2>
     <select
@@ -1428,8 +965,8 @@ function Login({ onLogin }) {
      style={{ width: "100%", padding: "12px", marginBottom: "20px", borderRadius: "8px" }}
     >
      <option value="">בחר/י שם...</option>
-     {state.employees.map((emp) => (
-      <option key={emp.id} value={emp.id}>
+     {allUsers.map((emp) => (
+      <option key={emp._id} value={emp._id}>
        {emp.name}
       </option>
      ))}
@@ -1441,69 +978,16 @@ function Login({ onLogin }) {
   </div>
  );
 }
+
 function App() {
- const [state, dispatch] = useReducer(dataReducer, initialData);
+ const [state, dispatch] = useReducer(appReducer, initialAppState);
  const [currentUser, setCurrentUser] = useLocalStorage("currentUser", null);
- const [isLoaded, setIsLoaded] = useState(false);
- useEffect(() => {
-  const d = localStorage.getItem("appData");
-  if (d) {
-   try {
-    const parsedData = JSON.parse(d);
-    const mergedState = {
-     ...initialData,
-     ...parsedData,
-     settings: { ...initialData.settings, ...parsedData.settings },
-    };
-    dispatch({ type: "SET_INITIAL_DATA", payload: mergedState });
-   } catch (e) {
-    console.error("Failed to parse appData from localStorage", e);
-    dispatch({ type: "SET_INITIAL_DATA", payload: initialData });
-   }
+ const handleLogin = (user) => {
+  if (user) {
+   setCurrentUser(user);
   }
-  setIsLoaded(true);
- }, []);
- useEffect(() => {
-  if (isLoaded) {
-   localStorage.setItem("appData", JSON.stringify(state));
-  }
- }, [state, isLoaded]);
- useEffect(() => {
-  if (!state.employees || state.employees.length === 0 || !state.scheduledAbsences) return;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  state.employees.forEach((emp) => {
-   const todaysAbsence = state.scheduledAbsences.find((a) => {
-    const startDate = new Date(a.startDate);
-    const endDate = new Date(a.endDate);
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return false;
-    return a.employeeId === emp.id && today >= startDate && today <= endDate;
-   });
-   if (todaysAbsence) {
-    if (emp.status !== todaysAbsence.type)
-     dispatch({
-      type: "UPDATE_EMPLOYEE_STATUS",
-      payload: { id: emp.id, status: todaysAbsence.type },
-     });
-   } else {
-    if (emp.status === "vacation" || emp.status === "sick")
-     dispatch({ type: "UPDATE_EMPLOYEE_STATUS", payload: { id: emp.id, status: "absent" } });
-   }
-  });
- }, [state.employees, state.scheduledAbsences]);
- const handleLogin = (id) => {
-  const user = state.employees.find((e) => e.id === parseInt(id));
-  if (user) setCurrentUser(user);
  };
  const handleLogout = () => setCurrentUser(null);
-
- // --- UPDATED: Show a spinner while loading ---
- if (!isLoaded)
-  return (
-   <div className="loader-container" style={{ height: "100vh" }}>
-    <LoadingSpinner />
-   </div>
-  );
 
  return (
   <AppContext.Provider value={{ state, dispatch }}>
@@ -1562,4 +1046,5 @@ function App() {
   </AppContext.Provider>
  );
 }
+
 export default App;

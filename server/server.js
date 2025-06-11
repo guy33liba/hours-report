@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const mongoose = require("mongoose"); // <-- ייבוא Mongoose
+const mongoose = require("mongoose");
 
 const app = express();
 const PORT = 3001;
@@ -9,42 +9,22 @@ const PORT = 3001;
 app.use(cors());
 app.use(express.json());
 
-// --- 1. חיבור ל-MongoDB ---
+// --- 1. MongoDB Connection ---
 const mongoURI =
- "mongodb+srv://guy33liba:guy33liba@jobhours.dytubrn.mongodb.net/jobHoursDB?retryWrites=true&w=majority&appName=jobHours";
-// הוספתי שם למסד הנתונים 'jobHoursDB'. זוהי פרקטיקה טובה.
-// Atlas ייצור אותו עבורך אם הוא לא קיים.
-
+ "mongodb+srv://guy33liba:guyliba33@jobhours.dytubrn.mongodb.net/jobHoursDB?retryWrites=true&w=majority&appName=jobHours";
 mongoose
  .connect(mongoURI)
  .then(() => console.log("Successfully connected to MongoDB!"))
  .catch((error) => console.error("Error connecting to MongoDB:", error));
 
-// --- 2. הגדרת Mongoose Schema ו-Model (במקום קובץ נפרד) ---
-// הגדרת המבנה של מסמך 'employee' ב-MongoDB
+// --- 2. Mongoose Schemas & Models ---
+
 const employeeSchema = new mongoose.Schema(
  {
-  name: {
-   type: String,
-   required: true,
-   trim: true,
-  },
-  department: {
-   type: String,
-   required: true,
-   trim: true,
-  },
-  role: {
-   type: String,
-   required: true,
-   enum: ["employee", "manager"],
-   default: "employee",
-  },
-  hourlyRate: {
-   type: Number,
-   required: true,
-   min: 0,
-  },
+  name: { type: String, required: true, trim: true },
+  department: { type: String, required: true, trim: true },
+  role: { type: String, required: true, enum: ["employee", "manager"], default: "employee" },
+  hourlyRate: { type: Number, required: true, min: 0 },
   status: {
    type: String,
    required: true,
@@ -52,18 +32,25 @@ const employeeSchema = new mongoose.Schema(
    default: "absent",
   },
  },
- {
-  timestamps: true, // מוסיף אוטומטית שדות `createdAt` ו-`updatedAt`
- }
+ { timestamps: true }
 );
 
-// יצירת המודל מהסכמה. Mongoose ייצור אוטומטית אוסף (collection)
-// בשם 'employees' (רבים ובאותיות קטנות) מהמודל 'Employee'.
 const Employee = mongoose.model("Employee", employeeSchema);
 
-// --- 3. API Endpoints המשתמשים ב-Mongoose ---
+const attendanceSchema = new mongoose.Schema(
+ {
+  employee: { type: mongoose.Schema.Types.ObjectId, ref: "Employee", required: true },
+  clockIn: { type: Date, required: true },
+  clockOut: { type: Date, default: null },
+ },
+ { timestamps: true }
+);
 
-// GET: קבלת כל העובדים ממסד הנתונים
+const Attendance = mongoose.model("Attendance", attendanceSchema);
+
+// --- 3. API Endpoints ---
+
+// == Employee Endpoints ==
 app.get("/api/employees", async (req, res) => {
  try {
   const employees = await Employee.find();
@@ -73,32 +60,24 @@ app.get("/api/employees", async (req, res) => {
  }
 });
 
-// POST: הוספת עובד חדש למסד הנתונים
 app.post("/api/employees", async (req, res) => {
  try {
-  // יצירת מופע חדש של Employee עם הנתונים מגוף הבקשה
   const newEmployee = new Employee(req.body);
-  // שמירת המופע במסד הנתונים
   const savedEmployee = await newEmployee.save();
   console.log("Added new employee:", savedEmployee);
   res.status(201).json(savedEmployee);
  } catch (error) {
-  // תופס שגיאות ולידציה מהסכמה שלנו (למשל, שם חסר)
   res.status(400).json({ message: "Failed to create employee", error: error.message });
  }
 });
 
-// PUT: עדכון עובד קיים במסד הנתונים
 app.put("/api/employees/:id", async (req, res) => {
  try {
   const { id } = req.params;
-  // מציאת העובד לפי ה-ID הייחודי של MongoDB ועדכונו.
-  // { new: true } מבטיח שהמסמך המעודכן יוחזר.
   const updatedEmployee = await Employee.findByIdAndUpdate(id, req.body, {
    new: true,
    runValidators: true,
   });
-
   if (!updatedEmployee) {
    return res.status(404).json({ message: "Employee not found" });
   }
@@ -109,25 +88,85 @@ app.put("/api/employees/:id", async (req, res) => {
  }
 });
 
-// DELETE: מחיקת עובד ממסד הנתונים
 app.delete("/api/employees/:id", async (req, res) => {
  try {
   const { id } = req.params;
-  // מציאת העובד לפי ה-ID הייחודי של MongoDB ומחיקתו.
   const deletedEmployee = await Employee.findByIdAndDelete(id);
-
   if (!deletedEmployee) {
    return res.status(404).json({ message: "Employee not found" });
   }
-
   console.log("Deleted employee with id:", id);
-  res.status(204).send(); // הצלחה, אין תוכן להחזיר
+  res.status(204).send();
  } catch (error) {
   res.status(500).json({ message: "Failed to delete employee", error: error.message });
  }
 });
 
-// הפעלת השרת
+// == Attendance Endpoints ==
+app.post("/api/attendance/clock-in", async (req, res) => {
+ const { employeeId } = req.body;
+ if (!employeeId) {
+  return res.status(400).json({ message: "Employee ID is required" });
+ }
+ try {
+  const openShift = await Attendance.findOne({ employee: employeeId, clockOut: null });
+  if (openShift) {
+   return res.status(409).json({ message: "Employee is already clocked in." });
+  }
+  const newAttendance = new Attendance({ employee: employeeId, clockIn: new Date() });
+  await newAttendance.save();
+  const updatedEmployee = await Employee.findByIdAndUpdate(
+   employeeId,
+   { status: "present" },
+   { new: true }
+  );
+  res.status(201).json(updatedEmployee);
+ } catch (error) {
+  res.status(500).json({ message: "Server error during clock-in", error: error.message });
+ }
+});
+
+app.post("/api/attendance/clock-out", async (req, res) => {
+ const { employeeId } = req.body;
+ if (!employeeId) {
+  return res.status(400).json({ message: "Employee ID is required" });
+ }
+ try {
+  const attendanceToClose = await Attendance.findOneAndUpdate(
+   { employee: employeeId, clockOut: null },
+   { clockOut: new Date() },
+   { new: true, sort: { clockIn: -1 } }
+  );
+  if (!attendanceToClose) {
+   return res.status(404).json({ message: "No open shift found to clock out." });
+  }
+  const updatedEmployee = await Employee.findByIdAndUpdate(
+   employeeId,
+   { status: "absent" },
+   { new: true }
+  );
+  res.json(updatedEmployee);
+ } catch (error) {
+  res.status(500).json({ message: "Server error during clock-out", error: error.message });
+ }
+});
+
+app.get("/api/attendance/today/open", async (req, res) => {
+ try {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const openShifts = await Attendance.find({
+   clockIn: { $gte: today },
+   clockOut: null,
+  });
+  res.json(openShifts);
+ } catch (error) {
+  console.error("Error fetching open shifts:", error);
+  res.status(500).json({ message: "Failed to fetch open shifts", error: error.message });
+ }
+});
+
+// --- 4. Start Server ---
 app.listen(PORT, () => {
  console.log(`Server is running on http://localhost:${PORT}`);
 });

@@ -11,7 +11,7 @@ app.use(express.json());
 
 // --- 1. חיבור ל-MongoDB ---
 const mongoURI =
- "mongodb+srv://guy33liba:guyliba33@jobhours.dytubrn.mongodb.net/jobHoursDB?retryWrites=true&w=majority&appName=jobHours";
+ "mongodb+srv://guy33liba:guy33liba@jobhours.dytubrn.mongodb.net/jobHoursDB?retryWrites=true&w=majority&appName=jobHours";
 // הוספתי שם למסד הנתונים 'jobHoursDB'. זוהי פרקטיקה טובה.
 // Atlas ייצור אותו עבורך אם הוא לא קיים.
 

@@ -1,0 +1,95 @@
+const CONFIG = {
+  // Use a longer, more reasonable interval to reduce server load. 15 seconds is a good start.
+  checkIntervalInMinutes: 0.25, // Set in minutes. 0.25 minutes = 15 seconds.
+  targetDomain: "bluran.lightning.force.com",
+  apiEndpoint: "https://your-api-server.com/crm/chrome_crm_read.php", // IMPORTANT: Must be HTTPS
+  domainParam: "bluran.local",
+  alarmName: "callChecker", // A unique name for our alarm
+};
+
+// Main function to check for calls. It's now more robust.
+async function checkForCalls() {
+  try {
+    // 1. Check if a Salesforce tab is even open. If not, do nothing.
+    const tabs = await chrome.tabs.query({
+      url: `*://${CONFIG.targetDomain}/*`,
+    });
+    if (tabs.length === 0) {
+      console.log("Salesforce tab not found. Skipping check.");
+      return; // Stop execution, wait for the next alarm
+    }
+
+    // 2. Get the stored extension number
+    const data = await chrome.storage.sync.get("extensionNumber");
+    const extensionNumber = data.extensionNumber || "0"; // Use a clearer key and provide a default
+
+    // 3. Call the backend API
+    const response = await fetch(
+      `${CONFIG.apiEndpoint}?exten=${extensionNumber}&domain=${CONFIG.domainParam}`
+    );
+
+    // 4. Check for network errors (e.g., server is down)
+    if (!response.ok) {
+      throw new Error(
+        `Network response was not ok. Status: ${response.status}`
+      );
+    }
+
+    const phoneNumber = await response.text();
+
+    // 5. Process the response
+    if (phoneNumber && phoneNumber.trim() !== "no") {
+      console.log("Call detected for number:", phoneNumber);
+      const salesforceUrl = `https://${CONFIG.targetDomain}/lightning/cmp/c__callPopUpAuraCmp?c__phoneNum=${phoneNumber}`;
+
+      // STABILITY IMPROVEMENT: Don't always create a new tab.
+      // Find an existing Salesforce tab to reuse.
+      const salesforceTab = tabs[0];
+      if (salesforceTab) {
+        // A tab already exists, update its URL and bring it to the front
+        await chrome.tabs.update(salesforceTab.id, {
+          url: salesforceUrl,
+          active: true,
+        });
+        await chrome.windows.update(salesforceTab.windowId, { focused: true });
+      } else {
+        // Only create a new tab if no Salesforce tab is open (this case is already handled by the check at the top, but it's good practice)
+        await chrome.tabs.create({ url: salesforceUrl });
+      }
+    } else {
+      console.log("No new calls found.");
+    }
+  } catch (error) {
+    // This catch block handles network failures, API errors, etc., gracefully.
+    // The alarm will simply fire again later, effectively "retrying".
+    console.error("Call check failed:", error);
+  }
+}
+
+// === ALARM SETUP AND LISTENERS ===
+
+// 1. Create the alarm when the extension is installed or updated.
+// This runs once and sets up the recurring task.
+chrome.runtime.onInstalled.addListener(() => {
+  console.log("Extension installed/updated. Setting up alarm.");
+  chrome.alarms.create(CONFIG.alarmName, {
+    delayInMinutes: 1, // Wait 1 minute before the first check
+    periodInMinutes: CONFIG.checkIntervalInMinutes,
+  });
+});
+
+// 2. Listen for the alarm to fire.
+// This is the entry point for your periodic task.
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === CONFIG.alarmName) {
+    console.log("Alarm fired! Checking for calls...");
+    checkForCalls();
+  }
+});
+
+// Optional: For immediate feedback when the browser first starts,
+// you can also trigger a check.
+chrome.runtime.onStartup.addListener(() => {
+  console.log("Browser started. Performing initial check.");
+  checkForCalls();
+});

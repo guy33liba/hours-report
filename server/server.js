@@ -1,172 +1,318 @@
 const express = require("express");
 const cors = require("cors");
-const mongoose = require("mongoose");
+const { Pool } = require("pg");
 
+// --- Database Configuration ---
+// השתמשתי בפרטי ההתחברות שסיפקת, אבל בתוך Pool לביצועים טובים יותר
+const pool = new Pool({
+  user: "speakcom",
+  host: "192.168.1.19",
+  database: "guylibaDatabase",
+  password: "051262677",
+  port: 5432,
+});
+
+// בדיקת חיבור לבסיס הנתונים
+pool.query("SELECT NOW()", (err, res) => {
+  if (err) {
+    console.error("❌ Database connection error", err.stack);
+  } else {
+    console.log("✅ Database connected successfully. Server time:", res.rows[0].now);
+  }
+});
+
+// --- Express App Setup ---
 const app = express();
-const PORT = 3001;
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// Middlewares
+app.use(cors({ origin: "*" })); 
+app.use(express.json()); 
 
-// --- 1. MongoDB Connection ---
-const mongoURI =
- "mongodb+srv://guy33liba:guyliba33@jobhours.dytubrn.mongodb.net/jobHoursDB?retryWrites=true&w=majority&appName=jobHours";
-mongoose
- .connect(mongoURI)
- .then(() => console.log("Successfully connected to MongoDB!"))
- .catch((error) => console.error("Error connecting to MongoDB:", error));
-
-// --- 2. Mongoose Schemas & Models ---
-
-const employeeSchema = new mongoose.Schema(
- {
-  name: { type: String, required: true, trim: true },
-  department: { type: String, required: true, trim: true },
-  role: { type: String, required: true, enum: ["employee", "manager"], default: "employee" },
-  hourlyRate: { type: Number, required: true, min: 0 },
-  status: {
-   type: String,
-   required: true,
-   enum: ["present", "sick", "vacation", "absent"],
-   default: "absent",
-  },
- },
- { timestamps: true }
-);
-
-const Employee = mongoose.model("Employee", employeeSchema);
-
-const attendanceSchema = new mongoose.Schema(
- {
-  employee: { type: mongoose.Schema.Types.ObjectId, ref: "Employee", required: true },
-  clockIn: { type: Date, required: true },
-  clockOut: { type: Date, default: null },
- },
- { timestamps: true }
-);
-
-const Attendance = mongoose.model("Attendance", attendanceSchema);
-
-// --- 3. API Endpoints ---
-
-// == Employee Endpoints ==
 app.get("/api/employees", async (req, res) => {
- try {
-  const employees = await Employee.find();
-  res.json(employees);
- } catch (error) {
-  res.status(500).json({ message: "Failed to fetch employees", error: error.message });
- }
+  try {
+    // הוספנו alias לשדות כדי להתאים למה שה-frontend מצפה (למשל hourlyRate במקום hourly_rate)
+    const { rows } = await pool.query(`SELECT *, hourly_rate as "hourlyRate" FROM employees ORDER BY name ASC`);
+    res.json(rows);
+  } catch (err) {
+    console.error("Error fetching employees:", err);
+    res.status(500).json({ message: "Server error while fetching employees" });
+  }
 });
 
+// POST /api/employees - הוספת עובד חדש
 app.post("/api/employees", async (req, res) => {
- try {
-  const newEmployee = new Employee(req.body);
-  const savedEmployee = await newEmployee.save();
-  console.log("Added new employee:", savedEmployee);
-  res.status(201).json(savedEmployee);
- } catch (error) {
-  res.status(400).json({ message: "Failed to create employee", error: error.message });
- }
+  const { name, department, hourlyRate, role } = req.body;
+  if (!name || !department || !hourlyRate) {
+    return res.status(400).json({ message: "Missing required fields" });
+  }
+  try {
+    const { rows } = await pool.query(
+      "INSERT INTO employees (name, department, hourly_rate, role) VALUES ($1, $2, $3, $4) RETURNING *, hourly_rate as \"hourlyRate\"",
+      [name, department, hourlyRate, role || "employee"]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error("Error adding employee:", err);
+    res.status(500).json({ message: "Server error while adding employee" });
+  }
 });
 
+// PUT /api/employees/:id - עדכון עובד
 app.put("/api/employees/:id", async (req, res) => {
- try {
-  const { id } = req.params;
-  const updatedEmployee = await Employee.findByIdAndUpdate(id, req.body, {
-   new: true,
-   runValidators: true,
-  });
-  if (!updatedEmployee) {
-   return res.status(404).json({ message: "Employee not found" });
+  const { id } = req.params; // זהו ה- _id מה-frontend
+  const { name, department, hourlyRate, role } = req.body;
+  try {
+    const { rows } = await pool.query(
+      `UPDATE employees SET name = $1, department = $2, hourly_rate = $3, role = $4 
+       WHERE _id = $5 
+       RETURNING *, hourly_rate as "hourlyRate"`,
+      [name, department, hourlyRate, role, id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+    res.json(rows[0]);
+  } catch (err)
+ {
+    console.error("Error updating employee:", err);
+    res.status(500).json({ message: "Server error while updating employee" });
   }
-  console.log("Updated employee:", updatedEmployee);
-  res.json(updatedEmployee);
- } catch (error) {
-  res.status(400).json({ message: "Failed to update employee", error: error.message });
- }
 });
 
+// DELETE /api/employees/:id - מחיקת עובד
 app.delete("/api/employees/:id", async (req, res) => {
- try {
   const { id } = req.params;
-  const deletedEmployee = await Employee.findByIdAndDelete(id);
-  if (!deletedEmployee) {
-   return res.status(404).json({ message: "Employee not found" });
+  try {
+    const result = await pool.query("DELETE FROM employees WHERE _id = $1", [id]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+    res.status(204).send();
+  } catch (err) {
+    console.error("Error deleting employee:", err);
+    res.status(500).json({ message: "Server error while deleting employee" });
   }
-  console.log("Deleted employee with id:", id);
-  res.status(204).send();
- } catch (error) {
-  res.status(500).json({ message: "Failed to delete employee", error: error.message });
- }
 });
 
-// == Attendance Endpoints ==
+
+// --- Attendance Routes ---
+
+// POST /api/attendance/clock-in - החתמת כניסה
 app.post("/api/attendance/clock-in", async (req, res) => {
- const { employeeId } = req.body;
- if (!employeeId) {
-  return res.status(400).json({ message: "Employee ID is required" });
- }
- try {
-  const openShift = await Attendance.findOne({ employee: employeeId, clockOut: null });
-  if (openShift) {
-   return res.status(409).json({ message: "Employee is already clocked in." });
+  const { employeeId } = req.body; // זהו ה- _id
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN'); // התחלת טרנזקציה
+    
+    const empRes = await client.query("SELECT id FROM employees WHERE _id = $1", [employeeId]);
+    if (empRes.rows.length === 0) throw new Error("Employee not found");
+    const internalEmployeeId = empRes.rows[0].id;
+
+    const existing = await client.query("SELECT * FROM attendance WHERE employee_id = $1 AND clock_out IS NULL", [internalEmployeeId]);
+    if (existing.rows.length > 0) {
+        return res.status(400).json({ message: 'Employee already clocked in' });
+    }
+    
+    await client.query("INSERT INTO attendance (employee_id, clock_in) VALUES ($1, NOW())", [internalEmployeeId]);
+    const { rows } = await client.query(`UPDATE employees SET status = 'present' WHERE id = $1 RETURNING *, hourly_rate as "hourlyRate"`, [internalEmployeeId]);
+    
+    await client.query('COMMIT'); // סיום טרנזקציה בהצלחה
+    res.json(rows[0]);
+  } catch (err) {
+    await client.query('ROLLBACK'); // ביטול הטרנזקציה במקרה של שגיאה
+    console.error("Clock-in error:", err);
+    res.status(500).json({ message: err.message || "Server error during clock-in" });
+  } finally {
+    client.release(); // שחרור החיבור חזרה ל-Pool
   }
-  const newAttendance = new Attendance({ employee: employeeId, clockIn: new Date() });
-  await newAttendance.save();
-  const updatedEmployee = await Employee.findByIdAndUpdate(
-   employeeId,
-   { status: "present" },
-   { new: true }
-  );
-  res.status(201).json(updatedEmployee);
- } catch (error) {
-  res.status(500).json({ message: "Server error during clock-in", error: error.message });
- }
 });
 
+// POST /api/attendance/clock-out - החתמת יציאה
 app.post("/api/attendance/clock-out", async (req, res) => {
- const { employeeId } = req.body;
- if (!employeeId) {
-  return res.status(400).json({ message: "Employee ID is required" });
- }
- try {
-  const attendanceToClose = await Attendance.findOneAndUpdate(
-   { employee: employeeId, clockOut: null },
-   { clockOut: new Date() },
-   { new: true, sort: { clockIn: -1 } }
-  );
-  if (!attendanceToClose) {
-   return res.status(404).json({ message: "No open shift found to clock out." });
-  }
-  const updatedEmployee = await Employee.findByIdAndUpdate(
-   employeeId,
-   { status: "absent" },
-   { new: true }
-  );
-  res.json(updatedEmployee);
- } catch (error) {
-  res.status(500).json({ message: "Server error during clock-out", error: error.message });
- }
+    const { employeeId } = req.body;
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      const empRes = await client.query("SELECT id FROM employees WHERE _id = $1", [employeeId]);
+      if (empRes.rows.length === 0) throw new Error("Employee not found");
+      const internalEmployeeId = empRes.rows[0].id;
+
+      const attendanceRes = await client.query(
+        "UPDATE attendance SET clock_out = NOW() WHERE id = (SELECT id FROM attendance WHERE employee_id = $1 AND clock_out IS NULL ORDER BY clock_in DESC LIMIT 1) RETURNING id",
+        [internalEmployeeId]
+      );
+
+      if (attendanceRes.rows.length === 0) {
+        return res.status(400).json({ message: "No open clock-in record found to clock-out" });
+      }
+
+      const { rows } = await client.query(`UPDATE employees SET status = 'absent' WHERE id = $1 RETURNING *, hourly_rate as "hourlyRate"`, [internalEmployeeId]);
+
+      await client.query('COMMIT');
+      res.json(rows[0]);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      console.error("Clock-out error:", err);
+      res.status(500).json({ message: err.message || "Server error during clock-out" });
+    } finally {
+        client.release();
+    }
 });
 
-app.get("/api/attendance/today/open", async (req, res) => {
- try {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const openShifts = await Attendance.find({
-   clockIn: { $gte: today },
-   clockOut: null,
-  });
-  res.json(openShifts);
- } catch (error) {
-  console.error("Error fetching open shifts:", error);
-  res.status(500).json({ message: "Failed to fetch open shifts", error: error.message });
- }
+// GET /api/attendance/today/open - קבלת רשומות נוכחות פתוחות
+app.get('/api/attendance/today/open', async (req, res) => {
+    try {
+        const { rows } = await pool.query(`
+            SELECT a._id, a.clock_in as "clockIn", e._id as employee FROM attendance a
+            JOIN employees e ON a.employee_id = e.id
+            WHERE a.clock_out IS NULL AND a.clock_in >= CURRENT_DATE
+        `);
+        res.json(rows);
+    } catch (err) {
+        console.error("Error fetching open attendance:", err);
+        res.status(500).json({ message: "Server error" });
+    }
 });
 
-// --- 4. Start Server ---
+
+// --- Absence Routes ---
+
+// GET /api/absences/employee/:employeeId - קבלת היעדרויות של עובד
+app.get('/api/absences/employee/:employeeId', async (req, res) => {
+    const { employeeId } = req.params;
+    try {
+        const { rows } = await pool.query(`
+            SELECT sa._id, sa.start_date as "startDate", sa.end_date as "endDate", sa.absence_type as "type"
+            FROM scheduled_absences sa
+            JOIN employees e ON sa.employee_id = e.id
+            WHERE e._id = $1
+            ORDER BY sa.start_date DESC
+        `, [employeeId]);
+        res.json(rows);
+    } catch (err) {
+        console.error("Error fetching absences:", err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+// POST /api/absences - הוספת היעדרות
+app.post('/api/absences', async (req, res) => {
+    const { employeeId, type, startDate, endDate } = req.body;
+    try {
+        const empRes = await pool.query("SELECT id FROM employees WHERE _id = $1", [employeeId]);
+        if (empRes.rows.length === 0) return res.status(404).json({ message: 'Employee not found' });
+        const internalEmployeeId = empRes.rows[0].id;
+
+        const { rows } = await pool.query(
+            'INSERT INTO scheduled_absences (employee_id, absence_type, start_date, end_date) VALUES ($1, $2, $3, $4) RETURNING _id, start_date as "startDate", end_date as "endDate", absence_type as "type"',
+            [internalEmployeeId, type, startDate, endDate]
+        );
+        res.status(201).json(rows[0]);
+    } catch (err) {
+        console.error("Error adding absence:", err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+// DELETE /api/absences/:id - מחיקת היעדרות
+app.delete('/api/absences/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = await pool.query('DELETE FROM scheduled_absences WHERE _id = $1', [id]);
+        if (result.rowCount === 0) return res.status(404).json({ message: 'Absence not found' });
+        res.status(204).send();
+    } catch (err) {
+        console.error("Error deleting absence:", err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+
+// --- Payroll Route ---
+
+// POST /api/payroll/report - הפקת דוח שכר
+app.post('/api/payroll/report', async (req, res) => {
+    const { yearMonth, employeeIds, settings } = req.body;
+
+    if (!yearMonth || !employeeIds || employeeIds.length === 0) {
+        return res.status(400).json({ message: 'Missing parameters' });
+    }
+    
+    try {
+        const [year, month] = yearMonth.split('-');
+        
+        const { rows } = await pool.query(`
+            WITH emp AS (
+                SELECT id, _id, name, hourly_rate
+                FROM employees
+                WHERE _id = ANY($1::varchar[])
+            ),
+            work_hours AS (
+                SELECT
+                    e.id as employee_id,
+                    COALESCE(SUM(EXTRACT(EPOCH FROM (clock_out - clock_in))) / 3600, 0) as total_hours
+                FROM emp e
+                LEFT JOIN attendance a ON e.id = a.employee_id
+                WHERE a.clock_out IS NOT NULL
+                  AND EXTRACT(YEAR FROM a.clock_in) = $2
+                  AND EXTRACT(MONTH FROM a.clock_in) = $3
+                GROUP BY e.id
+            ),
+            absences AS (
+                SELECT
+                    e.id as employee_id,
+                    COALESCE(SUM(CASE WHEN sa.absence_type = 'vacation' THEN sa.end_date - sa.start_date + 1 ELSE 0 END), 0) as vacation_days,
+                    COALESCE(SUM(CASE WHEN sa.absence_type = 'sick' THEN sa.end_date - sa.start_date + 1 ELSE 0 END), 0) as sick_days
+                FROM emp e
+                LEFT JOIN scheduled_absences sa ON e.id = sa.employee_id
+                WHERE (
+                    (EXTRACT(YEAR FROM sa.start_date) = $2 AND EXTRACT(MONTH FROM sa.start_date) = $3) OR
+                    (EXTRACT(YEAR FROM sa.end_date) = $2 AND EXTRACT(MONTH FROM sa.end_date) = $3)
+                )
+                GROUP BY e.id
+            )
+            SELECT
+                e._id as "employeeId",
+                e.name as "employeeName",
+                e.hourly_rate,
+                COALESCE(wh.total_hours, 0) as "totalHours",
+                COALESCE(ab.vacation_days, 0) as "vacationDays",
+                COALESCE(ab.sick_days, 0) as "sickDays"
+            FROM emp e
+            LEFT JOIN work_hours wh ON e.id = wh.employee_id
+            LEFT JOIN absences ab ON e.id = ab.employee_id
+        `, [employeeIds, year, month]);
+
+        const report = rows.map(r => {
+            const totalPay = r.totalHours * parseFloat(r.hourly_rate);
+            const vacationPay = settings.paidVacation ? r.vacationDays * settings.standardWorkDayHours * parseFloat(r.hourly_rate) : 0;
+            const sickPay = settings.paidSickLeave ? r.sickDays * settings.standardWorkDayHours * parseFloat(r.hourly_rate) : 0;
+            const grossPay = totalPay + vacationPay + sickPay;
+
+            return {
+                employeeId: r.employeeId,
+                employeeName: r.employeeName,
+                totalHours: parseFloat(r.totalHours),
+                vacationDays: parseInt(r.vacationDays, 10),
+                sickDays: parseInt(r.sickDays, 10),
+                totalPay,
+                vacationPay,
+                sickPay,
+                grossPay,
+            };
+        });
+
+        res.json(report);
+    } catch (err) {
+        console.error("Error generating payroll report:", err);
+        res.status(500).json({ message: "Server error generating report" });
+    }
+});
+
+
+// --- Server Start ---
+const PORT = 5000;
 app.listen(PORT, () => {
- console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`✅ Server is running on port ${PORT}`);
 });

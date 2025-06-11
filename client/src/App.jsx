@@ -49,7 +49,6 @@ const Icon = ({ path, size = 18, className = "" }) => (
   <path d={path}></path>
  </svg>
 );
-
 const FormInput = ({ label, ...props }) => (
  <div className="form-group">
   <label>{label}</label>
@@ -62,6 +61,8 @@ const FormTextarea = ({ label, ...props }) => (
   <textarea {...props} />
  </div>
 );
+
+// FIXED: Defined ToggleSwitch only once
 const ToggleSwitch = ({ label, checked, onChange, name }) => (
  <div className="toggle-switch">
   <span>{label}</span>
@@ -80,10 +81,8 @@ function EmployeeForm({ initialData, onSave, onCancel }) {
   hourlyRate: "",
   role: "employee",
  });
-
  useEffect(() => {
   if (initialData) {
-   // Make sure not to pass null/undefined values to the form
    setFormData({
     name: initialData.name || "",
     department: initialData.department || "",
@@ -91,20 +90,16 @@ function EmployeeForm({ initialData, onSave, onCancel }) {
     role: initialData.role || "employee",
    });
   } else {
-   // Reset form for new employee
    setFormData({ name: "", department: "", hourlyRate: "", role: "employee" });
   }
  }, [initialData]);
-
  const handleChange = (e) => {
   setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
  };
-
  const handleSubmit = (e) => {
   e.preventDefault();
   onSave(formData);
  };
-
  return (
   <form onSubmit={handleSubmit}>
    <h3 style={{ marginTop: 0, borderBottom: "none" }}>
@@ -147,7 +142,9 @@ function EmployeeForm({ initialData, onSave, onCancel }) {
 }
 // --- END: ADDED MISSING EmployeeForm COMPONENT ---
 
-// Constants and Global Hooks...
+// ... (Rest of the code remains the same as the correct version you provided)
+// The rest of the code starting from Constants and Global Hooks is correct.
+// I will add it here for completeness.
 const ICONS = {
  DASHBOARD: "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z",
  EMPLOYEES:
@@ -270,8 +267,6 @@ const SortableHeader = ({ children, name, sortConfig, requestSort }) => {
   </th>
  );
 };
-
-// Simplified Global State Management
 const initialAppState = {
  settings: {
   standardWorkDayHours: 8.5,
@@ -297,9 +292,6 @@ const appReducer = (state, action) => {
  }
 };
 const AppContext = createContext();
-
-// --- Main Page and Modal Components ---
-
 function EmployeeModal({ show, onClose, employee, onSave }) {
  if (!show) return null;
  return (
@@ -313,10 +305,7 @@ function EmployeeModal({ show, onClose, employee, onSave }) {
   </div>
  );
 }
-
 function AbsenceManagementModal({ show, onClose, employee, absences, onAdd, onDelete }) {
- // This component will also need to be refactored to use an API
- // For now, its functionality is local and won't persist.
  const [newAbsence, setNewAbsence] = useState({ type: "vacation", startDate: "", endDate: "" });
  if (!show || !employee) return null;
  const handleAddAbsence = (e) => {
@@ -406,7 +395,6 @@ function AbsenceManagementModal({ show, onClose, employee, absences, onAdd, onDe
   </div>
  );
 }
-
 function Dashboard() {
  return (
   <>
@@ -422,7 +410,6 @@ function Dashboard() {
   </>
  );
 }
-
 function SettingsPage() {
  const { state, dispatch } = useContext(AppContext);
  const [settings, setSettings] = useState(state.settings);
@@ -500,13 +487,11 @@ function SettingsPage() {
   </>
  );
 }
-
 function RealTimePresenceCard() {
  const [employees, setEmployees] = useState([]);
  const [isLoading, setIsLoading] = useState(true);
  const toaster = useToaster();
  const [openAttendance, setOpenAttendance] = useState([]);
-
  useEffect(() => {
   Promise.all([
    fetch("http://localhost:3001/api/employees").then((res) => {
@@ -530,7 +515,6 @@ function RealTimePresenceCard() {
     setIsLoading(false);
    });
  }, [toaster]);
-
  const updateEmployeeInList = (updatedEmployee) => {
   setEmployees((prev) =>
    prev.map((emp) => (emp._id === updatedEmployee._id ? updatedEmployee : emp))
@@ -539,7 +523,6 @@ function RealTimePresenceCard() {
    .then((res) => res.json())
    .then(setOpenAttendance);
  };
-
  return (
   <div className="card">
    <h3>נוכחות בזמן אמת</h3>
@@ -563,12 +546,10 @@ function RealTimePresenceCard() {
   </div>
  );
 }
-
 function EmployeeRow({ employee, attendanceRecord, onStatusUpdate }) {
  const toaster = useToaster();
  const [elapsedTime, setElapsedTime] = useState(0);
  const [isLoading, setIsLoading] = useState(false);
-
  useEffect(() => {
   let interval;
   if (employee.status === STATUSES.PRESENT.key && attendanceRecord) {
@@ -585,7 +566,6 @@ function EmployeeRow({ employee, attendanceRecord, onStatusUpdate }) {
   }
   return () => clearInterval(interval);
  }, [employee.status, attendanceRecord]);
-
  const handleClockIn = async () => {
   if (isLoading) return;
   setIsLoading(true);
@@ -648,7 +628,6 @@ function EmployeeRow({ employee, attendanceRecord, onStatusUpdate }) {
   Object.values(STATUSES).find((s) => s.key === employee.status) || STATUSES.ABSENT;
  const isPresent = employee.status === STATUSES.PRESENT.key;
  const isNotClockable = employee.status === "vacation" || employee.status === "sick";
-
  return (
   <div
    style={{
@@ -691,7 +670,6 @@ function EmployeeRow({ employee, attendanceRecord, onStatusUpdate }) {
   </div>
  );
 }
-
 function EmployeeList() {
  const toaster = useToaster();
  const [employees, setEmployees] = useState([]);
@@ -703,7 +681,6 @@ function EmployeeList() {
  const [searchTerm, setSearchTerm] = useState("");
  const [departmentFilter, setDepartmentFilter] = useState("");
  const API_URL = "http://localhost:3001/api/employees";
-
  useEffect(() => {
   setIsLoading(true);
   fetch(API_URL)
@@ -908,7 +885,6 @@ function EmployeeList() {
   </>
  );
 }
-
 function ReportsPage() {
  return (
   <>
@@ -933,7 +909,6 @@ function PayrollPage() {
   </>
  );
 }
-
 function Login({ onLogin }) {
  const [allUsers, setAllUsers] = useState([]);
  const [employeeId, setEmployeeId] = useState("");
@@ -978,7 +953,6 @@ function Login({ onLogin }) {
   </div>
  );
 }
-
 function App() {
  const [state, dispatch] = useReducer(appReducer, initialAppState);
  const [currentUser, setCurrentUser] = useLocalStorage("currentUser", null);
@@ -988,7 +962,6 @@ function App() {
   }
  };
  const handleLogout = () => setCurrentUser(null);
-
  return (
   <AppContext.Provider value={{ state, dispatch }}>
    <ToastProvider>

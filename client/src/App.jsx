@@ -669,7 +669,7 @@ function EmployeeRow({ employee, attendanceRecord, onStatusUpdate }) {
         setElapsedTime(Math.max(0, diff / 36e5));
       };
       updateTimer();
-      interval = setInterval(updateTimer, 1000);
+      interval = setInterval(updateTimer,0);
     } else {
       setElapsedTime(0);
     }

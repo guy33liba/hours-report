@@ -67,7 +67,6 @@ function LoginModal({ show, onClose, onLogin }) {
   );
 }
 
-
 const Icon = ({ path, size = 18, className = "" }) => (
   <svg
     width={size}
@@ -274,9 +273,9 @@ const useToaster = () => useContext(ToastContext);
 const useSortableData = (items, config = null) => {
   const [sortConfig, setSortConfig] = useState(config);
   const sortedItems = useMemo(() => {
-    let sortableItems = [...items];
+    let sortableItems = items;
     if (sortConfig !== null) {
-      sortableItems ((a, b) => {
+      sortableItems.sort((a, b) => {
         const valA = a[sortConfig.key];
         const valB = b[sortConfig.key];
         if (typeof valA === "number" && typeof valB === "number") {
@@ -284,8 +283,9 @@ const useSortableData = (items, config = null) => {
             ? valA - valB
             : valB - valA;
         }
-        const strA = String(valA).toLowerCase();
-        const strB = String(valB).toLowerCase();
+        const strA = String(valA);
+        const strB = String(valB);
+
         if (strA < strB) {
           return sortConfig.direction === "ascending" ? -1 : 1;
         }
@@ -490,7 +490,7 @@ function Dashboard() {
         </p>
       </div>
       <div className="dashboard-grid">
-         {/* --- שינוי --- : הצגת כרטיס הנוכחות רק אם המשתמש מחובר */}
+        {/* --- שינוי --- : הצגת כרטיס הנוכחות רק אם המשתמש מחובר */}
         {currentUser && <RealTimePresenceCard />}
       </div>
     </>
@@ -586,8 +586,8 @@ function RealTimePresenceCard() {
   useEffect(() => {
     // טעינת הנתונים רק אם יש משתמש מחובר
     if (!currentUser) {
-        setIsLoading(false);
-        return;
+      setIsLoading(false);
+      return;
     }
 
     Promise.all([
@@ -634,9 +634,10 @@ function RealTimePresenceCard() {
         // אם המשתמש הוא עובד, נציג רק את השורה שלו
         employees
           .filter((e) => {
-              if (currentUser.role === 'manager') return e.role === 'employee';
-              if (currentUser.role === 'employee') return e._id === currentUser._id;
-              return false;
+            if (currentUser.role === "manager") return e.role === "employee";
+            if (currentUser.role === "employee")
+              return e._id === currentUser._id;
+            return false;
           })
           .map((emp) => {
             const attendanceRecord = openAttendance.find(
@@ -669,7 +670,7 @@ function EmployeeRow({ employee, attendanceRecord, onStatusUpdate }) {
         setElapsedTime(Math.max(0, diff / 36e5));
       };
       updateTimer();
-      interval = setInterval(updateTimer,0);
+      interval = setInterval(updateTimer, 0);
     } else {
       setElapsedTime(0);
     }
@@ -1298,7 +1299,6 @@ function PayrollPage() {
         <div className="control-section">
           <h3>תקופה</h3>
           <FormInput
-            label="בחר חודש ושנה"
             type="month"
             value={yearMonth}
             onChange={(e) => setYearMonth(e.target.value)}
@@ -1500,11 +1500,11 @@ function App() {
     }
   };
   const handleLogout = () => setCurrentUser(null);
-  
+
   // --- שינוי ---
   // העברת currentUser לתוך הקונטקסט כדי שקומפוננטות-בנות יוכלו לגשת אליו
   const appContextValue = useMemo(
-    () => ({ state, dispatch, currentUser }), 
+    () => ({ state, dispatch, currentUser }),
     [state, dispatch, currentUser]
   );
 
@@ -1569,13 +1569,19 @@ function App() {
             <main className="main-content">
               <Routes>
                 <Route path="/" element={<Dashboard />} />
-                
+
                 {/* --- שינוי --- : קומפוננטה ייעודית להגנה על נתיבים */}
-                <Route element={<ProtectedRoute isAllowed={currentUser && currentUser.role === 'manager'} />}>
-                    <Route path="/employees" element={<EmployeeList />} />
-                    <Route path="/reports" element={<ReportsPage />} />
-                    <Route path="/settings" element={<SettingsPage />} />
-                    <Route path="/payroll" element={<PayrollPage />} />
+                <Route
+                  element={
+                    <ProtectedRoute
+                      isAllowed={currentUser && currentUser.role === "manager"}
+                    />
+                  }
+                >
+                  <Route path="/employees" element={<EmployeeList />} />
+                  <Route path="/reports" element={<ReportsPage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/payroll" element={<PayrollPage />} />
                 </Route>
 
                 <Route path="*" element={<Navigate to="/" />} />
@@ -1597,12 +1603,11 @@ function App() {
 // --- שינוי ---
 // קומפוננטה ייעודית להגנה על נתיבים (דרך מומלצת)
 import { Outlet } from "react-router-dom";
-const ProtectedRoute = ({ isAllowed, redirectPath = '/', children }) => {
-    if (!isAllowed) {
-        return <Navigate to={redirectPath} replace />;
-    }
-    return children ? children : <Outlet />;
+const ProtectedRoute = ({ isAllowed, redirectPath = "/", children }) => {
+  if (!isAllowed) {
+    return <Navigate to={redirectPath} replace />;
+  }
+  return children ? children : <Outlet />;
 };
-
 
 export default App;

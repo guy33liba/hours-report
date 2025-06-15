@@ -37,6 +37,123 @@ ChartJS.register(
 );
 const API_BASE_URL = "http://localhost:5000/api";
 
+function ReportsPage() {
+  const [reportData, setReportData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [yearMonth, setYearMonth] = useState(
+    new Date().toISOString().slice(0, 7)
+  );
+  const toaster = useToaster();
+
+  useEffect(() => {
+    setIsLoading(true);
+    fetch(`${API_BASE_URL}/reports/monthly-summary/${yearMonth}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch report data");
+        return res.json();
+      })
+      .then((data) => {
+        const chartData = {
+          labels: data.map((item) => item.name), // שמות העובדים לציר X
+          datasets: [
+            {
+              label: 'סה"כ שעות עבודה',
+              data: data.map((item) => item.totalHours), // סך השעות לציר Y
+              backgroundColor: "rgba(53, 162, 235, 0.5)",
+              borderColor: "rgba(53, 162, 235, 1)",
+              borderWidth: 1,
+            },
+          ],
+        };
+        setReportData(chartData);
+      })
+      .catch((err) => {
+        console.error(err);
+        toaster("שגיאה בטעינת הדוח", "danger");
+        setReportData(null); // נקה נתונים קודמים במקרה של שגיאה
+      })
+      .finally(() => setIsLoading(false));
+  }, [yearMonth, toaster]); // טען מחדש כשהחודש משתנה
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: "top",
+      },
+      title: {
+        display: true,
+        text: `סיכום שעות עבודה לחודש ${yearMonth.split("-")[1]}/${
+          yearMonth.split("-")[0]
+        }`,
+        font: { size: 18 },
+      },
+      tooltip: {
+        callbacks: {
+          label: function (context) {
+            let label = context.dataset.label || "";
+            if (label) {
+              label += ": ";
+            }
+            if (context.parsed.y !== null) {
+              label += context.parsed.y.toFixed(2) + " שעות";
+            }
+            return label;
+          },
+        },
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        title: {
+          display: true,
+          text: "שעות",
+        },
+      },
+    },
+  };
+
+  return (
+    <>
+      <div className="page-header">
+        <h2>דוחות</h2>
+      </div>
+      <div className="card">
+        <div className="filter-controls" style={{ paddingBottom: "20px" }}>
+          <FormInput
+            label="בחר חודש לדיווח:"
+            type="month"
+            value={yearMonth}
+            onChange={(e) => setYearMonth(e.target.value)}
+          />
+        </div>
+
+        <div style={{ position: "relative", height: "400px" }}>
+          {isLoading ? (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                height: "100%",
+              }}
+            >
+              <LoadingSpinner />
+            </div>
+          ) : reportData && reportData.labels.length > 0 ? (
+            <Bar options={chartOptions} data={reportData} />
+          ) : (
+            <div style={{ textAlign: "center", paddingTop: "50px" }}>
+              <p>אין נתוני נוכחות להצגה עבור החודש שנבחר.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
 // --- Reusable Components ---
 const LoadingSpinner = () => <div className="loader"></div>;
 

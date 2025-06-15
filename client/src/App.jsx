@@ -13,9 +13,8 @@ import {
   Route,
   NavLink,
   Navigate,
-  Outlet, // Import Outlet for protected routes
+  Outlet,
 } from "react-router-dom";
-import "./styles.css";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -26,7 +25,9 @@ import {
   Legend,
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
+import "./styles.css";
 
+// --- Register Chart.js components ---
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -35,125 +36,9 @@ ChartJS.register(
   Tooltip,
   Legend
 );
+
 const API_BASE_URL = "http://localhost:5000/api";
 
-function ReportsPage() {
-  const [reportData, setReportData] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [yearMonth, setYearMonth] = useState(
-    new Date().toISOString().slice(0, 7)
-  );
-  const toaster = useToaster();
-
-  useEffect(() => {
-    setIsLoading(true);
-    fetch(`${API_BASE_URL}/reports/monthly-summary/${yearMonth}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch report data");
-        return res.json();
-      })
-      .then((data) => {
-        const chartData = {
-          labels: data.map((item) => item.name), // שמות העובדים לציר X
-          datasets: [
-            {
-              label: 'סה"כ שעות עבודה',
-              data: data.map((item) => item.totalHours), // סך השעות לציר Y
-              backgroundColor: "rgba(53, 162, 235, 0.5)",
-              borderColor: "rgba(53, 162, 235, 1)",
-              borderWidth: 1,
-            },
-          ],
-        };
-        setReportData(chartData);
-      })
-      .catch((err) => {
-        console.error(err);
-        toaster("שגיאה בטעינת הדוח", "danger");
-        setReportData(null); // נקה נתונים קודמים במקרה של שגיאה
-      })
-      .finally(() => setIsLoading(false));
-  }, [yearMonth, toaster]); // טען מחדש כשהחודש משתנה
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: "top",
-      },
-      title: {
-        display: true,
-        text: `סיכום שעות עבודה לחודש ${yearMonth.split("-")[1]}/${
-          yearMonth.split("-")[0]
-        }`,
-        font: { size: 18 },
-      },
-      tooltip: {
-        callbacks: {
-          label: function (context) {
-            let label = context.dataset.label || "";
-            if (label) {
-              label += ": ";
-            }
-            if (context.parsed.y !== null) {
-              label += context.parsed.y.toFixed(2) + " שעות";
-            }
-            return label;
-          },
-        },
-      },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        title: {
-          display: true,
-          text: "שעות",
-        },
-      },
-    },
-  };
-
-  return (
-    <>
-      <div className="page-header">
-        <h2>דוחות</h2>
-      </div>
-      <div className="card">
-        <div className="filter-controls" style={{ paddingBottom: "20px" }}>
-          <FormInput
-            label="בחר חודש לדיווח:"
-            type="month"
-            value={yearMonth}
-            onChange={(e) => setYearMonth(e.target.value)}
-          />
-        </div>
-
-        <div style={{ position: "relative", height: "400px" }}>
-          {isLoading ? (
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                height: "100%",
-              }}
-            >
-              <LoadingSpinner />
-            </div>
-          ) : reportData && reportData.labels.length > 0 ? (
-            <Bar options={chartOptions} data={reportData} />
-          ) : (
-            <div style={{ textAlign: "center", paddingTop: "50px" }}>
-              <p>אין נתוני נוכחות להצגה עבור החודש שנבחר.</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </>
-  );
-}
 // --- Reusable Components ---
 const LoadingSpinner = () => <div className="loader"></div>;
 
@@ -190,7 +75,6 @@ function ConfirmationModal({
 
 function LoginModal({ show, onClose, onLogin }) {
   if (!show) return null;
-
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -204,13 +88,12 @@ function LoginModal({ show, onClose, onLogin }) {
 }
 
 function MonthlyDetailsModal({ show, onClose, employee }) {
-  // שלב 1: כל ה-Hooks נקראים כאן, בראש הקומפוננטה וללא תנאים.
   const [details, setDetails] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [yearMonth, setYearMonth] = useState(
     new Date().toISOString().slice(0, 7)
   );
-  const toaster = useToaster(); // Hook
+  const toaster = useToaster();
 
   useEffect(() => {
     if (show && employee) {
@@ -246,33 +129,26 @@ function MonthlyDetailsModal({ show, onClose, employee }) {
     }, 0);
   }, [details]);
 
-  // שלב 2: רק אחרי שכל ה-Hooks נקראו, ניתן לבצע החזרה מוקדמת.
-  if (!show || !employee) {
-    return null;
-  }
+  if (!show || !employee) return null;
 
-  const formatTime = (dateString) => {
-    if (!dateString) return "טרם";
-    return new Date(dateString).toLocaleTimeString("he-IL", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "";
-    return new Date(dateString).toLocaleDateString("he-IL", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  };
-
+  const formatTime = (dateString) =>
+    dateString
+      ? new Date(dateString).toLocaleTimeString("he-IL", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "טרם";
+  const formatDate = (dateString) =>
+    dateString
+      ? new Date(dateString).toLocaleDateString("he-IL", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        })
+      : "";
   const formatDuration = (hours) => {
     if (hours === null) return "משמרת פתוחה";
-    if (typeof hours !== "number" || isNaN(hours) || hours <= 0) {
-      return "00:00";
-    }
+    if (typeof hours !== "number" || isNaN(hours) || hours <= 0) return "00:00";
     const h = Math.floor(hours);
     const m = Math.round((hours - h) * 60);
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
@@ -289,7 +165,6 @@ function MonthlyDetailsModal({ show, onClose, employee }) {
           ×
         </button>
         <h3 style={{ marginTop: 0 }}>פירוט שעות עבור {employee.name}</h3>
-
         <div
           style={{
             display: "flex",
@@ -311,7 +186,6 @@ function MonthlyDetailsModal({ show, onClose, employee }) {
             </span>
           </div>
         </div>
-
         {isLoading ? (
           <LoadingSpinner />
         ) : (
@@ -356,6 +230,7 @@ function MonthlyDetailsModal({ show, onClose, employee }) {
     </div>
   );
 }
+
 const Icon = ({ path, size = 18, className = "" }) => (
   <svg
     width={size}
@@ -379,7 +254,6 @@ const FormTextarea = ({ label, ...props }) => (
     <textarea {...props} />
   </div>
 );
-
 const ToggleSwitch = ({ label, checked, onChange, name }) => (
   <div className="toggle-switch">
     <span>{label}</span>
@@ -419,9 +293,8 @@ function EmployeeForm({ initialData, onSave, onCancel }) {
       });
     }
   }, [initialData]);
-  const handleChange = (e) => {
+  const handleChange = (e) =>
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-  };
   const handleSubmit = (e) => {
     e.preventDefault();
     onSave(formData);
@@ -507,6 +380,7 @@ const STATUSES = {
   VACATION: { key: "vacation", text: "חופשה", colorClass: "vacation" },
   ABSENT: { key: "absent", text: "לא בעבודה", colorClass: "absent" },
 };
+
 const useLocalStorage = (key, initialValue) => {
   const [value, setValue] = useState(() => {
     try {
@@ -525,6 +399,7 @@ const useLocalStorage = (key, initialValue) => {
   }, [key, value]);
   return [value, setValue];
 };
+
 const ToastContext = createContext();
 const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
@@ -561,42 +436,33 @@ const useToaster = () => useContext(ToastContext);
 
 const useSortableData = (items, config = null) => {
   const [sortConfig, setSortConfig] = useState(config);
-
   const sortedItems = useMemo(() => {
     let sortableItems = items ? [...items] : [];
     if (sortConfig !== null) {
       sortableItems.sort((a, b) => {
         const valA = a[sortConfig.key] || "";
         const valB = b[sortConfig.key] || "";
-
-        if (typeof valA === "number" && typeof valB === "number") {
+        if (typeof valA === "number" && typeof valB === "number")
           return sortConfig.direction === "ascending"
             ? valA - valB
             : valB - valA;
-        }
-
         const strA = String(valA);
         const strB = String(valB);
-
-        if (sortConfig.direction === "ascending") {
-          return strA.localeCompare(strB);
-        } else {
-          return strB.localeCompare(strA);
-        }
+        return sortConfig.direction === "ascending"
+          ? strA.localeCompare(strB)
+          : strB.localeCompare(strA);
       });
     }
     return sortableItems;
   }, [items, sortConfig]);
-
   const requestSort = (key) => {
     let direction = "ascending";
     if (
       sortConfig &&
       sortConfig.key === key &&
       sortConfig.direction === "ascending"
-    ) {
+    )
       direction = "descending";
-    }
     setSortConfig({ key, direction });
   };
   return { items: sortedItems, requestSort, sortConfig };
@@ -616,12 +482,13 @@ const SortableHeader = ({ children, name, sortConfig, requestSort }) => {
     </th>
   );
 };
+
 const initialAppState = {
   settings: {
     standardWorkDayHours: 8.5,
     overtimeRatePercent: 150,
     restrictByIp: true,
-    allowedIps: "192.168.1.1, 8.8.8.8",
+    allowedIps: "127.0.0.1, ::1",
     paidVacation: true,
     paidSickLeave: true,
   },
@@ -632,32 +499,12 @@ const appReducer = (state, action) => {
   switch (action.type) {
     case "SET_SETTINGS":
       return { ...state, settings: action.payload };
-    case "SET_ATTENDANCE":
-      return { ...state, attendance: action.payload };
-    case "SET_ABSENCES":
-      return { ...state, scheduledAbsences: action.payload };
     default:
       return state;
   }
 };
 const AppContext = createContext();
-function EmployeeModal({ show, onClose, employee, onSave }) {
-  if (!show) return null;
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="modal-close-btn">
-          ×
-        </button>
-        <EmployeeForm
-          initialData={employee}
-          onSave={onSave}
-          onCancel={onClose}
-        />
-      </div>
-    </div>
-  );
-}
+
 function AbsenceManagementModal({
   show,
   onClose,
@@ -747,7 +594,7 @@ function AbsenceManagementModal({
                   <span style={{ fontWeight: 500 }}>
                     {STATUSES[absence.type.toUpperCase()]?.text || absence.type}
                   </span>
-                  :  {new Date(absence.startDate).toLocaleDateString("he-IL")} -
+                  :  {new Date(absence.startDate).toLocaleDateString("he-IL")} -{" "}
                   {new Date(absence.endDate).toLocaleDateString("he-IL")}
                 </div>
                 <button
@@ -767,9 +614,9 @@ function AbsenceManagementModal({
     </div>
   );
 }
+
 function Dashboard() {
   const { currentUser } = useContext(AppContext);
-
   return (
     <>
       <div className="page-header">
@@ -784,6 +631,7 @@ function Dashboard() {
     </>
   );
 }
+
 function SettingsPage() {
   const { state, dispatch } = useContext(AppContext);
   const [settings, setSettings] = useState(state.settings);
@@ -864,6 +712,7 @@ function SettingsPage() {
     </>
   );
 }
+
 function RealTimePresenceCard() {
   const [employees, setEmployees] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -876,7 +725,6 @@ function RealTimePresenceCard() {
       setIsLoading(false);
       return;
     }
-
     Promise.all([
       fetch(`${API_BASE_URL}/employees`).then((res) => {
         if (!res.ok) throw new Error("Failed to fetch employees");
@@ -910,6 +758,7 @@ function RealTimePresenceCard() {
       .then((res) => res.json())
       .then(setOpenAttendance);
   };
+
   return (
     <div className="card">
       <h3>נוכחות בזמן אמת</h3>
@@ -940,10 +789,13 @@ function RealTimePresenceCard() {
     </div>
   );
 }
+
 function EmployeeRow({ employee, attendanceRecord, onStatusUpdate }) {
+  const { state } = useContext(AppContext);
   const toaster = useToaster();
   const [elapsedTime, setElapsedTime] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+
   useEffect(() => {
     let interval;
     if (employee.status === STATUSES.PRESENT.key && attendanceRecord) {
@@ -960,70 +812,58 @@ function EmployeeRow({ employee, attendanceRecord, onStatusUpdate }) {
     }
     return () => clearInterval(interval);
   }, [employee.status, attendanceRecord]);
-  const handleClockIn = async () => {
+
+  const handleClockAction = async (action) => {
     if (isLoading) return;
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/attendance/clock-in`, {
+      const response = await fetch(`${API_BASE_URL}/attendance/${action}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ employeeId: employee._id }),
+        body: JSON.stringify({
+          employeeId: employee._id,
+          settings: state.settings,
+        }),
       });
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Clock-in failed");
+        throw new Error(errorData.message || "Clock action failed");
       }
       const updatedEmployee = await response.json();
       onStatusUpdate(updatedEmployee);
-      toaster(`${updatedEmployee.name} החתים כניסה.`, "success");
+      toaster(
+        `${updatedEmployee.name} החתים ${
+          action === "clock-in" ? "כניסה" : "יציאה"
+        }.`,
+        "success"
+      );
     } catch (error) {
-      console.error("Clock-in failed:", error);
-      toaster(`שגיאה בהחתמת כניסה: ${error.message}`, "danger");
+      console.error(`Clock-${action} failed:`, error);
+      toaster(
+        `שגיאה בהחתמת ${action === "clock-in" ? "כניסה" : "יציאה"}: ${
+          error.message
+        }`,
+        "danger"
+      );
     } finally {
       setIsLoading(false);
     }
   };
-  const handleClockOut = async () => {
-    if (isLoading) return;
-    setIsLoading(true);
-    try {
-      const response = await fetch(`${API_BASE_URL}/attendance/clock-out`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ employeeId: employee._id }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Clock-out failed");
-      }
-      const updatedEmployee = await response.json();
-      onStatusUpdate(updatedEmployee);
-      toaster(`${updatedEmployee.name} החתים יציאה.`, "success");
-    } catch (error) {
-      console.error("Clock-out failed:", error);
-      toaster(`שגיאה בהחתמת יציאה: ${error.message}`, "danger");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+
   const formatTime = (hours) => {
     if (hours <= 0) return "00:00:00";
     const totalSeconds = Math.floor(hours * 3600);
-    const h = Math.floor(totalSeconds / 3600)
-      .toString()
-      .padStart(2, "0");
-    const m = Math.floor((totalSeconds % 3600) / 60)
-      .toString()
-      .padStart(2, "0");
-    const s = (totalSeconds % 60).toString().padStart(2, "0");
+    const h = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+    const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
+    const s = String(totalSeconds % 60).padStart(2, "0");
     return `${h}:${m}:${s}`;
   };
+
   const statusObject =
     Object.values(STATUSES).find((s) => s.key === employee.status) ||
     STATUSES.ABSENT;
   const isPresent = employee.status === STATUSES.PRESENT.key;
-  const isNotClockable =
-    employee.status === "vacation" || employee.status === "sick";
+
   return (
     <div
       style={{
@@ -1070,19 +910,22 @@ function EmployeeRow({ employee, attendanceRecord, onStatusUpdate }) {
       </div>
       <div style={{ justifySelf: "end", display: "flex", gap: "8px" }}>
         <button
-          onClick={handleClockIn}
-          className={isPresent ? "secondary" : ""}
-          disabled={isPresent || isNotClockable || isLoading}
+          onClick={() => handleClockAction("clock-in")}
+          disabled={isPresent || isLoading}
         >
-          {isLoading ? <LoadingSpinner /> : "כניסה"}
+          כניסה
         </button>
-        <button onClick={handleClockOut} disabled={!isPresent || isLoading}>
+        <button
+          onClick={() => handleClockAction("clock-out")}
+          disabled={!isPresent || isLoading}
+        >
           יציאה
         </button>
       </div>
     </div>
   );
 }
+
 function EmployeeList() {
   const toaster = useToaster();
   const [employees, setEmployees] = useState([]);
@@ -1134,10 +977,10 @@ function EmployeeList() {
     { key: "name", direction: "ascending" }
   );
 
-  const uniqueDepartments = useMemo(() => {
-    return [...new Set(employees.map((emp) => emp.department))];
-  }, [employees]);
-
+  const uniqueDepartments = useMemo(
+    () => [...new Set(employees.map((emp) => emp.department))],
+    [employees]
+  );
   const handleOpenEdit = (employee) => {
     setSelectedEmployee(employee);
     setIsEditModalOpen(true);
@@ -1150,7 +993,6 @@ function EmployeeList() {
     setEmployeeToDelete(employee);
     setIsConfirmModalOpen(true);
   };
-
   const handleOpenDetailsModal = (employee) => {
     setEmployeeForDetails(employee);
     setIsDetailsModalOpen(true);
@@ -1172,9 +1014,8 @@ function EmployeeList() {
     const url = isUpdating
       ? `${EMPLOYEES_API_URL}/${selectedEmployee._id}`
       : EMPLOYEES_API_URL;
-    const method = isUpdating ? "PUT" : "POST";
     fetch(url, {
-      method: method,
+      method: isUpdating ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(employeeData),
     })
@@ -1444,13 +1285,109 @@ function EmployeeList() {
 }
 
 function ReportsPage() {
+  const [reportData, setReportData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [yearMonth, setYearMonth] = useState(
+    new Date().toISOString().slice(0, 7)
+  );
+  const toaster = useToaster();
+
+  useEffect(() => {
+    setIsLoading(true);
+    fetch(`${API_BASE_URL}/reports/monthly-summary/${yearMonth}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch report data");
+        return res.json();
+      })
+      .then((data) => {
+        const chartData = {
+          labels: data.map((item) => item.name),
+          datasets: [
+            {
+              label: 'סה"כ שעות עבודה',
+              data: data.map((item) => item.totalHours),
+              backgroundColor: "rgba(53, 162, 235, 0.5)",
+              borderColor: "rgba(53, 162, 235, 1)",
+              borderWidth: 1,
+            },
+          ],
+        };
+        setReportData(chartData);
+      })
+      .catch((err) => {
+        console.error(err);
+        toaster("שגיאה בטעינת הדוח", "danger");
+        setReportData(null);
+      })
+      .finally(() => setIsLoading(false));
+  }, [yearMonth, toaster]);
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: "top" },
+      title: {
+        display: true,
+        text: `סיכום שעות עבודה לחודש ${yearMonth.split("-")[1]}/${
+          yearMonth.split("-")[0]
+        }`,
+        font: { size: 18 },
+      },
+      tooltip: {
+        callbacks: {
+          label: function (context) {
+            let label = context.dataset.label || "";
+            if (label) {
+              label += ": ";
+            }
+            if (context.parsed.y !== null) {
+              label += context.parsed.y.toFixed(2) + " שעות";
+            }
+            return label;
+          },
+        },
+      },
+    },
+    scales: {
+      y: { beginAtZero: true, title: { display: true, text: "שעות" } },
+    },
+  };
+
   return (
     <>
       <div className="page-header">
-        <h2>דוחות נוכחות</h2>
+        <h2>דוחות</h2>
       </div>
       <div className="card">
-        <p>עמוד זה יכיל דוחות מתקדמים וסיכומים גרפיים של נתוני הנוכחות.</p>
+        <div className="filter-controls" style={{ paddingBottom: "20px" }}>
+          <FormInput
+            label="בחר חודש לדיווח:"
+            type="month"
+            value={yearMonth}
+            onChange={(e) => setYearMonth(e.target.value)}
+          />
+        </div>
+        <div style={{ position: "relative", height: "400px" }}>
+          {isLoading ? (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                height: "100%",
+              }}
+            >
+              <LoadingSpinner />
+            </div>
+          ) : reportData && reportData.labels.length > 0 ? (
+            <Bar options={chartOptions} data={reportData} />
+          ) : (
+            <div style={{ textAlign: "center", paddingTop: "50px" }}>
+              <p>אין נתוני נוכחות להצגה עבור החודש שנבחר.</p>
+            </div>
+          )}
+        </div>
       </div>
     </>
   );
@@ -1482,6 +1419,7 @@ function PayrollPage() {
     key: "employeeName",
     direction: "ascending",
   });
+
   const handleEmployeeSelect = (employeeId) => {
     setSelectedEmployeeIds((prev) => {
       const newSet = new Set(prev);
@@ -1493,6 +1431,7 @@ function PayrollPage() {
       return newSet;
     });
   };
+
   const handleSelectAll = (e) => {
     if (e.target.checked) {
       setSelectedEmployeeIds(new Set(allEmployees.map((emp) => emp._id)));
@@ -1500,6 +1439,7 @@ function PayrollPage() {
       setSelectedEmployeeIds(new Set());
     }
   };
+
   const handleGenerateReport = async () => {
     if (selectedEmployeeIds.size === 0) {
       toaster("יש לבחור לפחות עובד אחד", "danger");
@@ -1530,6 +1470,7 @@ function PayrollPage() {
       setIsLoading(false);
     }
   };
+
   const grandTotal = useMemo(() => {
     if (!payrollData) return null;
     return payrollData.reduce(
@@ -1544,6 +1485,7 @@ function PayrollPage() {
       { totalHours: 0, totalPay: 0, vacationPay: 0, sickPay: 0, grossPay: 0 }
     );
   }, [payrollData]);
+
   const downloadCSV = () => {
     if (!sortedPayrollData || sortedPayrollData.length === 0) return;
     const headers = [
@@ -1579,6 +1521,7 @@ function PayrollPage() {
     link.click();
     document.body.removeChild(link);
   };
+
   return (
     <>
       <div className="page-header">
@@ -1601,6 +1544,7 @@ function PayrollPage() {
         <div className="control-section">
           <h3>תקופה</h3>
           <FormInput
+            label="בחר חודש ושנה"
             type="month"
             value={yearMonth}
             onChange={(e) => setYearMonth(e.target.value)}
@@ -1812,6 +1756,7 @@ function App() {
     () => ({ state, dispatch, currentUser }),
     [state, dispatch, currentUser]
   );
+
   return (
     <AppContext.Provider value={appContextValue}>
       <ToastProvider>
@@ -1851,11 +1796,7 @@ function App() {
                     <button
                       onClick={handleLogout}
                       className="secondary"
-                      style={{
-                        width: "100%",
-                        padding: "10px",
-                        border: "1px solid var(--font-dark)",
-                      }}
+                      style={{ width: "100%", padding: "10px" }}
                     >
                       התנתקות
                     </button>

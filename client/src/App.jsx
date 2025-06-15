@@ -16,7 +16,25 @@ import {
   Outlet, // Import Outlet for protected routes
 } from "react-router-dom";
 import "./styles.css";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import { Bar } from "react-chartjs-2";
 
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+);
 const API_BASE_URL = "http://localhost:5000/api";
 
 // --- Reusable Components ---

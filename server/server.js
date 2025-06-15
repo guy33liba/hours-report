@@ -406,7 +406,36 @@ app.get("/api/attendance/employee/:employeeId/:yearMonth", async (req, res) => {
       .json({ message: "Server error while fetching attendance details" });
   }
 });
-// --- Server Start ---
+app.get("/api/reports/monthly-summary/:yearMonth", async (req, res) => {
+  const { yearMonth } = req.params;
+  const [year, month] = yearMonth.split("-");
+
+  try {
+    const { rows } = await pool.query(
+      `
+            SELECT
+                e.name,
+                COALESCE(SUM(EXTRACT(EPOCH FROM (a.clock_out - a.clock_in))) / 3600, 0) as "totalHours"
+            FROM employees e
+            LEFT JOIN attendance a ON e.id = a.employee_id
+            WHERE
+                e.role = 'employee' AND
+                a.clock_out IS NOT NULL AND
+                EXTRACT(YEAR FROM a.clock_in) = $1 AND
+                EXTRACT(MONTH FROM a.clock_in) = $2
+            GROUP BY e.id, e.name
+            HAVING SUM(EXTRACT(EPOCH FROM (a.clock_out - a.clock_in))) > 0
+            ORDER BY "totalHours" DESC
+        `,
+      [year, month]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.error("Error fetching monthly summary report:", err);
+    res.status(500).json({ message: "Server error generating summary report" });
+  }
+});
 const PORT = 5000;
 app.listen(PORT, () => {
   console.log(`✅ Server is running on port ${PORT}`);

@@ -13,6 +13,7 @@ import {
   Route,
   NavLink,
   Navigate,
+  Outlet, // Import Outlet for protected routes
 } from "react-router-dom";
 import "./styles.css";
 
@@ -67,6 +68,159 @@ function LoginModal({ show, onClose, onLogin }) {
   );
 }
 
+function MonthlyDetailsModal({ show, onClose, employee }) {
+  // שלב 1: כל ה-Hooks נקראים כאן, בראש הקומפוננטה וללא תנאים.
+  const [details, setDetails] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [yearMonth, setYearMonth] = useState(
+    new Date().toISOString().slice(0, 7)
+  );
+  const toaster = useToaster(); // Hook
+
+  useEffect(() => {
+    if (show && employee) {
+      setIsLoading(true);
+      fetch(`${API_BASE_URL}/attendance/employee/${employee._id}/${yearMonth}`)
+        .then((res) => {
+          if (!res.ok) throw new Error("Failed to fetch details");
+          return res.json();
+        })
+        .then((data) => {
+          const sanitizedData = data.map((item) => ({
+            ...item,
+            durationHours: parseFloat(item.durationHours) || null,
+          }));
+          setDetails(sanitizedData);
+        })
+        .catch((err) => {
+          console.error(err);
+          toaster("שגיאה בטעינת פירוט שעות", "danger");
+          setDetails([]);
+        })
+        .finally(() => setIsLoading(false));
+    }
+  }, [show, employee, yearMonth, toaster]);
+
+  const totalHours = useMemo(() => {
+    return details.reduce((accumulator, currentItem) => {
+      const hours = Number(currentItem.durationHours);
+      if (!isNaN(hours)) {
+        return accumulator + hours;
+      }
+      return accumulator;
+    }, 0);
+  }, [details]);
+
+  // שלב 2: רק אחרי שכל ה-Hooks נקראו, ניתן לבצע החזרה מוקדמת.
+  if (!show || !employee) {
+    return null;
+  }
+
+  const formatTime = (dateString) => {
+    if (!dateString) return "טרם";
+    return new Date(dateString).toLocaleTimeString("he-IL", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "";
+    return new Date(dateString).toLocaleDateString("he-IL", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  };
+
+  const formatDuration = (hours) => {
+    if (hours === null) return "משמרת פתוחה";
+    if (typeof hours !== "number" || isNaN(hours) || hours <= 0) {
+      return "00:00";
+    }
+    const h = Math.floor(hours);
+    const m = Math.round((hours - h) * 60);
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div
+        className="modal-content"
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxWidth: "600px" }}
+      >
+        <button onClick={onClose} className="modal-close-btn">
+          ×
+        </button>
+        <h3 style={{ marginTop: 0 }}>פירוט שעות עבור {employee.name}</h3>
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "16px",
+          }}
+        >
+          <FormInput
+            label="בחר חודש:"
+            type="month"
+            value={yearMonth}
+            onChange={(e) => setYearMonth(e.target.value)}
+          />
+          <div style={{ textAlign: "right" }}>
+            <h4 style={{ margin: 0 }}>סה"כ שעות בחודש:</h4>
+            <span style={{ fontSize: "1.5rem", fontWeight: "bold" }}>
+              {formatDuration(totalHours)}
+            </span>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <LoadingSpinner />
+        ) : (
+          <div
+            className="table-container"
+            style={{ maxHeight: "400px", overflowY: "auto" }}
+          >
+            <table>
+              <thead>
+                <tr>
+                  <th>תאריך</th>
+                  <th>שעת כניסה</th>
+                  <th>שעת יציאה</th>
+                  <th>סה"כ שעות</th>
+                </tr>
+              </thead>
+              <tbody>
+                {details.length > 0 ? (
+                  details.map((entry, index) => (
+                    <tr key={entry.id || index}>
+                      <td>{formatDate(entry.clockIn)}</td>
+                      <td>{formatTime(entry.clockIn)}</td>
+                      <td>{formatTime(entry.clockOut)}</td>
+                      <td>{formatDuration(entry.durationHours)}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan="4"
+                      style={{ textAlign: "center", padding: "20px" }}
+                    >
+                      אין רישומי נוכחות לחודש זה.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 const Icon = ({ path, size = 18, className = "" }) => (
   <svg
     width={size}
@@ -272,31 +426,33 @@ const useToaster = () => useContext(ToastContext);
 
 const useSortableData = (items, config = null) => {
   const [sortConfig, setSortConfig] = useState(config);
+
   const sortedItems = useMemo(() => {
-    let sortableItems = items;
+    let sortableItems = items ? [...items] : [];
     if (sortConfig !== null) {
       sortableItems.sort((a, b) => {
-        const valA = a[sortConfig.key];
-        const valB = b[sortConfig.key];
+        const valA = a[sortConfig.key] || "";
+        const valB = b[sortConfig.key] || "";
+
         if (typeof valA === "number" && typeof valB === "number") {
           return sortConfig.direction === "ascending"
             ? valA - valB
             : valB - valA;
         }
+
         const strA = String(valA);
         const strB = String(valB);
 
-        if (strA < strB) {
-          return sortConfig.direction === "ascending" ? -1 : 1;
+        if (sortConfig.direction === "ascending") {
+          return strA.localeCompare(strB);
+        } else {
+          return strB.localeCompare(strA);
         }
-        if (strA > strB) {
-          return sortConfig.direction === "ascending" ? 1 : -1;
-        }
-        return 0;
       });
     }
     return sortableItems;
   }, [items, sortConfig]);
+
   const requestSort = (key) => {
     let direction = "ascending";
     if (
@@ -310,6 +466,7 @@ const useSortableData = (items, config = null) => {
   };
   return { items: sortedItems, requestSort, sortConfig };
 };
+
 const SortableHeader = ({ children, name, sortConfig, requestSort }) => {
   const isSorted = sortConfig && sortConfig.key === name;
   const directionClass = isSorted
@@ -484,13 +641,9 @@ function Dashboard() {
         <h2>סקירה כללית</h2>
       </div>
       <div className="card">
-        <p>
-          ברוכים הבאים למערכת ניהול נוכחות. מכאן ניתן לנהל עובדים, לצפות בנוכחות
-          בזמן אמת ולהפיק דוחות שכר.
-        </p>
+        <p>ברוכים הבאים למערכת ניהול נוכחות.</p>
       </div>
       <div className="dashboard-grid">
-        {/* --- שינוי --- : הצגת כרטיס הנוכחות רק אם המשתמש מחובר */}
         {currentUser && <RealTimePresenceCard />}
       </div>
     </>
@@ -581,10 +734,9 @@ function RealTimePresenceCard() {
   const [isLoading, setIsLoading] = useState(true);
   const toaster = useToaster();
   const [openAttendance, setOpenAttendance] = useState([]);
-  const { currentUser } = useContext(AppContext); // קבלת המשתמש המחובר
+  const { currentUser } = useContext(AppContext);
 
   useEffect(() => {
-    // טעינת הנתונים רק אם יש משתמש מחובר
     if (!currentUser) {
       setIsLoading(false);
       return;
@@ -611,7 +763,7 @@ function RealTimePresenceCard() {
       .finally(() => {
         setIsLoading(false);
       });
-  }, [toaster, currentUser]); // הוספת currentUser כתלות
+  }, [toaster, currentUser]);
 
   const updateEmployeeInList = (updatedEmployee) => {
     setEmployees((prev) =>
@@ -629,9 +781,6 @@ function RealTimePresenceCard() {
       {isLoading ? (
         <LoadingSpinner />
       ) : (
-        // --- שינוי ---
-        // אם המשתמש הוא מנהל, נציג את כל העובדים
-        // אם המשתמש הוא עובד, נציג רק את השורה שלו
         employees
           .filter((e) => {
             if (currentUser.role === "manager") return e.role === "employee";
@@ -670,7 +819,7 @@ function EmployeeRow({ employee, attendanceRecord, onStatusUpdate }) {
         setElapsedTime(Math.max(0, diff / 36e5));
       };
       updateTimer();
-      interval = setInterval(updateTimer, 0);
+      interval = setInterval(updateTimer, 1000);
     } else {
       setElapsedTime(0);
     }
@@ -812,6 +961,8 @@ function EmployeeList() {
   const [isAbsenceModalOpen, setIsAbsenceModalOpen] = useState(false);
   const [absencesForEmployee, setAbsencesForEmployee] = useState([]);
   const [isLoadingAbsences, setIsLoadingAbsences] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [employeeForDetails, setEmployeeForDetails] = useState(null);
 
   const EMPLOYEES_API_URL = `${API_BASE_URL}/employees`;
   const ABSENCE_API_URL = `${API_BASE_URL}/absences`;
@@ -835,26 +986,23 @@ function EmployeeList() {
       });
   }, [toaster, EMPLOYEES_API_URL]);
 
-  const filteredEmployees = useMemo(() => {
-    return employees
-      .filter((emp) =>
-        emp.name.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-      .filter(
-        (emp) => departmentFilter === "" || emp.department === departmentFilter
-      );
-  }, [employees, searchTerm, departmentFilter]);
   const {
     items: sortedEmployees,
     requestSort,
     sortConfig,
-  } = useSortableData(filteredEmployees, {
-    key: "name",
-    direction: "ascending",
-  });
+  } = useSortableData(
+    employees.filter(
+      (emp) =>
+        emp.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        (departmentFilter === "" || emp.department === departmentFilter)
+    ),
+    { key: "name", direction: "ascending" }
+  );
+
   const uniqueDepartments = useMemo(() => {
     return [...new Set(employees.map((emp) => emp.department))];
   }, [employees]);
+
   const handleOpenEdit = (employee) => {
     setSelectedEmployee(employee);
     setIsEditModalOpen(true);
@@ -867,14 +1015,23 @@ function EmployeeList() {
     setEmployeeToDelete(employee);
     setIsConfirmModalOpen(true);
   };
+
+  const handleOpenDetailsModal = (employee) => {
+    setEmployeeForDetails(employee);
+    setIsDetailsModalOpen(true);
+  };
+
   const closeModal = () => {
     setIsEditModalOpen(false);
     setIsConfirmModalOpen(false);
     setIsAbsenceModalOpen(false);
+    setIsDetailsModalOpen(false);
     setSelectedEmployee(null);
     setEmployeeToDelete(null);
     setAbsencesForEmployee([]);
+    setEmployeeForDetails(null);
   };
+
   const handleSaveEmployee = (employeeData) => {
     const isUpdating = selectedEmployee && selectedEmployee._id;
     const url = isUpdating
@@ -909,6 +1066,7 @@ function EmployeeList() {
         toaster("שגיאה בשמירת נתוני העובד", "danger");
       });
   };
+
   const handleConfirmDelete = () => {
     if (!employeeToDelete) return;
     fetch(`${EMPLOYEES_API_URL}/${employeeToDelete._id}`, { method: "DELETE" })
@@ -966,6 +1124,7 @@ function EmployeeList() {
         toaster("שגיאה בהוספת היעדרות", "danger");
       });
   };
+
   const handleDeleteAbsence = (absenceId) => {
     fetch(`${ABSENCE_API_URL}/${absenceId}`, { method: "DELETE" }).then(
       (res) => {
@@ -980,6 +1139,7 @@ function EmployeeList() {
       }
     );
   };
+
   return (
     <>
       <div className="page-header">
@@ -1088,6 +1248,12 @@ function EmployeeList() {
                       </button>
                       <button
                         className="secondary"
+                        onClick={() => handleOpenDetailsModal(emp)}
+                      >
+                        פירוט שעות
+                      </button>
+                      <button
+                        className="secondary"
                         onClick={() => handleOpenAbsenceModal(emp)}
                       >
                         היעדרויות
@@ -1133,9 +1299,15 @@ function EmployeeList() {
         onAdd={handleAddAbsence}
         onDelete={handleDeleteAbsence}
       />
+      <MonthlyDetailsModal
+        show={isDetailsModalOpen}
+        onClose={closeModal}
+        employee={employeeForDetails}
+      />
     </>
   );
 }
+
 function ReportsPage() {
   return (
     <>
@@ -1175,7 +1347,6 @@ function PayrollPage() {
     key: "employeeName",
     direction: "ascending",
   });
-
   const handleEmployeeSelect = (employeeId) => {
     setSelectedEmployeeIds((prev) => {
       const newSet = new Set(prev);
@@ -1187,7 +1358,6 @@ function PayrollPage() {
       return newSet;
     });
   };
-
   const handleSelectAll = (e) => {
     if (e.target.checked) {
       setSelectedEmployeeIds(new Set(allEmployees.map((emp) => emp._id)));
@@ -1195,7 +1365,6 @@ function PayrollPage() {
       setSelectedEmployeeIds(new Set());
     }
   };
-
   const handleGenerateReport = async () => {
     if (selectedEmployeeIds.size === 0) {
       toaster("יש לבחור לפחות עובד אחד", "danger");
@@ -1203,7 +1372,6 @@ function PayrollPage() {
     }
     setIsLoading(true);
     setPayrollData(null);
-
     try {
       const response = await fetch(`${API_BASE_URL}/payroll/report`, {
         method: "POST",
@@ -1276,7 +1444,6 @@ function PayrollPage() {
     link.click();
     document.body.removeChild(link);
   };
-
   return (
     <>
       <div className="page-header">
@@ -1488,11 +1655,17 @@ function Login({ onLogin }) {
   );
 }
 
+const ProtectedRoute = ({ isAllowed, redirectPath = "/", children }) => {
+  if (!isAllowed) {
+    return <Navigate to={redirectPath} replace />;
+  }
+  return children ? children : <Outlet />;
+};
+
 function App() {
   const [state, dispatch] = useReducer(appReducer, initialAppState);
   const [currentUser, setCurrentUser] = useLocalStorage("currentUser", null);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-
   const handleLogin = (user) => {
     if (user) {
       setCurrentUser(user);
@@ -1500,14 +1673,10 @@ function App() {
     }
   };
   const handleLogout = () => setCurrentUser(null);
-
-  // --- שינוי ---
-  // העברת currentUser לתוך הקונטקסט כדי שקומפוננטות-בנות יוכלו לגשת אליו
   const appContextValue = useMemo(
     () => ({ state, dispatch, currentUser }),
     [state, dispatch, currentUser]
   );
-
   return (
     <AppContext.Provider value={appContextValue}>
       <ToastProvider>
@@ -1569,8 +1738,6 @@ function App() {
             <main className="main-content">
               <Routes>
                 <Route path="/" element={<Dashboard />} />
-
-                {/* --- שינוי --- : קומפוננטה ייעודית להגנה על נתיבים */}
                 <Route
                   element={
                     <ProtectedRoute
@@ -1583,12 +1750,10 @@ function App() {
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/payroll" element={<PayrollPage />} />
                 </Route>
-
                 <Route path="*" element={<Navigate to="/" />} />
               </Routes>
             </main>
           </div>
-
           <LoginModal
             show={isLoginModalOpen}
             onClose={() => setIsLoginModalOpen(false)}
@@ -1599,15 +1764,5 @@ function App() {
     </AppContext.Provider>
   );
 }
-
-// --- שינוי ---
-// קומפוננטה ייעודית להגנה על נתיבים (דרך מומלצת)
-import { Outlet } from "react-router-dom";
-const ProtectedRoute = ({ isAllowed, redirectPath = "/", children }) => {
-  if (!isAllowed) {
-    return <Navigate to={redirectPath} replace />;
-  }
-  return children ? children : <Outlet />;
-};
 
 export default App;

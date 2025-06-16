@@ -325,66 +325,66 @@ function EmployeeForm({ initialData, onSave, onCancel }) {
   );
 }
 
-function Login({ onLogin }) {
-  const [name, setName] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+// function Login({ onLogin }) {
+//   const [name, setName] = useState("");
+//   const [password, setPassword] = useState("");
+//   const [error, setError] = useState("");
+//   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLoginSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    setIsLoading(true);
-    try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, password }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "ההתחברות נכשלה");
-      }
-      localStorage.setItem("token", data.token);
-      onLogin(data.user);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+//   const handleLoginSubmit = async (e) => {
+//     e.preventDefault();
+//     setError("");
+//     setIsLoading(true);
+//     try {
+//       const response = await fetch(`${API_BASE_URL}/auth/login`, {
+//         method: "POST",
+//         headers: { "Content-Type": "application/json" },
+//         body: JSON.stringify({ name, password }),
+//       });
+//       const data = await response.json();
+//       if (!response.ok) {
+//         throw new Error(data.message || "ההתחברות נכשלה");
+//       }
+//       localStorage.setItem("token", data.token);
+//       onLogin(data.user);
+//     } catch (err) {
+//       setError(err.message);
+//     } finally {
+//       setIsLoading(false);
+//     }
+//   };
 
-  return (
-    <form
-      style={{ width: "350px", textAlign: "center" }}
-      onSubmit={handleLoginSubmit}
-    >
-      <h2 style={{ marginTop: 0 }}>התחברות למערכת</h2>
-      {error && <p style={{ color: "var(--danger-color)" }}>{error}</p>}
-      <FormInput
-        label="שם משתמש"
-        type="text"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        required
-      />
-      <FormInput
-        label="סיסמה"
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        required
-      />
-      <button
-        type="submit"
-        style={{ width: "100%", marginTop: "1rem" }}
-        disabled={isLoading}
-      >
-        {isLoading ? <LoadingSpinner /> : "התחבר"}
-      </button>
-    </form>
-  );
-}
+//   return (
+//     <form
+//       style={{ width: "350px", textAlign: "center" }}
+//       onSubmit={handleLoginSubmit}
+//     >
+//       <h2 style={{ marginTop: 0 }}>התחברות למערכת</h2>
+//       {error && <p style={{ color: "var(--danger-color)" }}>{error}</p>}
+//       <FormInput
+//         label="שם משתמש"
+//         type="text"
+//         value={name}
+//         onChange={(e) => setName(e.target.value)}
+//         required
+//       />
+//       <FormInput
+//         label="סיסמה"
+//         type="password"
+//         value={password}
+//         onChange={(e) => setPassword(e.target.value)}
+//         required
+//       />
+//       <button
+//         type="submit"
+//         style={{ width: "100%", marginTop: "1rem" }}
+//         disabled={isLoading}
+//       >
+//         {isLoading ? <LoadingSpinner /> : "התחבר"}
+//       </button>
+//     </form>
+//   );
+// }
 
 // --- 4. קומפוננטות מודאלים ---
 function LoginModal({ show, onClose, onLogin }) {
@@ -1997,6 +1997,79 @@ const appReducer = (state, action) => {
       return state;
   }
 };
+// החלף את כל הקומפוננטה Login בזו:
+
+function Login({ onLogin }) {
+  const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "ההתחברות נכשלה");
+      }
+
+      localStorage.setItem("token", data.token);
+      onLogin(data.user);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // --- שינוי במבנה ה-JSX ---
+  return (
+    <div className="login-page-wrapper">
+      <div className="login-container">
+        <h1>Attend.ly</h1>
+        <p className="subtitle">מערכת ניהול נוכחות עובדים</p>
+
+        <form className="login-form" onSubmit={handleLoginSubmit}>
+          {error && <div className="login-error-message">{error}</div>}
+
+          <FormInput
+            label="שם משתמש"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            autoFocus
+          />
+          <FormInput
+            label="סיסמה"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+
+          <button
+            type="submit"
+            style={{ width: "100%", marginTop: "1rem" }}
+            disabled={isLoading}
+          >
+            {isLoading ? <LoadingSpinner /> : "התחבר"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 function App() {
   const [state, dispatch] = useReducer(appReducer, initialAppState);

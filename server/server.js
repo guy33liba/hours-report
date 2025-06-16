@@ -5,6 +5,11 @@ const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
 
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+require("dotenv").config(); // ודא שמשתני סביבה נטענים
+
+const JWT_SECRET = "your_super_secret_key_12345"; // הוסף מפתח סודי
 const pool = new Pool({
   user: "speakcom",
   host: "192.168.1.19",
@@ -81,6 +86,30 @@ const checkIp = (req) => {
   }
   return { isAllowed: true };
 };
+// החלף את ה-route הקיים בגרסה הזו
+app.post("/api/employees", async (req, res) => {
+  const { name, department, hourlyRate, role, password } = req.body;
+  if (!name || !department || !hourlyRate || !password) {
+    return res.status(400).json({ message: "כל השדות, כולל סיסמה, הם חובה" });
+  }
+
+  try {
+    // הצפן את הסיסמה לפני שמירתה
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+
+    const { rows } = await pool.query(
+      `INSERT INTO employees (name, department, hourly_rate, role, password_hash) VALUES ($1, $2, $3, $4, $5) RETURNING *, hourly_rate as "hourlyRate"`,
+      [name, department, hourlyRate, role || "employee", passwordHash]
+    );
+
+    const { password_hash, ...newUser } = rows[0];
+    res.status(201).json(newUser);
+  } catch (err) {
+    console.error("Error adding employee:", err);
+    res.status(500).json({ message: "Server error while adding employee" });
+  }
+});
 
 // ============================
 // --- API Routes ---
@@ -363,6 +392,43 @@ app.post("/api/payroll/report", async (req, res) => {
     res.json(report);
   } catch (err) {
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+// הוסף את ה-route הזה מתחת לשאר ה-import-ים
+app.post("/api/auth/login", async (req, res) => {
+  const { name, password } = req.body;
+  if (!name || !password) {
+    return res.status(400).json({ message: "שם משתמש וסיסמה הם שדות חובה" });
+  }
+
+  try {
+    // מצא את העובד לפי השם
+    const { rows } = await pool.query(
+      'SELECT *, hourly_rate as "hourlyRate" FROM employees WHERE name = $1',
+      [name]
+    );
+    if (rows.length === 0) {
+      return res.status(401).json({ message: "שם משתמש או סיסמה שגויים" });
+    }
+    const user = rows[0];
+
+    // השווה את הסיסמה שסופקה עם ה-hash השמור ב-DB
+    const isMatch = await bcrypt.compare(password, user.password_hash);
+    if (!isMatch) {
+      return res.status(401).json({ message: "שם משתמש או סיסמה שגויים" });
+    }
+
+    // אם הסיסמה נכונה, צור טוקן
+    const payload = { userId: user._id, role: user.role, name: user.name };
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "8h" });
+
+    // שלח את הטוקן והמשתמש (ללא הסיסמה) ללקוח
+    const { password_hash, ...userWithoutPassword } = user;
+    res.json({ token, user: userWithoutPassword });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ message: "שגיאת שרת בעת ניסיון התחברות" });
   }
 });
 // ודא שהתיקייה קיימת

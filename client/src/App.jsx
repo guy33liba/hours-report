@@ -226,6 +226,7 @@ function EmployeeForm({ initialData, onSave, onCancel }) {
     department: "",
     hourlyRate: "",
     role: "employee",
+    password: "",
   });
   useEffect(() => {
     if (initialData) {
@@ -234,6 +235,7 @@ function EmployeeForm({ initialData, onSave, onCancel }) {
         department: initialData.department || "",
         hourlyRate: initialData.hourlyRate || "",
         role: initialData.role || "employee",
+        password: "",
       });
     } else {
       setFormData({
@@ -241,6 +243,7 @@ function EmployeeForm({ initialData, onSave, onCancel }) {
         department: "",
         hourlyRate: "",
         role: "employee",
+        password: "",
       });
     }
   }, [initialData]);
@@ -248,7 +251,11 @@ function EmployeeForm({ initialData, onSave, onCancel }) {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(formData);
+    const dataToSend = { ...formData };
+    if (initialData && !formData.password) {
+      delete dataToSend.password;
+    }
+    onSave(dataToSend);
   };
   return (
     <form onSubmit={handleSubmit}>
@@ -286,6 +293,14 @@ function EmployeeForm({ initialData, onSave, onCancel }) {
         onChange={handleChange}
         required
       />
+      <FormInput
+        label={initialData ? "סיסמה חדשה (אופציונלי)" : "סיסמה"}
+        type="password"
+        name="password"
+        value={formData.password}
+        onChange={handleChange}
+        required={!initialData}
+      />
       <div className="form-group">
         <label>תפקיד</label>
         <select name="role" value={formData.role} onChange={handleChange}>
@@ -311,47 +326,61 @@ function EmployeeForm({ initialData, onSave, onCancel }) {
 }
 
 function Login({ onLogin }) {
-  const [allUsers, setAllUsers] = useState([]);
-  const [employeeId, setEmployeeId] = useState("");
-  useEffect(() => {
-    fetch(`${API_BASE_URL}/employees`)
-      .then((res) => res.json())
-      .then((data) => setAllUsers(data))
-      .catch((err) => console.error("Could not fetch users for login", err));
-  }, []);
-  const handleLoginSubmit = (e) => {
+  const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
-    const user = allUsers.find((u) => u._id === employeeId);
-    if (user) {
-      onLogin(user);
+    setError("");
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, password }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "ההתחברות נכשלה");
+      }
+      localStorage.setItem("token", data.token);
+      onLogin(data.user);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
+
   return (
     <form
       style={{ width: "350px", textAlign: "center" }}
       onSubmit={handleLoginSubmit}
     >
       <h2 style={{ marginTop: 0 }}>התחברות למערכת</h2>
-      <select
-        value={employeeId}
-        onChange={(e) => setEmployeeId(e.target.value)}
+      {error && <p style={{ color: "var(--danger-color)" }}>{error}</p>}
+      <FormInput
+        label="שם משתמש"
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
         required
-        style={{
-          width: "100%",
-          padding: "0.75rem",
-          marginBottom: "1.25rem",
-          borderRadius: "var(--border-radius)",
-        }}
+      />
+      <FormInput
+        label="סיסמה"
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        required
+      />
+      <button
+        type="submit"
+        style={{ width: "100%", marginTop: "1rem" }}
+        disabled={isLoading}
       >
-        <option value="">בחר/י שם...</option>
-        {allUsers.map((emp) => (
-          <option key={emp._id} value={emp._id}>
-            {emp.name} ({emp.role})
-          </option>
-        ))}
-      </select>
-      <button type="submit" style={{ width: "100%" }} disabled={!employeeId}>
-        התחבר
+        {isLoading ? <LoadingSpinner /> : "התחבר"}
       </button>
     </form>
   );
@@ -710,7 +739,7 @@ function EmployeeRow({ employee, attendanceRecord, onStatusUpdate }) {
         setElapsedTime(Math.max(0, diff / 36e5));
       };
       updateTimer();
-      interval = setInterval(updateTimer, 1000);
+      interval = setInterval(updateTimer, 100);
     } else {
       setElapsedTime(0);
     }
@@ -1487,8 +1516,476 @@ function SettingsPage() {
   );
 }
 
+function MyAreaPage() {
+  const { currentUser } = useContext(AppContext);
+  const toaster = useToaster();
+  const [myAbsences, setMyAbsences] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [newAbsence, setNewAbsence] = useState({
+    type: "vacation",
+    startDate: "",
+    endDate: "",
+  });
+  const [attachment, setAttachment] = useState(null);
+
+  const fetchMyAbsences = useCallback(() => {
+    if (!currentUser) return;
+    setIsLoading(true);
+    fetch(`${API_BASE_URL}/absences/employee/${currentUser._id}`)
+      .then((res) => res.json())
+      .then(setMyAbsences)
+      .catch((err) => toaster("שגיאה בטעינת היעדרויות", "danger"))
+      .finally(() => setIsLoading(false));
+  }, [currentUser, toaster]);
+
+  useEffect(() => {
+    fetchMyAbsences();
+  }, [fetchMyAbsences]);
+
+  const handleInputChange = (e) => {
+    setNewAbsence((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleFileChange = (e) => {
+    setAttachment(e.target.files[0]);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!newAbsence.startDate || !newAbsence.endDate) {
+      return toaster("יש למלא תאריך התחלה וסיום", "danger");
+    }
+
+    const formData = new FormData();
+    formData.append("employeeId", currentUser._id);
+    formData.append("type", newAbsence.type);
+    formData.append("startDate", newAbsence.startDate);
+    formData.append("endDate", newAbsence.endDate);
+    if (attachment) {
+      formData.append("attachment", attachment);
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/absences`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("הדיווח נכשל");
+      }
+
+      toaster("היעדרות דווחה בהצלחה", "success");
+      setNewAbsence({ type: "vacation", startDate: "", endDate: "" });
+      setAttachment(null);
+      e.target.reset();
+      fetchMyAbsences();
+    } catch (error) {
+      toaster(error.message, "danger");
+    }
+  };
+
+  return (
+    <>
+      <div className="page-header">
+        <h2>אזור אישי - {currentUser?.name}</h2>
+      </div>
+      <div
+        style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "2rem" }}
+      >
+        <div className="card">
+          <h3>דיווח היעדרות חדשה</h3>
+          <form onSubmit={handleSubmit}>
+            <FormInput
+              type="date"
+              label="מתאריך"
+              name="startDate"
+              value={newAbsence.startDate}
+              onChange={handleInputChange}
+            />
+            <FormInput
+              type="date"
+              label="עד תאריך"
+              name="endDate"
+              value={newAbsence.endDate}
+              onChange={handleInputChange}
+            />
+            <div className="form-group">
+              <label>סוג היעדרות</label>
+              <select
+                name="type"
+                value={newAbsence.type}
+                onChange={handleInputChange}
+              >
+                <option value="vacation">חופשה</option>
+                <option value="sick">מחלה</option>
+              </select>
+            </div>
+            <FormInput
+              type="file"
+              label="צירוף מסמך (אופציונלי)"
+              name="attachment"
+              onChange={handleFileChange}
+            />
+            <button type="submit" style={{ width: "100%", marginTop: "1rem" }}>
+              שלח דיווח
+            </button>
+          </form>
+        </div>
+        <div className="card">
+          <h3>היעדרויות מדווחות</h3>
+          {isLoading ? (
+            <LoadingSpinner />
+          ) : (
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>סוג</th>
+                    <th>תאריכים</th>
+                    <th>מסמך</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {myAbsences.length > 0 ? (
+                    myAbsences.map((abs) => (
+                      <tr key={abs._id}>
+                        <td>
+                          {STATUSES[abs.type.toUpperCase()]?.text || abs.type}
+                        </td>
+                        <td>
+                          {new Date(abs.startDate).toLocaleDateString("he-IL")}{" "}
+                          - {new Date(abs.endDate).toLocaleDateString("he-IL")}
+                        </td>
+                        <td>
+                          {abs.attachmentPath ? (
+                            <a
+                              href={`${API_BASE_URL.replace("/api", "")}/${
+                                abs.attachmentPath
+                              }`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              הצג קובץ
+                            </a>
+                          ) : (
+                            "אין"
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan="3"
+                        style={{ textAlign: "center", padding: "2rem" }}
+                      >
+                        לא נמצאו דיווחים.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 function PayrollPage() {
-  /* ... קוד מלא של העמוד ... */
+  const { state } = useContext(AppContext);
+  const toaster = useToaster();
+  const [allEmployees, setAllEmployees] = useState([]);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState(new Set());
+  const [payrollData, setPayrollData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [yearMonth, setYearMonth] = useState(
+    new Date().toISOString().slice(0, 7)
+  );
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/employees`)
+      .then((res) => res.json())
+      .then(setAllEmployees)
+      .catch((err) => toaster("שגיאה בטעינת עובדים", "danger"));
+  }, [toaster]);
+
+  const {
+    items: sortedPayrollData,
+    requestSort,
+    sortConfig,
+  } = useSortableData(payrollData || [], {
+    key: "employeeName",
+    direction: "ascending",
+  });
+  const handleEmployeeSelect = (employeeId) => {
+    setSelectedEmployeeIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(employeeId)) {
+        newSet.delete(employeeId);
+      } else {
+        newSet.add(employeeId);
+      }
+      return newSet;
+    });
+  };
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedEmployeeIds(new Set(allEmployees.map((emp) => emp._id)));
+    } else {
+      setSelectedEmployeeIds(new Set());
+    }
+  };
+
+  const handleGenerateReport = async () => {
+    if (selectedEmployeeIds.size === 0) {
+      toaster("יש לבחור לפחות עובד אחד", "danger");
+      return;
+    }
+    setIsLoading(true);
+    setPayrollData(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/payroll/report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          yearMonth: yearMonth,
+          employeeIds: Array.from(selectedEmployeeIds),
+          settings: state.settings,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to generate report");
+      }
+      const data = await response.json();
+      setPayrollData(data);
+      toaster("הדוח הופק בהצלחה!", "success");
+    } catch (error) {
+      console.error("Error generating report:", error);
+      toaster("שגיאה בהפקת הדוח", "danger");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const grandTotal = useMemo(() => {
+    if (!payrollData) return null;
+    return payrollData.reduce(
+      (acc, item) => {
+        acc.totalHours += item.totalHours;
+        acc.totalPay += item.totalPay;
+        acc.vacationPay += item.vacationPay;
+        acc.sickPay += item.sickPay;
+        acc.grossPay += item.grossPay;
+        return acc;
+      },
+      { totalHours: 0, totalPay: 0, vacationPay: 0, sickPay: 0, grossPay: 0 }
+    );
+  }, [payrollData]);
+
+  const downloadCSV = () => {
+    if (!sortedPayrollData || sortedPayrollData.length === 0) return;
+    const headers = [
+      "שם עובד",
+      "שעות עבודה",
+      "ימי חופשה",
+      "ימי מחלה",
+      "שכר בסיס",
+      "תשלום חופשה",
+      "תשלום מחלה",
+      "שכר ברוטו",
+    ];
+    const rows = sortedPayrollData.map((item) =>
+      [
+        `"${item.employeeName}"`,
+        item.totalHours.toFixed(2),
+        item.vacationDays,
+        item.sickDays,
+        item.totalPay.toFixed(2),
+        item.vacationPay.toFixed(2),
+        item.sickPay.toFixed(2),
+        item.grossPay.toFixed(2),
+      ].join(",")
+    );
+    const csvContent =
+      "data:text/csv;charset=utf-8,\uFEFF" +
+      [headers.join(","), ...rows].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `payroll_report_${yearMonth}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <>
+      <div className="page-header">
+        <h2>הפקת דוח שכר</h2>
+        <div className="page-actions">
+          {payrollData && (
+            <button onClick={downloadCSV} className="secondary">
+              <Icon path={ICONS.DOWNLOAD} /> הורד CSV
+            </button>
+          )}
+          <button
+            onClick={handleGenerateReport}
+            disabled={isLoading || selectedEmployeeIds.size === 0}
+          >
+            {isLoading ? <LoadingSpinner /> : "הפק דוח"}
+          </button>
+        </div>
+      </div>
+      <div className="card payroll-controls">
+        <div className="control-section">
+          <h3>תקופה</h3>
+          <FormInput
+            label="בחר חודש ושנה"
+            type="month"
+            value={yearMonth}
+            onChange={(e) => setYearMonth(e.target.value)}
+          />
+        </div>
+        <div className="control-section">
+          <h3>עובדים</h3>
+          <div className="employee-select-list">
+            <div className="select-all-item">
+              <input
+                type="checkbox"
+                id="select-all"
+                onChange={handleSelectAll}
+                checked={
+                  allEmployees.length > 0 &&
+                  selectedEmployeeIds.size === allEmployees.length
+                }
+              />
+              <label htmlFor="select-all" style={{ fontWeight: 700 }}>
+                בחר הכל
+              </label>
+            </div>
+            {allEmployees.map((emp) => (
+              <div key={emp._id} className="employee-select-item">
+                <input
+                  type="checkbox"
+                  id={`emp-${emp._id}`}
+                  checked={selectedEmployeeIds.has(emp._id)}
+                  onChange={() => handleEmployeeSelect(emp._id)}
+                />
+                <label htmlFor={`emp-${emp._id}`}>{emp.name}</label>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      {isLoading && (
+        <div className="card" style={{ textAlign: "center", padding: "40px" }}>
+          <LoadingSpinner />
+          <p style={{ marginTop: "16px" }}>מחשב נתונים...</p>
+        </div>
+      )}
+      {payrollData && (
+        <div className="card">
+          <h3>
+            דוח שכר לחודש {yearMonth.split("-")[1]}/{yearMonth.split("-")[0]}
+          </h3>
+          <div className="table-container">
+            <table className="payroll-table">
+              <thead>
+                <tr>
+                  <SortableHeader
+                    name="employeeName"
+                    sortConfig={sortConfig}
+                    requestSort={requestSort}
+                  >
+                    שם עובד
+                  </SortableHeader>
+                  <SortableHeader
+                    name="totalHours"
+                    sortConfig={sortConfig}
+                    requestSort={requestSort}
+                  >
+                    סה"כ שעות
+                  </SortableHeader>
+                  <SortableHeader
+                    name="vacationDays"
+                    sortConfig={sortConfig}
+                    requestSort={requestSort}
+                  >
+                    ימי חופשה
+                  </SortableHeader>
+                  <SortableHeader
+                    name="sickDays"
+                    sortConfig={sortConfig}
+                    requestSort={requestSort}
+                  >
+                    ימי מחלה
+                  </SortableHeader>
+                  <SortableHeader
+                    name="totalPay"
+                    sortConfig={sortConfig}
+                    requestSort={requestSort}
+                  >
+                    שכר עבודה
+                  </SortableHeader>
+                  <SortableHeader
+                    name="vacationPay"
+                    sortConfig={sortConfig}
+                    requestSort={requestSort}
+                  >
+                    תשלום חופשה
+                  </SortableHeader>
+                  <SortableHeader
+                    name="sickPay"
+                    sortConfig={sortConfig}
+                    requestSort={requestSort}
+                  >
+                    תשלום מחלה
+                  </SortableHeader>
+                  <SortableHeader
+                    name="grossPay"
+                    sortConfig={sortConfig}
+                    requestSort={requestSort}
+                  >
+                    שכר ברוטו
+                  </SortableHeader>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedPayrollData.map((item) => (
+                  <tr key={item.employeeId}>
+                    <td>{item.employeeName}</td>
+                    <td>{item.totalHours.toFixed(2)}</td>
+                    <td>{item.vacationDays}</td>
+                    <td>{item.sickDays}</td>
+                    <td>₪{item.totalPay.toFixed(2)}</td>
+                    <td>₪{item.vacationPay.toFixed(2)}</td>
+                    <td>₪{item.sickPay.toFixed(2)}</td>
+                    <td>₪{item.grossPay.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              {grandTotal && (
+                <tfoot>
+                  <tr>
+                    <td>סה"כ</td>
+                    <td>{grandTotal.totalHours.toFixed(2)}</td>
+                    <td colSpan={2}></td>
+                    <td>₪{grandTotal.totalPay.toFixed(2)}</td>
+                    <td>₪{grandTotal.vacationPay.toFixed(2)}</td>
+                    <td>₪{grandTotal.sickPay.toFixed(2)}</td>
+                    <td>₪{grandTotal.grossPay.toFixed(2)}</td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
 // --- 6. קומפוננטת App הראשית ---
@@ -1511,7 +2008,10 @@ function App() {
       setIsLoginModalOpen(false);
     }
   };
-  const handleLogout = () => setCurrentUser(null);
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem("token");
+  };
   const appContextValue = useMemo(
     () => ({ state, dispatch, currentUser }),
     [state, dispatch, currentUser]
@@ -1545,6 +2045,11 @@ function App() {
                       <Icon path={ICONS.SETTINGS} /> הגדרות
                     </NavLink>
                   </>
+                )}
+                {currentUser && currentUser.role === "employee" && (
+                  <NavLink to="/my-area">
+                    <Icon path={ICONS.EMPLOYEES} /> אזור אישי
+                  </NavLink>
                 )}
               </nav>
               <div className="sidebar-footer">
@@ -1591,6 +2096,15 @@ function App() {
                   <Route path="/reports" element={<ReportsPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/payroll" element={<PayrollPage />} />
+                </Route>
+                <Route
+                  element={
+                    <ProtectedRoute
+                      isAllowed={currentUser && currentUser.role === "employee"}
+                    />
+                  }
+                >
+                  <Route path="/my-area" element={<MyAreaPage />} />
                 </Route>
                 <Route path="*" element={<Navigate to="/" />} />
               </Routes>

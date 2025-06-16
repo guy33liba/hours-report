@@ -1,8 +1,10 @@
 const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
+const path = require("path");
+const fs = require("fs");
+const multer = require("multer");
 
-// --- Database Configuration ---
 const pool = new Pool({
   user: "speakcom",
   host: "192.168.1.19",
@@ -25,6 +27,26 @@ pool.query("SELECT NOW()", (err, res) => {
 // --- Express App Setup ---
 const app = express();
 
+const uploadsDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
+
+// הגדרות של Multer לשמירת קבצים
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "uploads/");
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(
+      null,
+      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
+    );
+  },
+});
+
+const upload = multer({ storage: storage });
 // Middlewares
 app.set("trust proxy", true); // Important for correct IP detection
 app.use(cors({ origin: "*" }));
@@ -250,9 +272,11 @@ app.get("/api/absences/employee/:employeeId", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
-
-app.post("/api/absences", async (req, res) => {
+app.post("/api/absences", upload.single("attachment"), async (req, res) => {
+  // upload.single('attachment') - זהו ה-middleware של multer
   const { employeeId, type, startDate, endDate } = req.body;
+  const attachmentPath = req.file ? req.file.path : null; // הנתיב לקובץ אם הוא הועלה
+
   try {
     const empRes = await pool.query("SELECT id FROM employees WHERE _id = $1", [
       employeeId,
@@ -262,11 +286,13 @@ app.post("/api/absences", async (req, res) => {
     const internalEmployeeId = empRes.rows[0].id;
 
     const { rows } = await pool.query(
-      'INSERT INTO scheduled_absences (employee_id, absence_type, start_date, end_date) VALUES ($1, $2, $3, $4) RETURNING _id, start_date as "startDate", end_date as "endDate", absence_type as "type"',
-      [internalEmployeeId, type, startDate, endDate]
+      // הוספנו את attachment_path לשאילתה
+      'INSERT INTO scheduled_absences (employee_id, absence_type, start_date, end_date, attachment_path) VALUES ($1, $2, $3, $4, $5) RETURNING _id, start_date as "startDate", end_date as "endDate", absence_type as "type", attachment_path as "attachmentPath"',
+      [internalEmployeeId, type, startDate, endDate, attachmentPath]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
+    console.error("Error adding absence:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -339,8 +365,8 @@ app.post("/api/payroll/report", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+// ודא שהתיקייה קיימת
 
-// --- Server Start ---
 const PORT = 5000;
 app.listen(PORT, () => {
   console.log(`✅ Server is running on port ${PORT}`);

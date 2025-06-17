@@ -510,31 +510,6 @@ app.post("/api/users/reset-password", async (req, res) => {
     res.status(500).json({ message: "שגיאת שרת בעת איפוס הסיסמה" });
   }
 });
-const checkIp = (req) => {
-  const { settings } = req.body;
-  if (settings && settings.restrictByIp) {
-    const allowedIps = settings.allowedIps.split(",").map((ip) => ip.trim());
-    const clientIp = req.ip;
-    const cleanedClientIp = clientIp.startsWith("::ffff:")
-      ? clientIp.substring(7)
-      : clientIp;
-    if (
-      !allowedIps.includes(cleanedClientIp) &&
-      !allowedIps.includes("0.0.0.0")
-    ) {
-      console.log(
-        `Action blocked for IP: ${cleanedClientIp}. Allowed IPs: [${allowedIps.join(
-          ", "
-        )}]`
-      );
-      return {
-        isAllowed: false,
-        message: `הגישה נחסמה. כתובת ה-IP שלך (${cleanedClientIp}) אינה מורשית.`,
-      };
-    }
-  }
-  return { isAllowed: true };
-};
 
 // --- Auth & User Routes ---
 app.post("/api/auth/login", async (req, res) => {

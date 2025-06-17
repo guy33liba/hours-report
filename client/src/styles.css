@@ -18,12 +18,25 @@
   --box-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
     0 4px 6px -4px rgba(0, 0, 0, 0.1);
   --border-radius: 0.5rem; /* 8px */
+  --sidebar-width: 260px;
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+/* === Accessibility: Respect User Preferences for Motion === */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 body {
@@ -39,10 +52,11 @@ body {
 /* === Layout === */
 .app-layout {
   display: flex;
+  position: relative;
 }
 
 .sidebar {
-  width: 260px;
+  width: var(--sidebar-width);
   background-color: var(--sidebar-bg);
   padding: 1.5rem;
   display: flex;
@@ -53,13 +67,16 @@ body {
   right: 0;
   top: 0;
   box-shadow: -2px 0 15px rgba(0, 0, 0, 0.05);
+  transition: right 0.3s ease-in-out;
+  z-index: 1100;
 }
 
 .main-content {
   flex: 1;
   padding: 2rem;
-  margin-right: 260px;
+  margin-right: var(--sidebar-width);
   margin-left: 0;
+  transition: margin-right 0.3s ease-in-out;
 }
 
 .sidebar-header h1 {
@@ -119,6 +136,8 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap; /* Allow wrapping on small screens */
+  gap: 1rem; /* Add gap for wrapped items */
   margin-bottom: 2rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--border-color);
@@ -130,6 +149,7 @@ body {
 .page-actions {
   display: flex;
   gap: 0.75rem;
+  flex-wrap: wrap; /* Allow buttons to wrap */
 }
 
 .card {
@@ -211,9 +231,11 @@ button.danger:not(:disabled):hover {
   background-color: var(--app-bg);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
-.form-group input:focus,
-.form-group textarea:focus,
-.form-group select:focus {
+
+/* Improved Focus state for better accessibility */
+.form-group input:focus-visible,
+.form-group textarea:focus-visible,
+.form-group select:focus-visible {
   outline: none;
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
@@ -231,6 +253,7 @@ td {
   border-bottom: 1px solid var(--border-color);
   vertical-align: middle;
   font-weight: 500;
+  white-space: nowrap; /* Prevents ugly text wrapping in cells */
 }
 thead th {
   font-weight: 600;
@@ -238,6 +261,7 @@ thead th {
   background-color: var(--secondary-bg);
   position: sticky;
   top: 0;
+  z-index: 10;
 }
 tbody tr:hover {
   background-color: var(--secondary-bg);
@@ -245,11 +269,23 @@ tbody tr:hover {
 .table-container {
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
-  overflow-x: auto;
+  overflow-x: auto; /* Keeps horizontal scroll for tables */
 }
-.table-container table tr td:last-child,
-.table-container table tr th:last-child {
-  padding-left: 1.5rem;
+
+/* Custom Scrollbar for a more polished look */
+.table-container::-webkit-scrollbar {
+  height: 8px;
+}
+.table-container::-webkit-scrollbar-track {
+  background: var(--secondary-bg);
+  border-radius: 4px;
+}
+.table-container::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+.table-container::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
 }
 
 .sortable {
@@ -319,24 +355,24 @@ tbody tr:hover {
 /* === Specific Components === */
 .filter-controls {
   display: flex;
+  flex-wrap: wrap; /* Allow filters to wrap on smaller screens */
   gap: 1rem;
   margin-bottom: 1.5rem;
 }
+.filter-controls .form-group {
+  flex-grow: 1; /* Allow them to grow and fill space */
+  margin-bottom: 0;
+}
 .filter-controls input,
-input::placeholder,
 .filter-controls select {
-  border-radius: 10px;
-  width: 250px;
-  padding: 0.5rem;
-  font-size: 1rem;
-  color: black;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .status-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
+  flex-shrink: 0; /* Prevent dot from shrinking */
 }
 .status-dot.present {
   background-color: var(--success-color);
@@ -416,10 +452,7 @@ input::placeholder,
 .slider {
   position: absolute;
   cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background-color: #ccc;
   transition: 0.4s;
   border-radius: 28px;
@@ -441,8 +474,8 @@ input:checked + .slider {
 input:checked + .slider:before {
   transform: translateX(22px);
 }
-/* === Login Page Enhancement === */
 
+/* === Login Page Enhancement === */
 .login-page-wrapper {
   display: flex;
   justify-content: center;
@@ -462,29 +495,24 @@ input:checked + .slider:before {
   text-align: center;
   border-top: 4px solid var(--primary-color);
 }
-
 .login-container h1 {
   font-size: 2rem;
   color: var(--primary-color);
   margin-bottom: 0.5rem;
 }
-
 .login-container p.subtitle {
   color: var(--text-light);
   margin-bottom: 2rem;
 }
-
 .login-form {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
   text-align: right;
 }
-
 .login-form .form-group {
-  margin-bottom: 0; /* Remove default margin as we use gap */
+  margin-bottom: 0;
 }
-
 .login-error-message {
   background-color: #fef2f2;
   color: #b91c1c;
@@ -492,6 +520,57 @@ input:checked + .slider:before {
   border-radius: var(--border-radius);
   border: 1px solid #fecaca;
   text-align: center;
-  margin-bottom: 1.5rem;
   font-weight: 500;
+}
+
+/* === Mobile Navigation & Responsiveness === */
+.mobile-nav-toggle {
+  display: none; /* Hidden by default */
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1200;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  padding: 0.5rem;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+}
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1099;
+}
+
+@media (max-width: 992px) {
+  .sidebar {
+    right: calc(-1 * var(--sidebar-width)); /* Hide sidebar off-screen */
+  }
+  .sidebar.is-open {
+    right: 0;
+  }
+
+  .main-content {
+    margin-right: 0;
+    padding: 1.5rem;
+  }
+
+  .mobile-nav-toggle {
+    display: flex;
+  }
+
+  .sidebar.is-open + .sidebar-overlay {
+    display: block;
+  }
+
+  .page-header h2 {
+    font-size: 1.75rem;
+  }
+
+  .settings-grid,
+  .payroll-controls {
+    grid-template-columns: 1fr;
+  }
 }

@@ -955,6 +955,9 @@ function EmployeeList() {
   const [isLoadingAbsences, setIsLoadingAbsences] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [employeeForDetails, setEmployeeForDetails] = useState(null);
+  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] =
+    useState(false);
+  const [employeeToReset, setEmployeeToReset] = useState(null);
 
   const EMPLOYEES_API_URL = `${API_BASE_URL}/employees`;
   const ABSENCE_API_URL = `${API_BASE_URL}/absences`;
@@ -1011,6 +1014,11 @@ function EmployeeList() {
     setEmployeeForDetails(employee);
     setIsDetailsModalOpen(true);
   };
+  const handleOpenResetPassword = (employee) => {
+    setEmployeeToReset(employee);
+    setIsResetPasswordModalOpen(true);
+  };
+
   const handleOpenAbsenceModal = (employee) => {
     setSelectedEmployee(employee);
     setIsLoadingAbsences(true);
@@ -1030,6 +1038,8 @@ function EmployeeList() {
     setIsConfirmModalOpen(false);
     setIsAbsenceModalOpen(false);
     setIsDetailsModalOpen(false);
+    setIsResetPasswordModalOpen(false);
+    setEmployeeToReset(null);
     setSelectedEmployee(null);
     setEmployeeToDelete(null);
     setAbsencesForEmployee([]);
@@ -1242,6 +1252,12 @@ function EmployeeList() {
                         </button>
                         <button
                           className="secondary"
+                          onClick={() => handleOpenResetPassword(emp)}
+                        >
+                          אפס סיסמה
+                        </button>
+                        <button
+                          className="secondary"
                           onClick={() => handleOpenAbsenceModal(emp)}
                         >
                           היעדרויות
@@ -1292,6 +1308,7 @@ function EmployeeList() {
         show={isDetailsModalOpen}
         onClose={closeModal}
         employee={employeeForDetails}
+        onConfirm={closeModal}
       />
     </>
   );
@@ -1323,6 +1340,12 @@ function ReportsPage() {
   const toaster = useToaster();
 
   useEffect(() => {
+    if (!yearMonth) {
+      setReportData(null);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     fetch(`${API_BASE_URL}/reports/monthly-summary/${yearMonth}`)
       .then((res) => {
@@ -1432,9 +1455,11 @@ function SettingsPage() {
   const { state, dispatch } = useContext(AppContext);
   const [settings, setSettings] = useState(state.settings);
   const toaster = useToaster();
+
   useEffect(() => {
     setSettings(state.settings);
   }, [state.settings]);
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setSettings((prev) => ({
@@ -1442,10 +1467,12 @@ function SettingsPage() {
       [name]: type === "checkbox" ? checked : value,
     }));
   };
+
   const handleSave = () => {
     dispatch({ type: "SET_SETTINGS", payload: settings });
     toaster("ההגדרות נשמרו!", "success");
   };
+
   return (
     <>
       <div className="page-header">
@@ -1458,7 +1485,7 @@ function SettingsPage() {
         className="settings-grid"
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))",
           gap: "1.5rem",
         }}
       >
@@ -1511,11 +1538,15 @@ function SettingsPage() {
             />
           )}
         </div>
+        {/* --- תוספת: כרטיס לשינוי סיסמה --- */}
+        <div className="card">
+          <h3>שינוי סיסמה</h3>
+          <ChangePasswordForm />
+        </div>
       </div>
     </>
   );
 }
-
 function MyAreaPage() {
   const { currentUser } = useContext(AppContext);
   const toaster = useToaster();
@@ -1584,7 +1615,62 @@ function MyAreaPage() {
       toaster(error.message, "danger");
     }
   };
+  function ResetPasswordModal({ show, onClose, employee, onConfirm }) {
+    const [newPassword, setNewPassword] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+    const toaster = useToaster();
 
+    if (!show || !employee) return null;
+
+    const handleReset = async () => {
+      if (newPassword.length < 6) {
+        return toaster("סיסמה חדשה חייבת להכיל לפחות 6 תווים", "danger");
+      }
+      setIsLoading(true);
+      try {
+        const response = await fetch(`${API_BASE_URL}/users/reset-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userIdToReset: employee._id, newPassword }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || "איפוס הסיסמה נכשל");
+        }
+        toaster(data.message, "success");
+        onConfirm(); // סגירת המודאל ורענון
+      } catch (error) {
+        toaster(error.message, "danger");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    return (
+      <ConfirmationModal
+        show={show}
+        onClose={onClose}
+        onConfirm={handleReset}
+        title={`איפוס סיסמה עבור ${employee.name}`}
+        confirmText="אפס סיסמה"
+      >
+        <p>הזן סיסמה חדשה עבור המשתמש. פעולה זו אינה הפיכה.</p>
+        <FormInput
+          label="סיסמה חדשה"
+          type="password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          autoFocus
+        />
+        {isLoading && (
+          <div style={{ marginTop: "1rem" }}>
+            <LoadingSpinner />
+          </div>
+        )}
+      </ConfirmationModal>
+    );
+  }
   return (
     <>
       <div className="page-header">
@@ -2070,7 +2156,96 @@ function Login({ onLogin }) {
     </div>
   );
 }
+// הוסף את הקומפוננטה הזו לפני SettingsPage
+function ChangePasswordForm() {
+  const { currentUser } = useContext(AppContext);
+  const toaster = useToaster();
+  const [passwords, setPasswords] = useState({
+    oldPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [isLoading, setIsLoading] = useState(false);
 
+  const handleChange = (e) => {
+    setPasswords((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (passwords.newPassword !== passwords.confirmPassword) {
+      return toaster("הסיסמאות החדשות אינן תואמות", "danger");
+    }
+    if (passwords.newPassword.length < 6) {
+      return toaster("סיסמה חדשה חייבת להכיל לפחות 6 תווים", "danger");
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/change-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: currentUser._id,
+          oldPassword: passwords.oldPassword,
+          newPassword: passwords.newPassword,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "שינוי הסיסמה נכשל");
+      }
+
+      toaster(data.message, "success");
+      setPasswords({ oldPassword: "", newPassword: "", confirmPassword: "" }); // איפוס הטופס
+    } catch (error) {
+      toaster(error.message, "danger");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <FormInput
+        label="סיסמה נוכחית"
+        type="password"
+        name="oldPassword"
+        value={passwords.oldPassword}
+        onChange={handleChange}
+        required
+      />
+      <FormInput
+        label="סיסמה חדשה"
+        type="password"
+        name="newPassword"
+        value={passwords.newPassword}
+        onChange={handleChange}
+        required
+      />
+      <FormInput
+        label="אימות סיסמה חדשה"
+        type="password"
+        name="confirmPassword"
+        value={passwords.confirmPassword}
+        onChange={handleChange}
+        required
+      />
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-start",
+          marginTop: "1.5rem",
+        }}
+      >
+        <button type="submit" disabled={isLoading}>
+          {isLoading ? <LoadingSpinner /> : "שמור סיסמה חדשה"}
+        </button>
+      </div>
+    </form>
+  );
+}
 function App() {
   const [state, dispatch] = useReducer(appReducer, initialAppState);
   const [currentUser, setCurrentUser] = useLocalStorage("currentUser", null);

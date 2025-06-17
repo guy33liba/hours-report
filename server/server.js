@@ -433,6 +433,77 @@ app.post("/api/auth/login", async (req, res) => {
 });
 // ודא שהתיקייה קיימת
 
+app.post("/api/users/change-password", async (req, res) => {
+  const { userId, oldPassword, newPassword } = req.body; // userId הוא _id
+
+  if (!userId || !oldPassword || !newPassword) {
+    return res.status(400).json({ message: "כל השדות הם חובה" });
+  }
+  if (newPassword.length < 6) {
+    return res
+      .status(400)
+      .json({ message: "סיסמה חדשה חייבת להכיל לפחות 6 תווים" });
+  }
+
+  try {
+    // מצא את המשתמש לפי ה-ID שלו
+    const { rows } = await pool.query(
+      "SELECT * FROM employees WHERE _id = $1",
+      [userId]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "משתמש לא נמצא" });
+    }
+    const user = rows[0];
+
+    // ודא שהסיסמה הישנה נכונה
+    const isMatch = await bcrypt.compare(oldPassword, user.password_hash);
+    if (!isMatch) {
+      return res.status(401).json({ message: "הסיסמה הישנה שגויה" });
+    }
+
+    // אם הכל תקין, הצפן את הסיסמה החדשה
+    const salt = await bcrypt.genSalt(10);
+    const newPasswordHash = await bcrypt.hash(newPassword, salt);
+
+    // עדכן את הסיסמה בבסיס הנתונים
+    await pool.query("UPDATE employees SET password_hash = $1 WHERE _id = $2", [
+      newPasswordHash,
+      userId,
+    ]);
+
+    res.json({ message: "הסיסמה עודכנה בהצלחה" });
+  } catch (err) {
+    console.error("Change password error:", err);
+    res.status(500).json({ message: "שגיאת שרת בעת ניסיון שינוי סיסמה" });
+  }
+});
+app.post("/api/users/reset-password", async (req, res) => {
+  const { userIdToReset, newPassword } = req.body;
+  if (!userIdToReset || !newPassword) {
+    return res.status(400).json({ message: "יש לספק מזהה משתמש וסיסמא חדשה" });
+  }
+  if (newPassword.length < 6) {
+    return res
+      .status(400)
+      .json({ message: "סיסמה חדשה חייבת להכיל לפחות 6 תווים" });
+  }
+  try {
+    const salt = await bcrypt.genSalt(10);
+    const newPasswordHash = await bcrypt.hash(newPassword, salt);
+    const { rows } = await pool.query(
+      "UPDATE employees SET password_hash = $1 WHERE _id = $2 RETURNING _id",
+      [newPasswordHash, userIdToReset]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "העובד לא נמצא" });
+    }
+    res.json({ message: "הסיסמא אופסה בהצלחה" });
+  } catch (error) {
+    console.error("reset password error:", err);
+    res.status(500).json({ message: "שגיאה שרת בעת איפוס סיסמא" });
+  }
+});
 const PORT = 5000;
 app.listen(PORT, () => {
   console.log(`✅ Server is running on port ${PORT}`);

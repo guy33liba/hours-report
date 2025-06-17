@@ -230,6 +230,7 @@ td {
   text-align: right;
   border-bottom: 1px solid var(--border-color);
   vertical-align: middle;
+  font-weight: 500;
 }
 thead th {
   font-weight: 600;
@@ -322,8 +323,14 @@ tbody tr:hover {
   margin-bottom: 1.5rem;
 }
 .filter-controls input,
+input::placeholder,
 .filter-controls select {
+  border-radius: 10px;
   width: 250px;
+  padding: 0.5rem;
+  font-size: 1rem;
+  color: black;
+  font-weight: 600;
 }
 
 .status-dot {

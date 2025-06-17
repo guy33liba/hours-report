@@ -478,30 +478,36 @@ app.post("/api/users/change-password", async (req, res) => {
     res.status(500).json({ message: "שגיאת שרת בעת ניסיון שינוי סיסמה" });
   }
 });
+
 app.post("/api/users/reset-password", async (req, res) => {
-  const { userIdToReset, newPassword } = req.body;
+  const { userIdToReset, newPassword } = req.body; // userIdToReset הוא _id של המשתמש שמאפסים לו
+
   if (!userIdToReset || !newPassword) {
-    return res.status(400).json({ message: "יש לספק מזהה משתמש וסיסמא חדשה" });
+    return res.status(400).json({ message: "יש לספק מזהה משתמש וסיסמה חדשה" });
   }
   if (newPassword.length < 6) {
     return res
       .status(400)
       .json({ message: "סיסמה חדשה חייבת להכיל לפחות 6 תווים" });
   }
+
   try {
     const salt = await bcrypt.genSalt(10);
     const newPasswordHash = await bcrypt.hash(newPassword, salt);
+
     const { rows } = await pool.query(
       "UPDATE employees SET password_hash = $1 WHERE _id = $2 RETURNING _id",
       [newPasswordHash, userIdToReset]
     );
+
     if (rows.length === 0) {
       return res.status(404).json({ message: "העובד לא נמצא" });
     }
-    res.json({ message: "הסיסמא אופסה בהצלחה" });
-  } catch (error) {
-    console.error("reset password error:", err);
-    res.status(500).json({ message: "שגיאה שרת בעת איפוס סיסמא" });
+
+    res.json({ message: "הסיסמה אופסה בהצלחה" });
+  } catch (err) {
+    console.error("Reset password error:", err);
+    res.status(500).json({ message: "שגיאת שרת בעת איפוס הסיסמה" });
   }
 });
 const PORT = 5000;

@@ -48,18 +48,27 @@ const apiFetch = async (endpoint, options = {}) => {
       ...options,
       headers,
     });
+
+    // === שינוי הלוגיקה כאן ===
     if (response.status === 401) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("currentUser");
-      window.location.href = "/";
-      throw new Error("פג תוקף משתמש, יש להתחבר מחדש.");
+      // אם ניסינו להשתמש בטוקן ישן והוא נכשל, רק אז ננקה ונרענן
+      if (token && endpoint !== "/auth/login") {
+        localStorage.removeItem("token");
+        localStorage.removeItem("currentUser");
+        window.location.href = "/";
+        throw new Error("פג תוקף משתמש, יש להתחבר מחדש.");
+      }
+      // אם זה ניסיון לוגין שנכשל, פשוט נזרוק שגיאה רגילה
+      const errorData = await response.json();
+      throw new Error(errorData.message || "שם משתמש או סיסמה שגויים");
     }
+    // ===========================
+
     if (response.status === 204) return null;
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || "אירעה שגיאה בשרת.");
     return data;
   } catch (error) {
-    console.error(`API Fetch Error (${endpoint}):`, error);
     throw error;
   }
 };
@@ -1150,12 +1159,7 @@ function Login({ onLogin }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
-
-  // State לניהול נראות הסיסמה בדף הלוגין
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-
-  const toaster = useToaster();
 
   const handleLoginSubmit = useCallback(
     async (e) => {
@@ -1178,85 +1182,51 @@ function Login({ onLogin }) {
     [name, password, onLogin]
   );
 
-  // פונקציה שמפעילה/מכבה את נראות הסיסמה
   const togglePasswordVisibility = () => {
     setIsPasswordVisible((prev) => !prev);
   };
 
   return (
-    <>
-      <div className="login-page-wrapper">
-        <div className="login-container">
-          <h1>Attend.ly</h1>
-          <p className="subtitle">מערכת ניהול נוכחות עובדים</p>
-          <form className="login-form" onSubmit={handleLoginSubmit}>
-            {error && <div className="login-error-message">{error}</div>}
-            <FormInput
-              label="שם משתמש"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              autoFocus
-            />
-
-            {/* --- התיקון כאן --- */}
-            <FormInput
-              label="סיסמה"
-              type={isPasswordVisible ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              icon={
-                <Icon
-                  path={isPasswordVisible ? ICONS.EYE_CLOSED : ICONS.EYE_OPEN}
-                  size={20}
-                />
-              }
-              // מעבירים את הפונקציה ל-prop הנכון: onIconClick
-              onIconClick={togglePasswordVisibility}
-            />
-
-            <button
-              type="submit"
-              style={{ width: "100%", marginTop: "1rem" }}
-              disabled={isLoading}
-            >
-              {isLoading ? <LoadingSpinner /> : "התחבר"}
-            </button>
-          </form>
-          <div
-            style={{
-              marginTop: "2rem",
-              paddingTop: "1rem",
-              borderTop: "1px solid var(--border-color)",
-            }}
+    <div className="login-page-wrapper">
+      <div className="login-container">
+        <h1>Attend.ly</h1>
+        <p className="subtitle">מערכת ניהול נוכחות עובדים</p>
+        <form className="login-form" onSubmit={handleLoginSubmit}>
+          {error && <div className="login-error-message">{error}</div>}
+          <FormInput
+            label="שם משתמש"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            autoFocus
+          />
+          <FormInput
+            label="סיסמה"
+            type={isPasswordVisible ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            icon={
+              <Icon
+                path={isPasswordVisible ? ICONS.EYE_CLOSED : ICONS.EYE_OPEN}
+                size={20}
+              />
+            }
+            onIconClick={togglePasswordVisibility}
+          />
+          <button
+            type="submit"
+            style={{ width: "100%", marginTop: "1rem" }}
+            disabled={isLoading}
           >
-            <p style={{ color: "var(--text-light)", marginBottom: "0.5rem" }}>
-              אין לך עדיין מנהל במערכת?
-            </p>
-            <button
-              className="secondary"
-              onClick={() => setIsAdminModalOpen(true)}
-            >
-              צור מנהל ראשון
-            </button>
-          </div>
-        </div>
+            {isLoading ? <LoadingSpinner /> : "התחבר"}
+          </button>
+        </form>
       </div>
-
-      <CreateAdminModal
-        show={isAdminModalOpen}
-        onClose={() => setIsAdminModalOpen(false)}
-        onAdminCreated={() => {
-          setIsAdminModalOpen(false);
-          toaster("כעת תוכל להתחבר עם הפרטים שיצרת.", "info");
-        }}
-      />
-    </>
+    </div>
   );
 }
-
 function App() {
   const { currentUser, handleLogout } = useContext(AppContext);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);

@@ -190,9 +190,11 @@ function startServer() {
       );
       if (managerCheck.rows.length > 0) {
         await client.query("ROLLBACK");
-        return res.status(403).json({
-          message: "כבר קיים מנהל במערכת. לא ניתן ליצור מנהל נוסף מדף זה.",
-        });
+        return res
+          .status(403)
+          .json({
+            message: "כבר קיים מנהל במערכת. לא ניתן ליצור מנהל נוסף מדף זה.",
+          });
       }
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash(password, salt);
@@ -217,7 +219,6 @@ function startServer() {
       client.release();
     }
   });
-
   app.post(
     "/api/users/change-password",
     authenticateToken,

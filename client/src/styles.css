@@ -574,3 +574,91 @@ input:checked + .slider:before {
     grid-template-columns: 1fr;
   }
 }
+.input-with-icon > input {
+  padding-left: 2.5rem;
+}
+/* =================================== */
+/* === Modal Form Enhancements === */
+/* =================================== */
+
+.modal-form h3 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-size: 1.5rem;
+  text-align: center;
+}
+
+.modal-form .modal-subtitle {
+  color: var(--text-light);
+  margin-bottom: 2rem;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.modal-form .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.modal-form .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+/* שדה הקלט עצמו */
+.input-with-icon input {
+  /* הוספת ריפוד בצד שמאל כדי שהטקסט לא יסתתר מאחורי האייקון */
+  padding-left: 2.75rem;
+}
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-with-icon input {
+  padding-left: 3rem; /* הגדלתי מעט את הריפוד כדי שיהיה יותר מקום */
+}
+
+.input-icon-button {
+  position: absolute;
+  left: 0.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 2.25rem; /* גובה קבוע לאזור הלחיצה */
+  width: 2.25rem; /* רוחב קבוע לאזור הלחיצה */
+
+  /* איפוס מלא של עיצוב כפתור ברירת מחדל */
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%; /* הוספת עיגול כדי שהאזור יהיה נעים יותר */
+
+  color: var(--text-light);
+
+  /* הוספת transition גם ל-transform כדי שהגידול יהיה חלק */
+  transition: color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+}
+
+/* === דריסת כללי ה-hover הגלובליים ושדרוג === */
+.input-with-icon .input-icon-button:hover,
+.input-with-icon .input-icon-button:focus-visible {
+  color: var(--text-dark);
+  background-color: var(--secondary-bg);
+
+  /* הוספנו !important כדי לוודא שהכלל הזה הוא המנצח המוחלט */
+  transform: translateY(-50%) scale(1.15) !important;
+
+  box-shadow: none;
+  outline: none;
+}

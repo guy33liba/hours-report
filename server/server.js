@@ -127,28 +127,49 @@ function startServer() {
   // --- Auth & User Routes ---
   app.post("/api/auth/login", async (req, res) => {
     const { name, password } = req.body;
-    if (!name || !password)
+    if (!name || !password) {
       return res.status(400).json({ message: "שם משתמש וסיסמה הם שדות חובה" });
+    }
+
     try {
-      const { rows } = await pool.query(
-        'SELECT *, hourly_rate as "hourlyRate" FROM employees WHERE name = $1',
-        [name]
-      );
-      if (rows.length === 0 || !rows[0].password_hash)
+      // שאילתה מעודכנת שמבטיחה שהשמות של העמודות תמיד יהיו נכונים
+      const query = `
+            SELECT 
+                _id, 
+                name, 
+                department, 
+                role, 
+                status, 
+                hourly_rate as "hourlyRate", 
+                password_hash 
+            FROM employees 
+            WHERE name = $1
+        `;
+      const { rows } = await pool.query(query, [name]);
+
+      if (rows.length === 0 || !rows[0].password_hash) {
         return res.status(401).json({ message: "שם משתמש או סיסמה שגויים" });
+      }
+
       const user = rows[0];
       const isMatch = await bcrypt.compare(password, user.password_hash);
-      if (!isMatch)
+
+      if (!isMatch) {
         return res.status(401).json({ message: "שם משתמש או סיסמה שגויים" });
+      }
+
       const payload = { userId: user._id, role: user.role, name: user.name };
       const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "8h" });
+
+      // יצירת אובייקט משתמש נקי להחזרה, ללא הסיסמה המוצפנת
       const { password_hash, ...userWithoutPassword } = user;
+
       res.json({ token, user: userWithoutPassword });
     } catch (err) {
+      console.error("Login error:", err);
       res.status(500).json({ message: "שגיאת שרת" });
     }
   });
-
   // ==========================================================
   // <<< הקוד הועבר לכאן - לתוך הפונקציה startServer >>>
   // ==========================================================
@@ -169,11 +190,9 @@ function startServer() {
       );
       if (managerCheck.rows.length > 0) {
         await client.query("ROLLBACK");
-        return res
-          .status(403)
-          .json({
-            message: "כבר קיים מנהל במערכת. לא ניתן ליצור מנהל נוסף מדף זה.",
-          });
+        return res.status(403).json({
+          message: "כבר קיים מנהל במערכת. לא ניתן ליצור מנהל נוסף מדף זה.",
+        });
       }
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash(password, salt);

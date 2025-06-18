@@ -191,18 +191,19 @@ const Icon = React.memo(({ path, size = 18, className = "" }) => (
 const FormInput = React.memo(({ label, icon, onIconClick, ...props }) => (
   <div className="form-group">
     <label>{label}</label>
+    {/* המבנה הזה הוא הנכון: div אחד שעוטף את שניהם */}
     <div className="input-with-icon">
-      <div>
-        <input {...props} />
+      <input {...props} />
+      {icon && (
         <button
+          type="button"
           className="input-icon-button"
           onClick={onIconClick}
-          aria-label={props.type === "password" ? "הצג סיסמה" : "הסתר סיסמה"}
+          aria-label={props.type === "password" ? "הסתר סיסמה" : "הצג סיסמה"}
         >
-          {" "}
           {icon}
         </button>
-      </div>
+      )}
     </div>
   </div>
 ));
@@ -1049,14 +1050,16 @@ function CreateAdminModal({ show, onClose, onAdminCreated }) {
     department: "הנהלה",
     hourlyRate: "150",
   });
-
   const [isLoading, setIsLoading] = useState(false);
-  const [isPasswordVisible, setisPasswordVisible] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+
   const handleChange = (e) =>
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+
   const togglePasswordVisibility = () => {
-    setisPasswordVisible((prev) => !prev);
+    setIsPasswordVisible((prev) => !prev);
   };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name || !formData.password || formData.password.length < 6) {
@@ -1064,15 +1067,13 @@ function CreateAdminModal({ show, onClose, onAdminCreated }) {
       return;
     }
     setIsLoading(true);
-
     try {
-      // אנחנו צריכים להוסיף את הנתיב הזה לשרת! (נעשה זאת בשלב הבא)
       const newUser = await apiFetch("/auth/create-first-admin", {
         method: "POST",
         body: JSON.stringify(formData),
       });
       toaster(`מנהל "${newUser.name}" נוצר בהצלחה!`, "success");
-      onAdminCreated(); // סוגר את המודאל ומציג הודעה
+      onAdminCreated();
     } catch (error) {
       toaster(error.message, "danger");
     } finally {
@@ -1082,11 +1083,12 @@ function CreateAdminModal({ show, onClose, onAdminCreated }) {
 
   return (
     <Modal show={show} onClose={onClose}>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="modal-form">
         <h3>יצירת מנהל ראשון</h3>
-        <p style={{ color: "var(--text-light)", marginBottom: "1.5rem" }}>
+        <p className="modal-subtitle">
           זוהי פעולה חד פעמית ליצירת המשתמש הראשי במערכת.
         </p>
+
         <FormInput
           label="שם מנהל"
           name="name"
@@ -1095,7 +1097,7 @@ function CreateAdminModal({ show, onClose, onAdminCreated }) {
           required
           autoFocus
         />
-        <FormInput />
+
         <FormInput
           label="סיסמה"
           type={isPasswordVisible ? "text" : "password"}
@@ -1112,7 +1114,9 @@ function CreateAdminModal({ show, onClose, onAdminCreated }) {
           }
           onIconClick={togglePasswordVisibility}
         />
-        <div style={{ display: "flex", gap: "1rem" }}>
+
+        {/* שימוש ב-Grid Layout לסידור השדות בשורה */}
+        <div className="form-grid">
           <FormInput
             label="מחלקה"
             name="department"
@@ -1127,14 +1131,9 @@ function CreateAdminModal({ show, onClose, onAdminCreated }) {
             onChange={handleChange}
           />
         </div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: "1rem",
-            marginTop: "1.5rem",
-          }}
-        >
+
+        {/* אזור הכפתורים עם קלאס ייעודי */}
+        <div className="form-actions">
           <button type="button" className="secondary" onClick={onClose}>
             ביטול
           </button>
@@ -1151,9 +1150,11 @@ function Login({ onLogin }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
-  // State חדש לניהול המודאל
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+
+  // State לניהול נראות הסיסמה בדף הלוגין
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+
   const toaster = useToaster();
 
   const handleLoginSubmit = useCallback(
@@ -1177,6 +1178,11 @@ function Login({ onLogin }) {
     [name, password, onLogin]
   );
 
+  // פונקציה שמפעילה/מכבה את נראות הסיסמה
+  const togglePasswordVisibility = () => {
+    setIsPasswordVisible((prev) => !prev);
+  };
+
   return (
     <>
       <div className="login-page-wrapper">
@@ -1193,13 +1199,24 @@ function Login({ onLogin }) {
               required
               autoFocus
             />
+
+            {/* --- התיקון כאן --- */}
             <FormInput
               label="סיסמה"
-              type="password"
+              type={isPasswordVisible ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              icon={
+                <Icon
+                  path={isPasswordVisible ? ICONS.EYE_CLOSED : ICONS.EYE_OPEN}
+                  size={20}
+                />
+              }
+              // מעבירים את הפונקציה ל-prop הנכון: onIconClick
+              onIconClick={togglePasswordVisibility}
             />
+
             <button
               type="submit"
               style={{ width: "100%", marginTop: "1rem" }}
@@ -1218,7 +1235,6 @@ function Login({ onLogin }) {
             <p style={{ color: "var(--text-light)", marginBottom: "0.5rem" }}>
               אין לך עדיין מנהל במערכת?
             </p>
-            {/* הכפתור החדש שלנו */}
             <button
               className="secondary"
               onClick={() => setIsAdminModalOpen(true)}
@@ -1229,7 +1245,6 @@ function Login({ onLogin }) {
         </div>
       </div>
 
-      {/* המודאל החדש שלנו */}
       <CreateAdminModal
         show={isAdminModalOpen}
         onClose={() => setIsAdminModalOpen(false)}
@@ -1241,7 +1256,7 @@ function Login({ onLogin }) {
     </>
   );
 }
-// 6. MAIN APP & ROOT COMPONENTS
+
 function App() {
   const { currentUser, handleLogout } = useContext(AppContext);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);

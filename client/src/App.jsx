@@ -131,6 +131,10 @@ const useSortableData = (items, config = null) => {
 };
 
 const ICONS = {
+  EYE_OPEN:
+    "M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5zm0 12c-2.48 0-4.5-2.02-4.5-4.5S9.52 7.5 12 7.5s4.5 2.02 4.5 4.5-2.02 4.5-4.5 4.5zm0-7c-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5 2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5z",
+  EYE_CLOSED:
+    "M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.38 1.12 2.5 2.5 2.5.22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.48 0-4.5-2.02-4.5-4.5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.38-1.12-2.5-2.5-2.5-.05 0-.1.01-.16.02z",
   DASHBOARD: "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z",
   EMPLOYEES:
     "M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z",
@@ -181,36 +185,44 @@ const Icon = React.memo(({ path, size = 18, className = "" }) => (
     fill="currentColor"
     className={className}
   >
-    {" "}
-    <path d={path}></path>{" "}
+    <path d={path}></path>
   </svg>
 ));
-const FormInput = React.memo(({ label, ...props }) => (
+const FormInput = React.memo(({ label, icon, onIconClick, ...props }) => (
   <div className="form-group">
-    {" "}
-    <label>{label}</label> <input {...props} />{" "}
+    <label>{label}</label>
+    <div className="input-with-icon">
+      <div>
+        <input {...props} />
+        <button
+          className="input-icon-button"
+          onClick={onIconClick}
+          aria-label={props.type === "password" ? "הצג סיסמה" : "הסתר סיסמה"}
+        >
+          {" "}
+          {icon}
+        </button>
+      </div>
+    </div>
   </div>
 ));
 const FormTextarea = React.memo(({ label, ...props }) => (
   <div className="form-group">
-    {" "}
-    <label>{label}</label> <textarea {...props} />{" "}
+    <label>{label}</label> <textarea {...props} />
   </div>
 ));
 const ToggleSwitch = React.memo(({ label, checked, onChange, name }) => (
   <div className="toggle-switch">
-    {" "}
-    <span>{label}</span>{" "}
+    <span>{label}</span>
     <label className="switch">
-      {" "}
       <input
         type="checkbox"
         name={name}
         checked={checked}
         onChange={onChange}
-      />{" "}
-      <span className="slider"></span>{" "}
-    </label>{" "}
+      />
+      <span className="slider"></span>
+    </label>
   </div>
 ));
 const ToastProvider = ({ children }) => {
@@ -222,10 +234,8 @@ const ToastProvider = ({ children }) => {
   }, []);
   return (
     <ToastContext.Provider value={addToast}>
-      {" "}
-      {children}{" "}
+      {children}
       <div className="toast-container">
-        {" "}
         {toasts.map((t) => (
           <div
             key={t.id}
@@ -239,11 +249,10 @@ const ToastProvider = ({ children }) => {
                   : "var(--text-dark)",
             }}
           >
-            {" "}
-            {t.message}{" "}
+            {t.message}
           </div>
-        ))}{" "}
-      </div>{" "}
+        ))}
+      </div>
     </ToastContext.Provider>
   );
 };
@@ -257,9 +266,8 @@ const SortableHeader = React.memo(
       : "";
     return (
       <th className="sortable" onClick={() => requestSort(name)}>
-        {" "}
-        {children}{" "}
-        <Icon path={ICONS.SORT} className={`sort-icon ${directionClass}`} />{" "}
+        {children}
+        <Icon path={ICONS.SORT} className={`sort-icon ${directionClass}`} />
       </th>
     );
   }
@@ -335,8 +343,7 @@ function EmployeeForm({ initialData, onSave, onCancel }) {
   return (
     <form onSubmit={handleSubmit}>
       <h3 style={{ marginTop: 0, borderBottom: "none" }}>
-        {" "}
-        {initialData ? "עריכת פרטי עובד" : "הוספת עובד חדש"}{" "}
+        {initialData ? "עריכת פרטי עובד" : "הוספת עובד חדש"}
       </h3>
       <p
         style={{
@@ -345,8 +352,7 @@ function EmployeeForm({ initialData, onSave, onCancel }) {
           color: "var(--text-light)",
         }}
       >
-        {" "}
-        מלא את הפרטים הבאים כדי להוסיף או לעדכן עובד במערכת.{" "}
+        מלא את הפרטים הבאים כדי להוסיף או לעדכן עובד במערכת.
       </p>
       <FormInput
         label="שם מלא"
@@ -380,13 +386,11 @@ function EmployeeForm({ initialData, onSave, onCancel }) {
         minLength={6}
       />
       <div className="form-group">
-        {" "}
-        <label>תפקיד</label>{" "}
+        <label>תפקיד</label>
         <select name="role" value={formData.role} onChange={handleChange}>
-          {" "}
-          <option value="employee">עובד</option>{" "}
-          <option value="manager">מנהל</option>{" "}
-        </select>{" "}
+          <option value="employee">עובד</option>
+          <option value="manager">מנהל</option>
+        </select>
       </div>
       <div
         style={{
@@ -396,12 +400,10 @@ function EmployeeForm({ initialData, onSave, onCancel }) {
           marginTop: "24px",
         }}
       >
-        {" "}
         <button type="button" className="secondary" onClick={onCancel}>
-          {" "}
-          ביטול{" "}
-        </button>{" "}
-        <button type="submit">שמור</button>{" "}
+          ביטול
+        </button>
+        <button type="submit">שמור</button>
       </div>
     </form>
   );
@@ -447,7 +449,6 @@ function ChangePasswordForm() {
   );
   return (
     <form onSubmit={handleSubmit}>
-      {" "}
       <FormInput
         label="סיסמה נוכחית"
         type="password"
@@ -455,7 +456,7 @@ function ChangePasswordForm() {
         value={passwords.oldPassword}
         onChange={handleChange}
         required
-      />{" "}
+      />
       <FormInput
         label="סיסמה חדשה"
         type="password"
@@ -464,7 +465,7 @@ function ChangePasswordForm() {
         onChange={handleChange}
         required
         minLength={6}
-      />{" "}
+      />
       <FormInput
         label="אימות סיסמה חדשה"
         type="password"
@@ -473,7 +474,7 @@ function ChangePasswordForm() {
         onChange={handleChange}
         required
         minLength={6}
-      />{" "}
+      />
       <div
         style={{
           display: "flex",
@@ -481,12 +482,10 @@ function ChangePasswordForm() {
           marginTop: "1.5rem",
         }}
       >
-        {" "}
         <button type="submit" disabled={isLoading}>
-          {" "}
-          {isLoading ? <LoadingSpinner /> : "שמור סיסמה חדשה"}{" "}
-        </button>{" "}
-      </div>{" "}
+          {isLoading ? <LoadingSpinner /> : "שמור סיסמה חדשה"}
+        </button>
+      </div>
     </form>
   );
 }
@@ -571,7 +570,6 @@ function EmployeeRow({ employee, attendanceRecord, onStatusUpdate }) {
         borderBottom: "1px solid var(--border-color)",
       }}
     >
-      {" "}
       <div
         style={{
           justifySelf: "start",
@@ -580,14 +578,12 @@ function EmployeeRow({ employee, attendanceRecord, onStatusUpdate }) {
           gap: "1rem",
         }}
       >
-        {" "}
         <div>
-          {" "}
-          <div style={{ fontWeight: 500 }}>{employee.name}</div>{" "}
+          <div style={{ fontWeight: 500 }}>{employee.name}</div>
           <div style={{ fontSize: "0.875rem", color: "var(--text-light)" }}>
             {employee.department}
-          </div>{" "}
-        </div>{" "}
+          </div>
+        </div>
         {isPresent && (
           <div
             style={{
@@ -596,13 +592,11 @@ function EmployeeRow({ employee, attendanceRecord, onStatusUpdate }) {
               fontSize: "1.125rem",
             }}
           >
-            {" "}
-            {formatTime(elapsedTime)}{" "}
+            {formatTime(elapsedTime)}
           </div>
-        )}{" "}
-      </div>{" "}
+        )}
+      </div>
       <div style={{ justifySelf: "center" }}>
-        {" "}
         <div
           style={{
             display: "inline-flex",
@@ -610,94 +604,24 @@ function EmployeeRow({ employee, attendanceRecord, onStatusUpdate }) {
             gap: "0.5rem",
           }}
         >
-          {" "}
-          <div className={`status-dot ${statusObject.colorClass}`}></div>{" "}
-          <span>{statusObject.text}</span>{" "}
-        </div>{" "}
-      </div>{" "}
+          <div className={`status-dot ${statusObject.colorClass}`}></div>
+          <span>{statusObject.text}</span>
+        </div>
+      </div>
       <div style={{ justifySelf: "end", display: "flex", gap: "0.5rem" }}>
-        {" "}
         <button
           onClick={() => handleClockAction("clock-in")}
           disabled={isPresent || isLoading}
         >
-          {" "}
-          כניסה{" "}
-        </button>{" "}
+          כניסה
+        </button>
         <button
           onClick={() => handleClockAction("clock-out")}
           disabled={!isPresent || isLoading}
         >
-          {" "}
-          יציאה{" "}
-        </button>{" "}
-      </div>{" "}
-    </div>
-  );
-}
-
-// 5. PAGE COMPONENTS
-function Login({ onLogin }) {
-  const [name, setName] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleLoginSubmit = useCallback(
-    async (e) => {
-      e.preventDefault();
-      setError("");
-      setIsLoading(true);
-      try {
-        const data = await apiFetch("/auth/login", {
-          method: "POST",
-          body: JSON.stringify({ name, password }),
-        });
-        localStorage.setItem("token", data.token);
-        onLogin(data.user);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [name, password, onLogin]
-  );
-
-  return (
-    <div className="login-page-wrapper">
-      {" "}
-      <div className="login-container">
-        {" "}
-        <h1>Attend.ly</h1> <p className="subtitle">מערכת ניהול נוכחות עובדים</p>{" "}
-        <form className="login-form" onSubmit={handleLoginSubmit}>
-          {" "}
-          {error && <div className="login-error-message">{error}</div>}{" "}
-          <FormInput
-            label="שם משתמש"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            autoFocus
-          />{" "}
-          <FormInput
-            label="סיסמה"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />{" "}
-          <button
-            type="submit"
-            style={{ width: "100%", marginTop: "1rem" }}
-            disabled={isLoading}
-          >
-            {" "}
-            {isLoading ? <LoadingSpinner /> : "התחבר"}{" "}
-          </button>{" "}
-        </form>{" "}
-      </div>{" "}
+          יציאה
+        </button>
+      </div>
     </div>
   );
 }
@@ -747,8 +671,7 @@ function Dashboard() {
   return (
     <>
       <div className="page-header">
-        {" "}
-        <h2>סקירה כללית</h2>{" "}
+        <h2>סקירה כללית</h2>
       </div>
       <div className="card">
         <h3>נוכחות בזמן אמת</h3>
@@ -949,93 +872,81 @@ function EmployeeList() {
   return (
     <>
       <div className="page-header">
-        {" "}
-        <h2>ניהול עובדים</h2>{" "}
+        <h2>ניהול עובדים</h2>
         <div className="page-actions">
-          {" "}
           <button onClick={() => setIsEditModalOpen(true)}>
             הוסף עובד חדש
-          </button>{" "}
-        </div>{" "}
+          </button>
+        </div>
       </div>
       <div className="filter-controls">
-        {" "}
         <FormInput
           type="text"
           placeholder="חיפוש לפי שם..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-        />{" "}
+        />
         <div className="form-group">
-          {" "}
           <select
             value={departmentFilter}
             onChange={(e) => setDepartmentFilter(e.target.value)}
           >
-            {" "}
-            <option value="">כל המחלקות</option>{" "}
+            <option value="">כל המחלקות</option>
             {uniqueDepartments.map((dep) => (
               <option key={dep} value={dep}>
-                {" "}
-                {dep}{" "}
+                {dep}
               </option>
-            ))}{" "}
-          </select>{" "}
-        </div>{" "}
+            ))}
+          </select>
+        </div>
       </div>
       <div className="card">
         <div className="table-container">
           <table>
             <thead>
-              {" "}
               <tr>
-                {" "}
                 <SortableHeader
                   name="name"
                   sortConfig={sortConfig}
                   requestSort={requestSort}
                 >
                   שם
-                </SortableHeader>{" "}
+                </SortableHeader>
                 <SortableHeader
                   name="department"
                   sortConfig={sortConfig}
                   requestSort={requestSort}
                 >
                   מחלקה
-                </SortableHeader>{" "}
+                </SortableHeader>
                 <SortableHeader
                   name="hourlyRate"
                   sortConfig={sortConfig}
                   requestSort={requestSort}
                 >
                   תעריף
-                </SortableHeader>{" "}
-                <th>סטטוס נוכחי</th> <th>פעולות</th>{" "}
-              </tr>{" "}
+                </SortableHeader>
+                <th>סטטוס נוכחי</th> <th>פעולות</th>
+              </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  {" "}
                   <td
                     colSpan="5"
                     style={{ textAlign: "center", padding: "40px" }}
                   >
-                    {" "}
-                    <LoadingSpinner />{" "}
-                  </td>{" "}
+                    <LoadingSpinner />
+                  </td>
                 </tr>
               ) : sortedEmployees.length === 0 ? (
                 <tr>
-                  {" "}
                   <td
                     colSpan="5"
                     style={{ textAlign: "center", padding: "20px" }}
                   >
-                    {" "}
-                    לא נמצאו עובדים.{" "}
-                  </td>{" "}
+                    לא נמצאו עובדים.
+                  </td>
                 </tr>
               ) : (
                 sortedEmployees.map((emp) => {
@@ -1044,11 +955,9 @@ function EmployeeList() {
                     STATUSES.ABSENT;
                   return (
                     <tr key={emp._id}>
-                      {" "}
-                      <td>{emp.name}</td> <td>{emp.department}</td>{" "}
-                      <td>₪{emp.hourlyRate}/שעה</td>{" "}
+                      <td>{emp.name}</td> <td>{emp.department}</td>
+                      <td>₪{emp.hourlyRate}/שעה</td>
                       <td>
-                        {" "}
                         <div
                           style={{
                             display: "flex",
@@ -1056,13 +965,12 @@ function EmployeeList() {
                             gap: "0.5rem",
                           }}
                         >
-                          {" "}
                           <div
                             className={`status-dot ${statusObject.colorClass}`}
-                          ></div>{" "}
-                          <span>{statusObject.text}</span>{" "}
-                        </div>{" "}
-                      </td>{" "}
+                          ></div>
+                          <span>{statusObject.text}</span>
+                        </div>
+                      </td>
                       <td
                         style={{
                           display: "flex",
@@ -1070,7 +978,6 @@ function EmployeeList() {
                           gap: "0.5rem",
                         }}
                       >
-                        {" "}
                         <button
                           className="secondary"
                           onClick={() => {
@@ -1079,7 +986,7 @@ function EmployeeList() {
                           }}
                         >
                           ערוך
-                        </button>{" "}
+                        </button>
                         <button
                           className="secondary"
                           onClick={() => {
@@ -1088,7 +995,7 @@ function EmployeeList() {
                           }}
                         >
                           פירוט
-                        </button>{" "}
+                        </button>
                         <button
                           className="secondary"
                           onClick={() => {
@@ -1097,13 +1004,13 @@ function EmployeeList() {
                           }}
                         >
                           איפוס סיסמה
-                        </button>{" "}
+                        </button>
                         <button
                           className="secondary"
                           onClick={() => handleOpenAbsenceModal(emp)}
                         >
                           היעדרויות
-                        </button>{" "}
+                        </button>
                         <button
                           className="danger secondary"
                           onClick={() => {
@@ -1112,8 +1019,8 @@ function EmployeeList() {
                           }}
                         >
                           מחק
-                        </button>{" "}
-                      </td>{" "}
+                        </button>
+                      </td>
                     </tr>
                   );
                 })
@@ -1123,12 +1030,11 @@ function EmployeeList() {
         </div>
       </div>
       <Modal show={isEditModalOpen} onClose={closeModal}>
-        {" "}
         <EmployeeForm
           initialData={selectedEmployee}
           onSave={handleSaveEmployee}
           onCancel={closeModal}
-        />{" "}
+        />
       </Modal>
       {/* Implement other modals here... */}
     </>
@@ -1143,11 +1049,14 @@ function CreateAdminModal({ show, onClose, onAdminCreated }) {
     department: "הנהלה",
     hourlyRate: "150",
   });
-  const [isLoading, setIsLoading] = useState(false);
 
+  const [isLoading, setIsLoading] = useState(false);
+  const [isPasswordVisible, setisPasswordVisible] = useState(false);
   const handleChange = (e) =>
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-
+  const togglePasswordVisibility = () => {
+    setisPasswordVisible((prev) => !prev);
+  };
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name || !formData.password || formData.password.length < 6) {
@@ -1155,6 +1064,7 @@ function CreateAdminModal({ show, onClose, onAdminCreated }) {
       return;
     }
     setIsLoading(true);
+
     try {
       // אנחנו צריכים להוסיף את הנתיב הזה לשרת! (נעשה זאת בשלב הבא)
       const newUser = await apiFetch("/auth/create-first-admin", {
@@ -1185,14 +1095,22 @@ function CreateAdminModal({ show, onClose, onAdminCreated }) {
           required
           autoFocus
         />
+        <FormInput />
         <FormInput
           label="סיסמה"
-          type="password"
+          type={isPasswordVisible ? "text" : "password"}
           name="password"
           value={formData.password}
           onChange={handleChange}
           required
           minLength={6}
+          icon={
+            <Icon
+              path={isPasswordVisible ? ICONS.EYE_CLOSED : ICONS.EYE_OPEN}
+              size={20}
+            />
+          }
+          onIconClick={togglePasswordVisibility}
         />
         <div style={{ display: "flex", gap: "1rem" }}>
           <FormInput
@@ -1350,8 +1268,7 @@ function App() {
 
       <aside className={`sidebar ${isSidebarOpen ? "is-open" : ""}`}>
         <div className="sidebar-header">
-          {" "}
-          <h1>Attend.ly</h1>{" "}
+          <h1>Attend.ly</h1>
         </div>
         <nav>
           <NavLink to="/">
@@ -1376,8 +1293,7 @@ function App() {
             className="secondary"
             style={{ width: "100%" }}
           >
-            {" "}
-            התנתקות{" "}
+            התנתקות
           </button>
         </div>
       </aside>

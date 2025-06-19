@@ -19,7 +19,7 @@ const pool = new Pool({
   port: process.env.DB_PORT || 5432,
 });
 
-// --- פונקציית סקריפט ליצירת מנהל ---
+// --- פונקציית סקריפט ליצירת מנהל (לשימוש ידני) ---
 async function createAdmin() {
   console.log("--- יצירת משתמש מנהל חדש ---");
   const name = readline.question("הזן את שם המנהל (למשל, עמי): ");
@@ -38,7 +38,6 @@ async function createAdmin() {
     readline.question("הזן מחלקה (ברירת מחדל: הנהלה): ") || "הנהלה";
   const hourlyRate =
     readline.question("הזן תעריף שעתי (ברירת מחדל: 150): ") || 150.0;
-
   try {
     const client = await pool.connect();
     console.log("מחובר לבסיס הנתונים...");
@@ -62,7 +61,6 @@ async function createAdmin() {
     console.log(`מנהל חדש נוצר עם הפרטים הבאים:`);
     console.log(`   - שם: ${result.rows[0].name}`);
     console.log(`   - תפקיד: ${result.rows[0].role}`);
-    console.log(`   - סיסמה: (הסיסמה שהזנת)`);
     client.release();
   } catch (error) {
     console.error("\n❌ שגיאה בתהליך יצירת המנהל:", error.message);
@@ -73,6 +71,32 @@ async function createAdmin() {
 
 // --- פונקציית הפעלת השרת ---
 function startServer() {
+  const createDefaultAdmin = async () => {
+    const adminName = "עמי";
+    const adminPassword = "123456";
+    try {
+      const client = await pool.connect();
+      const existingAdmin = await client.query(
+        "SELECT * FROM employees WHERE name = $1",
+        [adminName]
+      );
+      if (existingAdmin.rows.length === 0) {
+        console.log("מנהל ברירת מחדל לא קיים, יוצר אחד חדש...");
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(adminPassword, salt);
+        await client.query(
+          "INSERT INTO employees (name, department, hourly_rate, role, password_hash) VALUES ($1, 'הנהלה', 150, 'manager', $2)",
+          [adminName, passwordHash]
+        );
+        console.log(`✅ מנהל ברירת מחדל '${adminName}' נוצר בהצלחה!`);
+      }
+      client.release();
+    } catch (error) {
+      console.error("❌ שגיאה ביצירת מנהל ברירת מחדל:", error);
+    }
+  };
+  createDefaultAdmin();
+
   pool.query("SELECT NOW()", (err) => {
     if (err) {
       console.error("❌ Database connection error", err.stack);
@@ -98,23 +122,21 @@ function startServer() {
   const upload = multer({ storage: storage });
 
   app.set("trust proxy", true);
-  app.use(cors({ origin: "*" }));
+  app.use(cors({ origin: "http://localhost:5173" })); // שנה לפורט שלך אם הוא שונה
   app.use(express.json());
   app.use("/uploads", express.static(uploadsDir));
 
-  // --- Middleware לאימות טוקן ---
+  // --- Middleware ---
   const authenticateToken = (req, res, next) => {
     const authHeader = req.headers["authorization"];
     const token = authHeader && authHeader.split(" ")[1];
     if (token == null) return res.sendStatus(401);
-
     jwt.verify(token, JWT_SECRET, (err, user) => {
       if (err) return res.sendStatus(403);
       req.user = user;
       next();
     });
   };
-
   const authorizeManager = (req, res, next) => {
     if (req.user.role !== "manager") {
       return res
@@ -126,99 +148,74 @@ function startServer() {
 
   // --- Auth & User Routes ---
   app.post("/api/auth/login", async (req, res) => {
-    const { name, password } = req.body;
-    if (!name || !password) {
-      return res.status(400).json({ message: "שם משתמש וסיסמה הם שדות חובה" });
+    const { rows: managerCheck } = await pool.query(
+      "SELECT COUNT(*) FROM employees WHERE role = 'manager'"
+    );
+    if (parseInt(managerCheck[0].count, 10) === 0) {
+      return res.status(401).json({
+        message: "לא קיימים מנהלים במערכת. יש ליצור מנהל ראשון.",
+      });
     }
-
+    const { name, password } = req.body;
+    if (!name || !password)
+      return res.status(400).json({ message: "שם משתמש וסיסמה הם שדות חובה" });
     try {
-      // שאילתה מעודכנת שמבטיחה שהשמות של העמודות תמיד יהיו נכונים
-      const query = `
-            SELECT 
-                _id, 
-                name, 
-                department, 
-                role, 
-                status, 
-                hourly_rate as "hourlyRate", 
-                password_hash 
-            FROM employees 
-            WHERE name = $1
-        `;
+      const query = `SELECT _id, name, department, role, status, hourly_rate as "hourlyRate", password_hash FROM employees WHERE name = $1`;
       const { rows } = await pool.query(query, [name]);
-
-      if (rows.length === 0 || !rows[0].password_hash) {
+      if (rows.length === 0 || !rows[0].password_hash)
         return res.status(401).json({ message: "שם משתמש או סיסמה שגויים" });
-      }
-
       const user = rows[0];
       const isMatch = await bcrypt.compare(password, user.password_hash);
-
-      if (!isMatch) {
+      if (!isMatch)
         return res.status(401).json({ message: "שם משתמש או סיסמה שגויים" });
-      }
-
       const payload = { userId: user._id, role: user.role, name: user.name };
       const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "8h" });
-
-      // יצירת אובייקט משתמש נקי להחזרה, ללא הסיסמה המוצפנת
       const { password_hash, ...userWithoutPassword } = user;
-
       res.json({ token, user: userWithoutPassword });
     } catch (err) {
       console.error("Login error:", err);
       res.status(500).json({ message: "שגיאת שרת" });
     }
   });
-  // ==========================================================
-  // <<< הקוד הועבר לכאן - לתוך הפונקציה startServer >>>
-  // ==========================================================
+
   app.post("/api/auth/create-first-admin", async (req, res) => {
-    const { name, password, department, hourlyRate } = req.body;
-
-    if (!name || !password || password.length < 6) {
-      return res
-        .status(400)
-        .json({ message: "שם וסיסמה (לפחות 6 תווים) הם שדות חובה." });
-    }
-
-    const client = await pool.connect();
     try {
-      await client.query("BEGIN");
-      const managerCheck = await client.query(
-        "SELECT _id FROM employees WHERE role = 'manager'"
+      // שלב 1: בדוק אם כבר קיים מנהל במערכת
+      const { rows: managerRows } = await pool.query(
+        "SELECT COUNT(*) as count FROM employees WHERE role = 'manager'"
       );
-      if (managerCheck.rows.length > 0) {
-        await client.query("ROLLBACK");
-        return res
-          .status(403)
-          .json({
-            message: "כבר קיים מנהל במערכת. לא ניתן ליצור מנהל נוסף מדף זה.",
-          });
+      if (parseInt(managerRows[0].count, 10) > 0) {
+        return res.status(403).json({
+          message:
+            "ניתן ליצור מנהל ראשון רק כאשר לא קיימים מנהלים אחרים במערכת.",
+        });
       }
+
+      // שלב 2: קח את הנתונים מגוף הבקשה
+      const { name, password, department, hourlyRate } = req.body;
+      if (!name || !password || password.length < 6) {
+        return res
+          .status(400)
+          .json({ message: "שם וסיסמה (6+ תווים) הם שדות חובה." });
+      }
+
+      // שלב 3: הצפן את הסיסמה והוסף את המנהל לבסיס הנתונים
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash(password, salt);
-      const query = `INSERT INTO employees (name, department, hourly_rate, role, password_hash) VALUES ($1, $2, $3, 'manager', $4) RETURNING *, hourly_rate as "hourlyRate"`;
-      const values = [
-        name,
-        department || "הנהלה",
-        parseFloat(hourlyRate) || 150,
-        passwordHash,
-      ];
-      const { rows } = await client.query(query, values);
-      await client.query("COMMIT");
+      const { rows } = await pool.query(
+        `INSERT INTO employees (name, department, hourly_rate, role, password_hash) VALUES ($1, $2, $3, 'manager', $4) RETURNING *, hourly_rate as "hourlyRate"`,
+        [name, department || "הנהלה", hourlyRate || 150.0, passwordHash]
+      );
+
+      // שלב 4: החזר את המשתמש החדש (ללא הסיסמה)
       const { password_hash, ...newUser } = rows[0];
       res.status(201).json(newUser);
-    } catch (err) {
-      await client.query("ROLLBACK");
-      console.error("Error creating first admin:", err);
-      res
-        .status(500)
-        .json({ message: "שגיאה ביצירת המנהל. ייתכן שהשם כבר קיים." });
-    } finally {
-      client.release();
+    } catch (error) {
+      console.error("Error creating first admin:", error);
+      res.status(500).json({ message: "שגיאה ביצירת המנהל הראשון." });
     }
   });
+
   app.post(
     "/api/users/change-password",
     authenticateToken,
@@ -257,11 +254,300 @@ function startServer() {
     authenticateToken,
     authorizeManager,
     async (req, res) => {
-      // ... all other routes ...
+      const { userIdToReset, newPassword } = req.body;
+      if (!userIdToReset || !newPassword || newPassword.length < 6)
+        return res.status(400).json({ message: "קלט לא תקין" });
+      try {
+        const salt = await bcrypt.genSalt(10);
+        const newPasswordHash = await bcrypt.hash(newPassword, salt);
+        const { rows } = await pool.query(
+          "UPDATE employees SET password_hash = $1 WHERE _id = $2 RETURNING _id",
+          [newPasswordHash, userIdToReset]
+        );
+        if (rows.length === 0)
+          return res.status(404).json({ message: "העובד לא נמצא" });
+        res.json({ message: "הסיסמה אופסה בהצלחה" });
+      } catch (err) {
+        res.status(500).json({ message: "שגיאת שרת" });
+      }
     }
   );
 
-  // ... כאן מופיעות שאר הפונקציות שלך, ללא שינוי ...
+  // --- Employee Routes ---
+  app.get(
+    "/api/employees",
+    authenticateToken,
+    authorizeManager,
+    async (req, res) => {
+      try {
+        const { rows } = await pool.query(
+          `SELECT _id, name, department, role, status, hourly_rate as "hourlyRate" FROM employees ORDER BY name ASC`
+        );
+        res.json(rows);
+      } catch (err) {
+        res.status(500).json({ message: "Server error" });
+      }
+    }
+  );
+
+  app.post(
+    "/api/employees",
+    authenticateToken,
+    authorizeManager,
+    async (req, res) => {
+      const { name, department, hourlyRate, role, password } = req.body;
+      if (
+        !name ||
+        !department ||
+        !hourlyRate ||
+        !password ||
+        password.length < 6
+      ) {
+        return res
+          .status(400)
+          .json({ message: "כל השדות, כולל סיסמה (לפחות 6 תווים), הם חובה" });
+      }
+      try {
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(password, salt);
+        const { rows } = await pool.query(
+          `INSERT INTO employees (name, department, hourly_rate, role, password_hash) VALUES ($1, $2, $3, $4, $5) RETURNING *, hourly_rate as "hourlyRate"`,
+          [name, department, hourlyRate, role || "employee", passwordHash]
+        );
+        const { password_hash, ...newUser } = rows[0];
+        res.status(201).json(newUser);
+      } catch (err) {
+        res
+          .status(500)
+          .json({ message: "שגיאה בהוספת עובד. ייתכן שהשם כבר קיים." });
+      }
+    }
+  );
+
+  app.put(
+    "/api/employees/:id",
+    authenticateToken,
+    authorizeManager,
+    async (req, res) => {
+      const { id } = req.params;
+      const { name, department, hourlyRate, role } = req.body;
+      try {
+        const { rows } = await pool.query(
+          `UPDATE employees SET name = $1, department = $2, hourly_rate = $3, role = $4 WHERE _id = $5 RETURNING *, hourly_rate as "hourlyRate"`,
+          [name, department, hourlyRate, role, id]
+        );
+        if (rows.length === 0)
+          return res.status(404).json({ message: "Employee not found" });
+        const { password_hash, ...user } = rows[0];
+        res.json(user);
+      } catch (err) {
+        res.status(500).json({ message: "Server error" });
+      }
+    }
+  );
+
+  app.delete(
+    "/api/employees/:id",
+    authenticateToken,
+    authorizeManager,
+    async (req, res) => {
+      const { id } = req.params;
+      try {
+        const result = await pool.query(
+          "DELETE FROM employees WHERE _id = $1",
+          [id]
+        );
+        if (result.rowCount === 0)
+          return res.status(404).json({ message: "Employee not found" });
+        res.status(204).send();
+      } catch (err) {
+        res.status(500).json({ message: "Server error" });
+      }
+    }
+  );
+
+  // --- Attendance Routes ---
+  app.post("/api/attendance/clock-in", authenticateToken, async (req, res) => {
+    const { employeeId } = req.body;
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const empRes = await client.query(
+        "SELECT id FROM employees WHERE _id = $1",
+        [employeeId]
+      );
+      if (empRes.rows.length === 0) throw new Error("Employee not found");
+      const internalEmployeeId = empRes.rows[0].id;
+      const existing = await client.query(
+        "SELECT * FROM attendance WHERE employee_id = $1 AND clock_out IS NULL",
+        [internalEmployeeId]
+      );
+      if (existing.rows.length > 0)
+        return res.status(400).json({ message: "העובד כבר החתים כניסה" });
+      await client.query(
+        "INSERT INTO attendance (employee_id, clock_in) VALUES ($1, NOW())",
+        [internalEmployeeId]
+      );
+      const { rows } = await client.query(
+        `UPDATE employees SET status = 'present' WHERE id = $1 RETURNING *, hourly_rate as "hourlyRate"`,
+        [internalEmployeeId]
+      );
+      await client.query("COMMIT");
+      const { password_hash, ...user } = rows[0];
+      res.json(user);
+    } catch (err) {
+      await client.query("ROLLBACK");
+      res.status(500).json({ message: err.message || "Server error" });
+    } finally {
+      client.release();
+    }
+  });
+
+  app.post("/api/attendance/clock-out", authenticateToken, async (req, res) => {
+    const { employeeId } = req.body;
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const empRes = await client.query(
+        "SELECT id FROM employees WHERE _id = $1",
+        [employeeId]
+      );
+      if (empRes.rows.length === 0) throw new Error("Employee not found");
+      const internalEmployeeId = empRes.rows[0].id;
+      const attendanceRes = await client.query(
+        "UPDATE attendance SET clock_out = NOW() WHERE id = (SELECT id FROM attendance WHERE employee_id = $1 AND clock_out IS NULL ORDER BY clock_in DESC LIMIT 1) RETURNING id",
+        [internalEmployeeId]
+      );
+      if (attendanceRes.rows.length === 0)
+        return res.status(400).json({ message: "לא נמצאה החתמת כניסה פתוחה" });
+      const { rows } = await client.query(
+        `UPDATE employees SET status = 'absent' WHERE id = $1 RETURNING *, hourly_rate as "hourlyRate"`,
+        [internalEmployeeId]
+      );
+      await client.query("COMMIT");
+      const { password_hash, ...user } = rows[0];
+      res.json(user);
+    } catch (err) {
+      await client.query("ROLLBACK");
+      res.status(500).json({ message: err.message || "Server error" });
+    } finally {
+      client.release();
+    }
+  });
+
+  app.get("/api/attendance/today/open", authenticateToken, async (req, res) => {
+    try {
+      const { rows } = await pool.query(
+        `SELECT a._id, a.clock_in as "clockIn", e._id as employee FROM attendance a JOIN employees e ON a.employee_id = e.id WHERE a.clock_out IS NULL AND a.clock_in >= CURRENT_DATE`
+      );
+      res.json(rows);
+    } catch (err) {
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  app.get(
+    "/api/attendance/employee/:employeeId/:yearMonth",
+    authenticateToken,
+    async (req, res) => {
+      const { employeeId, yearMonth } = req.params;
+      const [year, month] = yearMonth.split("-");
+      try {
+        const empRes = await pool.query(
+          "SELECT id FROM employees WHERE _id = $1",
+          [employeeId]
+        );
+        if (empRes.rows.length === 0)
+          return res.status(404).json({ message: "Employee not found" });
+        const internalEmployeeId = empRes.rows[0].id;
+        const { rows } = await pool.query(
+          `SELECT id, clock_in as "clockIn", clock_out as "clockOut", CASE WHEN clock_out IS NOT NULL THEN EXTRACT(EPOCH FROM (clock_out - clock_in)) / 3600 ELSE NULL END as "durationHours" FROM attendance WHERE employee_id = $1 AND EXTRACT(YEAR FROM clock_in) = $2 AND EXTRACT(MONTH FROM clock_in) = $3 ORDER BY clock_in DESC`,
+          [internalEmployeeId, year, month]
+        );
+        res.json(rows);
+      } catch (err) {
+        res.status(500).json({ message: "Server error" });
+      }
+    }
+  );
+
+  // --- Absence Routes ---
+  app.post(
+    "/api/absences",
+    authenticateToken,
+    upload.single("attachment"),
+    async (req, res) => {
+      const { employeeId, type, startDate, endDate } = req.body;
+      const attachmentPath = req.file ? req.file.path : null;
+      try {
+        const empRes = await pool.query(
+          "SELECT id FROM employees WHERE _id = $1",
+          [employeeId]
+        );
+        if (empRes.rows.length === 0)
+          return res.status(404).json({ message: "Employee not found" });
+        const internalEmployeeId = empRes.rows[0].id;
+        const { rows } = await pool.query(
+          'INSERT INTO scheduled_absences (employee_id, absence_type, start_date, end_date, attachment_path) VALUES ($1, $2, $3, $4, $5) RETURNING _id, start_date as "startDate", end_date as "endDate", absence_type as "type", attachment_path as "attachmentPath"',
+          [internalEmployeeId, type, startDate, endDate, attachmentPath]
+        );
+        res.status(201).json(rows[0]);
+      } catch (err) {
+        res.status(500).json({ message: "Server error" });
+      }
+    }
+  );
+  app.get(
+    "/api/absences/employee/:employeeId",
+    authenticateToken,
+    async (req, res) => {
+      const { employeeId } = req.params;
+      try {
+        // --- תיקון השאילתה ---
+        // הבעיה המקורית הייתה כנראה בשימוש ב-e.id במקום ב-e._id ב-JOIN.
+        // השאילתה הבאה היא יותר יציבה.
+        const query = `
+            SELECT 
+                sa._id, 
+                sa.start_date as "startDate", 
+                sa.end_date as "endDate", 
+                sa.absence_type as "type", 
+                sa.attachment_path as "attachmentPath" 
+            FROM scheduled_absences sa 
+            JOIN employees e ON sa.employee_id = e.id 
+            WHERE e._id = $1 
+            ORDER BY sa.start_date DESC
+        `;
+        const { rows } = await pool.query(query, [employeeId]);
+        res.json(rows);
+      } catch (err) {
+        // הדפסת השגיאה המדויקת לטרמינל של השרת
+        console.error("Error fetching absences for employee:", err);
+        res
+          .status(500)
+          .json({ message: "Server error while fetching absences" });
+      }
+    }
+  );
+  app.delete(
+    "/api/absences/:id",
+    authenticateToken,
+    authorizeManager,
+    async (req, res) => {
+      const { id } = req.params;
+      try {
+        const result = await pool.query(
+          "DELETE FROM scheduled_absences WHERE _id = $1",
+          [id]
+        );
+        if (result.rowCount === 0)
+          return res.status(404).json({ message: "Absence not found" });
+        res.status(204).send();
+      } catch (err) {
+        res.status(500).json({ message: "Server error" });
+      }
+    }
+  );
 
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {

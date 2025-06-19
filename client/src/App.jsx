@@ -25,7 +25,6 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import { Bar } from "react-chartjs-2";
 import "./styles.css";
 
 // 1. API SERVICE
@@ -49,20 +48,18 @@ const apiFetch = async (endpoint, options = {}) => {
       headers,
     });
 
-    // === שינוי הלוגיקה כאן ===
     if (response.status === 401) {
-      // אם ניסינו להשתמש בטוקן ישן והוא נכשל, רק אז ננקה ונרענן
+      // If we used an old token and it failed, then we clear and refresh.
       if (token && endpoint !== "/auth/login") {
         localStorage.removeItem("token");
         localStorage.removeItem("currentUser");
         window.location.href = "/";
         throw new Error("פג תוקף משתמש, יש להתחבר מחדש.");
       }
-      // אם זה ניסיון לוגין שנכשל, פשוט נזרוק שגיאה רגילה
+      // If it was a failed login attempt, just throw a regular error.
       const errorData = await response.json();
       throw new Error(errorData.message || "שם משתמש או סיסמה שגויים");
     }
-    // ===========================
 
     if (response.status === 204) return null;
     const data = await response.json();
@@ -197,36 +194,48 @@ const Icon = React.memo(({ path, size = 18, className = "" }) => (
     <path d={path}></path>
   </svg>
 ));
-const FormInput = React.memo(({ label, icon, onIconClick, ...props }) => (
-  <div className="form-group">
-    <label>{label}</label>
-    {/* המבנה הזה הוא הנכון: div אחד שעוטף את שניהם */}
-    <div className="input-with-icon">
-      <input {...props} />
-      {icon && (
-        <button
-          type="button"
-          className="input-icon-button"
-          onClick={onIconClick}
-          aria-label={props.type === "password" ? "הסתר סיסמה" : "הצג סיסמה"}
-        >
-          {icon}
-        </button>
-      )}
+
+// === FIX: Improved form components with accessibility ===
+const FormInput = React.memo(({ label, icon, onIconClick, ...props }) => {
+  const id = props.id || props.name;
+  return (
+    <div className="form-group">
+      <label htmlFor={id}>{label}</label>
+      <div className="input-with-icon">
+        <input {...props} id={id} />
+        {icon && (
+          <button
+            type="button"
+            className="input-icon-button"
+            onClick={onIconClick}
+            aria-label={props.type === "password" ? "הסתר סיסמה" : "הצג סיסמה"}
+          >
+            {icon}
+          </button>
+        )}
+      </div>
     </div>
-  </div>
-));
-const FormTextarea = React.memo(({ label, ...props }) => (
-  <div className="form-group">
-    <label>{label}</label> <textarea {...props} />
-  </div>
-));
+  );
+});
+
+const FormTextarea = React.memo(({ label, ...props }) => {
+  const id = props.id || props.name;
+  return (
+    <div className="form-group">
+      <label htmlFor={id}>{label}</label> <textarea {...props} id={id} />
+    </div>
+  );
+});
+
 const ToggleSwitch = React.memo(({ label, checked, onChange, name }) => (
   <div className="toggle-switch">
-    <span>{label}</span>
+    <label htmlFor={name} style={{ cursor: "pointer" }}>
+      {label}
+    </label>
     <label className="switch">
       <input
         type="checkbox"
+        id={name}
         name={name}
         checked={checked}
         onChange={onChange}
@@ -235,6 +244,8 @@ const ToggleSwitch = React.memo(({ label, checked, onChange, name }) => (
     </label>
   </div>
 ));
+// === END OF FIX ===
+
 const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
   const addToast = useCallback((message, type = "info") => {
@@ -266,6 +277,7 @@ const ToastProvider = ({ children }) => {
     </ToastContext.Provider>
   );
 };
+
 const SortableHeader = React.memo(
   ({ children, name, sortConfig, requestSort }) => {
     const isSorted = sortConfig && sortConfig.key === name;
@@ -282,6 +294,7 @@ const SortableHeader = React.memo(
     );
   }
 );
+
 const ProtectedRoute = ({ isAllowed, redirectPath = "/", children }) => {
   if (!isAllowed) return <Navigate to={redirectPath} replace />;
   return children ? children : <Outlet />;
@@ -315,6 +328,7 @@ const Modal = React.memo(({ show, onClose, children, ...props }) => {
 });
 
 // 4. PAGE-SPECIFIC COMPONENTS
+
 function EmployeeForm({ initialData, onSave, onCancel }) {
   const [formData, setFormData] = useState({
     name: "",
@@ -396,8 +410,13 @@ function EmployeeForm({ initialData, onSave, onCancel }) {
         minLength={6}
       />
       <div className="form-group">
-        <label>תפקיד</label>
-        <select name="role" value={formData.role} onChange={handleChange}>
+        <label htmlFor="role-select">תפקיד</label>
+        <select
+          id="role-select"
+          name="role"
+          value={formData.role}
+          onChange={handleChange}
+        >
           <option value="employee">עובד</option>
           <option value="manager">מנהל</option>
         </select>
@@ -416,6 +435,157 @@ function EmployeeForm({ initialData, onSave, onCancel }) {
         <button type="submit">שמור</button>
       </div>
     </form>
+  );
+}
+
+// === NEW COMPONENT: Content for the reset password modal ===
+function ResetPasswordModalContent({ employeeName, onSubmit, onCancel }) {
+  const [newPassword, setNewPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    await onSubmit(newPassword);
+    setIsLoading(false);
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <h3 style={{ marginTop: 0 }}>איפוס סיסמה עבור {employeeName}</h3>
+      <p style={{ color: "var(--text-light)", marginTop: 0 }}>
+        הזן סיסמה חדשה לעובד. העובד יצטרך להשתמש בסיסמה זו בכניסה הבאה.
+      </p>
+      <FormInput
+        label="סיסמה חדשה"
+        type="password"
+        name="newPassword"
+        value={newPassword}
+        onChange={(e) => setNewPassword(e.target.value)}
+        required
+        minLength={6}
+        autoFocus
+      />
+      <div
+        style={{
+          display: "flex",
+          gap: "12px",
+          justifyContent: "flex-end",
+          marginTop: "24px",
+        }}
+      >
+        <button type="button" className="secondary" onClick={onCancel}>
+          ביטול
+        </button>
+        <button type="submit" disabled={isLoading}>
+          {isLoading ? <LoadingSpinner /> : "אפס סיסמה"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// === NEW COMPONENT: Content for the absence management modal ===
+function AbsenceManagementModalContent({
+  employee,
+  absences,
+  isLoading,
+  onAdd,
+  onDelete,
+}) {
+  const [form, setForm] = useState({
+    type: "vacation",
+    startDate: "",
+    endDate: "",
+    notes: "",
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleChange = (e) => {
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    await onAdd(form);
+    setIsSubmitting(false);
+    setForm({ type: "vacation", startDate: "", endDate: "", notes: "" });
+  };
+
+  return (
+    <div>
+      <h3 style={{ marginTop: 0 }}>ניהול היעדרויות עבור {employee?.name}</h3>
+      <div className="absence-modal-layout">
+        <div className="absence-list">
+          <h4>היעדרויות קיימות</h4>
+          {isLoading ? (
+            <LoadingSpinner />
+          ) : absences.length === 0 ? (
+            <p>אין היעדרויות רשומות.</p>
+          ) : (
+            <ul>
+              {absences.map((abs) => (
+                <li key={abs._id}>
+                  <span>
+                    <strong>{abs.type === "sick" ? "מחלה" : "חופשה"}:</strong>{" "}
+                    {new Date(abs.startDate).toLocaleDateString("he-IL")} -{" "}
+                    {new Date(abs.endDate).toLocaleDateString("he-IL")}
+                  </span>
+                  <button
+                    className="danger secondary"
+                    onClick={() => onDelete(abs._id)}
+                  >
+                    מחק
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <form onSubmit={handleSubmit} className="absence-form">
+          <h4>הוספת היעדרות חדשה</h4>
+          <div className="form-group">
+            <label htmlFor="absence-type">סוג היעדרות</label>
+            <select
+              id="absence-type"
+              name="type"
+              value={form.type}
+              onChange={handleChange}
+            >
+              <option value="vacation">חופשה</option>
+              <option value="sick">מחלה</option>
+            </select>
+          </div>
+          <FormInput
+            label="תאריך התחלה"
+            type="date"
+            name="startDate"
+            value={form.startDate}
+            onChange={handleChange}
+            required
+          />
+          <FormInput
+            label="תאריך סיום"
+            type="date"
+            name="endDate"
+            value={form.endDate}
+            onChange={handleChange}
+            required
+          />
+          <FormTextarea
+            label="הערות (אופציונלי)"
+            name="notes"
+            value={form.notes}
+            onChange={handleChange}
+            rows={2}
+          />
+          <button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? <LoadingSpinner /> : "הוסף היעדרות"}
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }
 
@@ -835,7 +1005,11 @@ function EmployeeList() {
             employeeId: selectedEmployee._id,
           }),
         });
-        setAbsencesForEmployee((prev) => [...prev, newAbsence]);
+        setAbsencesForEmployee((prev) =>
+          [...prev, newAbsence].sort(
+            (a, b) => new Date(b.startDate) - new Date(a.startDate)
+          )
+        );
         toaster("היעדרות נוספה בהצלחה", "success");
       } catch (err) {
         toaster(err.message, "danger");
@@ -895,11 +1069,13 @@ function EmployeeList() {
           placeholder="חיפוש לפי שם..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
+          name="search-employee"
         />
         <div className="form-group">
           <select
             value={departmentFilter}
             onChange={(e) => setDepartmentFilter(e.target.value)}
+            aria-label="סינון לפי מחלקה"
           >
             <option value="">כל המחלקות</option>
             {uniqueDepartments.map((dep) => (
@@ -1039,6 +1215,7 @@ function EmployeeList() {
           </table>
         </div>
       </div>
+      {/* === FIX: Added all missing modals for employee actions === */}
       <Modal show={isEditModalOpen} onClose={closeModal}>
         <EmployeeForm
           initialData={selectedEmployee}
@@ -1046,11 +1223,104 @@ function EmployeeList() {
           onCancel={closeModal}
         />
       </Modal>
-      {/* Implement other modals here... */}
+
+      <Modal
+        show={isConfirmModalOpen}
+        onClose={closeModal}
+        style={{ maxWidth: "400px" }}
+      >
+        <h3 style={{ marginTop: 0 }}>אישור מחיקה</h3>
+        <p>
+          האם אתה בטוח שברצונך למחוק את העובד{" "}
+          <strong>{selectedEmployee?.name}</strong>? פעולה זו אינה הפיכה.
+        </p>
+        <div
+          style={{
+            display: "flex",
+            gap: "12px",
+            justifyContent: "flex-end",
+            marginTop: "24px",
+          }}
+        >
+          <button type="button" className="secondary" onClick={closeModal}>
+            ביטול
+          </button>
+          <button
+            type="button"
+            className="danger"
+            onClick={handleConfirmDelete}
+          >
+            אישור ומחיקה
+          </button>
+        </div>
+      </Modal>
+
+      <Modal
+        show={isDetailsModalOpen}
+        onClose={closeModal}
+        style={{ maxWidth: "450px" }}
+      >
+        <h3 style={{ marginTop: 0 }}>פרטי עובד</h3>
+        {selectedEmployee && (
+          <div className="employee-details-modal">
+            <p>
+              <strong>שם:</strong> {selectedEmployee.name}
+            </p>
+            <p>
+              <strong>מחלקה:</strong> {selectedEmployee.department}
+            </p>
+            <p>
+              <strong>תעריף שעתי:</strong> ₪{selectedEmployee.hourlyRate}
+            </p>
+            <p>
+              <strong>תפקיד:</strong>{" "}
+              {selectedEmployee.role === "manager" ? "מנהל" : "עובד"}
+            </p>
+          </div>
+        )}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            marginTop: "24px",
+          }}
+        >
+          <button type="button" onClick={closeModal}>
+            סגור
+          </button>
+        </div>
+      </Modal>
+
+      <Modal
+        show={isResetPasswordModalOpen}
+        onClose={closeModal}
+        style={{ maxWidth: "450px" }}
+      >
+        <ResetPasswordModalContent
+          employeeName={selectedEmployee?.name}
+          onSubmit={handleResetPassword}
+          onCancel={closeModal}
+        />
+      </Modal>
+
+      <Modal
+        show={isAbsenceModalOpen}
+        onClose={closeModal}
+        style={{ maxWidth: "700px" }}
+      >
+        <AbsenceManagementModalContent
+          employee={selectedEmployee}
+          absences={absencesForEmployee}
+          isLoading={isLoadingAbsences}
+          onAdd={handleAddAbsence}
+          onDelete={handleDeleteAbsence}
+        />
+      </Modal>
+      {/* === END OF FIX === */}
     </>
   );
 }
-// הוסף את הקוד הזה ליד שאר המודאלים
+
 function CreateAdminModal({ show, onClose, onAdminCreated }) {
   const toaster = useToaster();
   const [formData, setFormData] = useState({
@@ -1124,7 +1394,6 @@ function CreateAdminModal({ show, onClose, onAdminCreated }) {
           onIconClick={togglePasswordVisibility}
         />
 
-        {/* שימוש ב-Grid Layout לסידור השדות בשורה */}
         <div className="form-grid">
           <FormInput
             label="מחלקה"
@@ -1141,7 +1410,6 @@ function CreateAdminModal({ show, onClose, onAdminCreated }) {
           />
         </div>
 
-        {/* אזור הכפתורים עם קלאס ייעודי */}
         <div className="form-actions">
           <button type="button" className="secondary" onClick={onClose}>
             ביטול
@@ -1154,12 +1422,15 @@ function CreateAdminModal({ show, onClose, onAdminCreated }) {
     </Modal>
   );
 }
+
 function Login({ onLogin }) {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  // === FIX: State to manage the create admin modal visibility ===
+  const [showCreateAdminModal, setShowCreateAdminModal] = useState(false);
 
   const handleLoginSubmit = useCallback(
     async (e) => {
@@ -1174,7 +1445,18 @@ function Login({ onLogin }) {
         localStorage.setItem("token", data.token);
         onLogin(data.user);
       } catch (err) {
-        setError(err.message);
+        // === FIX: Logic to handle first-time admin creation ===
+        // This is a simulated server response. The backend should return a unique
+        // message when no admin accounts exist.
+        if (
+          err.message.includes("לא קיימים מנהלים במערכת") ||
+          err.message.includes("No admin accounts exist")
+        ) {
+          setShowCreateAdminModal(true);
+          setError("לא זוהה מנהל מערכת. יש ליצור את המשתמש הראשי הראשון.");
+        } else {
+          setError(err.message);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -1186,47 +1468,65 @@ function Login({ onLogin }) {
     setIsPasswordVisible((prev) => !prev);
   };
 
+  const handleAdminCreated = () => {
+    setShowCreateAdminModal(false);
+    setError("מנהל נוצר. אנא התחבר עם הפרטים החדשים.");
+    setName("");
+    setPassword("");
+  };
+
   return (
-    <div className="login-page-wrapper">
-      <div className="login-container">
-        <h1>Attend.ly</h1>
-        <p className="subtitle">מערכת ניהול נוכחות עובדים</p>
-        <form className="login-form" onSubmit={handleLoginSubmit}>
-          {error && <div className="login-error-message">{error}</div>}
-          <FormInput
-            label="שם משתמש"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            autoFocus
-          />
-          <FormInput
-            label="סיסמה"
-            type={isPasswordVisible ? "text" : "password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            icon={
-              <Icon
-                path={isPasswordVisible ? ICONS.EYE_CLOSED : ICONS.EYE_OPEN}
-                size={20}
-              />
-            }
-            onIconClick={togglePasswordVisibility}
-          />
-          <button
-            type="submit"
-            style={{ width: "100%", marginTop: "1rem" }}
-            disabled={isLoading}
-          >
-            {isLoading ? <LoadingSpinner /> : "התחבר"}
-          </button>
-        </form>
+    <>
+      <div className="login-page-wrapper">
+        <div className="login-container">
+          <h1>Attend.ly</h1>
+          <p className="subtitle">מערכת ניהול נוכחות עובדים</p>
+          <form className="login-form" onSubmit={handleLoginSubmit}>
+            {error && <div className="login-error-message">{error}</div>}
+            <FormInput
+              label="שם משתמש"
+              type="text"
+              name="username"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              autoFocus
+            />
+            <FormInput
+              label="סיסמה"
+              type={isPasswordVisible ? "text" : "password"}
+              name="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              icon={
+                <Icon
+                  path={isPasswordVisible ? ICONS.EYE_CLOSED : ICONS.EYE_OPEN}
+                  size={20}
+                />
+              }
+              onIconClick={togglePasswordVisibility}
+            />
+            <button
+              type="submit"
+              style={{ width: "100%", marginTop: "1rem" }}
+              disabled={isLoading}
+            >
+              {isLoading ? <LoadingSpinner /> : "התחבר"}
+            </button>
+          </form>
+        </div>
       </div>
-    </div>
+      {/* === FIX: Render the create admin modal when needed === */}
+      <CreateAdminModal
+        show={showCreateAdminModal}
+        onClose={() => setShowCreateAdminModal(false)}
+        onAdminCreated={handleAdminCreated}
+      />
+    </>
   );
 }
+
 function App() {
   const { currentUser, handleLogout } = useContext(AppContext);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -1234,6 +1534,7 @@ function App() {
 
   useEffect(() => {
     if (isSidebarOpen) setIsSidebarOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location]);
 
   const toggleSidebar = useCallback(
@@ -1310,16 +1611,16 @@ function App() {
   );
 }
 
-// קומפוננטה חדשה שמחליטה מה להציג
+// This component correctly decides which view to show
 function AppRouter() {
   const { currentUser, handleLogin } = useContext(AppContext);
 
-  // אם אין משתמש מחובר, הצג את דף הלוגין
+  // If there's no logged-in user, show the Login page
   if (!currentUser) {
     return <Login onLogin={handleLogin} />;
   }
 
-  // אם יש משתמש, הצג את האפליקציה הראשית
+  // If a user is logged in, show the main application
   return <App />;
 }
 
@@ -1354,7 +1655,6 @@ function Root() {
     <AppContext.Provider value={appContextValue}>
       <ToastProvider>
         <BrowserRouter>
-          {/* קוראים לקומפוננטה החדשה כאן */}
           <AppRouter />
         </BrowserRouter>
       </ToastProvider>

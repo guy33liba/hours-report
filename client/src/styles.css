@@ -226,12 +226,16 @@ button.danger:not(:disabled):hover {
   width: 100%;
   padding: 0.75rem;
   border-radius: var(--border-radius);
-  border: 1px solid var(--border-color);
+  border: 1px solid black;
   font-size: 1rem;
   background-color: var(--app-bg);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
-
+.form-group select {
+  margin-top: 8px;
+  padding: 0.75rem;
+  border: 1px solid black;
+}
 /* Improved Focus state for better accessibility */
 .form-group input:focus-visible,
 .form-group textarea:focus-visible,

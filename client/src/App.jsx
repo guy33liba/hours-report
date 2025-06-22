@@ -145,9 +145,20 @@ function EmployeeTimer({ employeeId }) {
   return <div className="employee-timer">{formatTime(elapsedSeconds)}</div>;
 }
 
+// Paste this code over the existing Dashboard function in your App.js
+
 function Dashboard() {
-  const { employees, attendance, setAttendance, addToast } =
+  const { employees, attendance, setAttendance, addToast, currentUser } =
     useContext(AppContext);
+
+  // Determine which employees to display based on user role
+  const employeesToDisplay = useMemo(() => {
+    if (currentUser.role === "manager") {
+      return employees; // Manager sees everyone
+    }
+    return employees.filter((emp) => emp.id === currentUser.id); // Employee sees only themselves
+  }, [employees, currentUser]);
+
   const getEmployeeStatus = (employee) => {
     if (employee.status === "sick" || employee.status === "vacation")
       return {
@@ -162,6 +173,7 @@ function Dashboard() {
     if (lastEntry.onBreak) return { text: "בהפסקה", class: "on_break" };
     return { text: "נוכח", class: "present" };
   };
+
   const handleClockIn = (employeeId) => {
     setAttendance((prev) => [
       ...prev,
@@ -176,6 +188,7 @@ function Dashboard() {
     ]);
     addToast("כניסה הוחתמה בהצלחה", "success");
   };
+
   const handleClockOut = (employeeId) => {
     setAttendance((prev) =>
       prev.map((a) =>
@@ -186,6 +199,7 @@ function Dashboard() {
     );
     addToast("יציאה הוחתמה בהצלחה");
   };
+
   const handleBreakToggle = (employeeId) => {
     let isOnBreak = false;
     setAttendance((prev) =>
@@ -218,7 +232,7 @@ function Dashboard() {
       <div className="card">
         <h3>נוכחות בזמן אמת</h3>
         <div className="employee-list-realtime">
-          {employees.map((emp) => {
+          {employeesToDisplay.map((emp) => {
             const status = getEmployeeStatus(emp);
             const isClockedIn =
               status.class === "present" || status.class === "on_break";
@@ -265,7 +279,6 @@ function Dashboard() {
     </>
   );
 }
-
 function EmployeeListPage() {
   const { employees, setEmployees, setAbsences, addToast } =
     useContext(AppContext);
@@ -489,33 +502,295 @@ function ReportsPage() {
   );
 }
 
+// Paste this code over the existing SettingsPage function in your App.js
+
 function SettingsPage() {
+  const { settings, setSettings, addToast } = useContext(AppContext);
+
+  // Create a local state for the form so changes are not saved until the user clicks "Save"
+  const [localSettings, setLocalSettings] = useState(settings);
+
+  useEffect(() => {
+    // If the global settings change (e.g., loaded from storage), update the local form state
+    setLocalSettings(settings);
+  }, [settings]);
+
+  const handleChange = (e) => {
+    const { name, value, type } = e.target;
+    // Make sure to handle numbers correctly
+    const parsedValue = type === "number" ? parseFloat(value) : value;
+    setLocalSettings((prev) => ({ ...prev, [name]: parsedValue }));
+  };
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    setSettings(localSettings); // Update the global state with the local changes
+    addToast("ההגדרות נשמרו בהצלחה!", "success");
+  };
+
   return (
     <>
       <div className="page-header">
-        <h2>הגדרות</h2>
+        <h2>הגדרות מערכת</h2>
         <DigitalClock />
       </div>
       <div className="card">
-        <p>כאן יוצגו הגדרות המערכת.</p>
+        <form onSubmit={handleSave}>
+          <h3>מדיניות נוכחות ושכר</h3>
+          <div className="form-group">
+            <label htmlFor="standardWorkDayHours">
+              יום עבודה סטנדרטי (בשעות)
+            </label>
+            <p className="form-group-description">
+              מספר השעות שמעבר לו כל שעת עבודה תיחשב כשעה נוספת.
+            </p>
+            <input
+              id="standardWorkDayHours"
+              name="standardWorkDayHours"
+              type="number"
+              step="0.1"
+              value={localSettings.standardWorkDayHours}
+              onChange={handleChange}
+            />
+          </div>
+          {/* You can add more settings here in the future */}
+          {/* Example:
+                    <div className="form-group">
+                        <label htmlFor="overtimeRate">אחוז שעות נוספות (%)</label>
+                        ...
+                    </div>
+                    */}
+          <div className="form-actions">
+            <button type="submit">שמור הגדרות</button>
+          </div>
+        </form>
       </div>
     </>
   );
 }
+// Paste this code over the existing PayrollPage function in your App.js
+
 function PayrollPage() {
+  const { employees, attendance, settings } = useContext(AppContext);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
+  const [dateRange, setDateRange] = useState({ start: "", end: "" });
+  const [payrollResult, setPayrollResult] = useState(null);
+
+  const handleEmployeeSelection = (e) => {
+    const id = parseInt(e.target.value);
+    setSelectedEmployeeIds((prev) =>
+      e.target.checked ? [...prev, id] : prev.filter((empId) => empId !== id)
+    );
+  };
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedEmployeeIds(
+        employees.filter((emp) => emp.role === "employee").map((emp) => emp.id)
+      );
+    } else {
+      setSelectedEmployeeIds([]);
+    }
+  };
+
+  const handleGenerate = () => {
+    if (selectedEmployeeIds.length === 0 || !dateRange.start || !dateRange.end)
+      return;
+
+    const startDate = new Date(dateRange.start);
+    const endDate = new Date(dateRange.end);
+    endDate.setHours(23, 59, 59, 999);
+
+    const details = employees
+      .filter((emp) => selectedEmployeeIds.includes(emp.id))
+      .map((emp) => {
+        const empAttendance = attendance.filter(
+          (a) =>
+            a.employeeId === emp.id &&
+            new Date(a.clockIn) >= startDate &&
+            new Date(a.clockIn) <= endDate &&
+            a.clockOut
+        );
+
+        const totalHours = empAttendance.reduce(
+          (sum, entry) => sum + calculateNetSeconds(entry) / 3600,
+          0
+        );
+        const totalPay = totalHours * emp.hourlyRate;
+
+        return {
+          id: emp.id,
+          name: emp.name,
+          department: emp.department,
+          totalHours,
+          totalPay,
+        };
+      });
+
+    const summary = details.reduce(
+      (acc, curr) => {
+        acc.totalHours += curr.totalHours;
+        acc.totalPay += curr.totalPay;
+        return acc;
+      },
+      { totalHours: 0, totalPay: 0 }
+    );
+
+    setPayrollResult({ details, summary });
+  };
+
+  const handleExport = () => {
+    if (!payrollResult) return;
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+    csvContent += "שם העובד,מחלקה,סהכ שעות,שכר לתשלום\r\n";
+    payrollResult.details.forEach((item) => {
+      csvContent += `${item.name},${item.department},${item.totalHours.toFixed(
+        2
+      )},${item.totalPay.toFixed(2)}\r\n`;
+    });
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `payroll_report.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const isReady =
+    selectedEmployeeIds.length > 0 && dateRange.start && dateRange.end;
+
   return (
     <>
       <div className="page-header">
         <h2>חישוב שכר</h2>
-        <DigitalClock />
+        <div className="page-actions">
+          <DigitalClock />
+          <button
+            onClick={handleExport}
+            disabled={!payrollResult}
+            className="secondary"
+          >
+            ייצא ל-CSV
+          </button>
+        </div>
       </div>
       <div className="card">
-        <p>כאן ניתן יהיה להפיק דוחות שכר.</p>
+        <div className="payroll-controls">
+          <div className="control-section">
+            <h3>1. בחר עובדים</h3>
+            <div className="employee-select-list">
+              <div className="select-all-item">
+                <input
+                  type="checkbox"
+                  id="select-all"
+                  onChange={handleSelectAll}
+                  checked={
+                    selectedEmployeeIds.length ===
+                      employees.filter((e) => e.role === "employee").length &&
+                    employees.length > 1
+                  }
+                />
+                <label htmlFor="select-all">בחר את כל העובדים</label>
+              </div>
+              {employees
+                .filter((emp) => emp.role === "employee")
+                .map((emp) => (
+                  <div key={emp.id} className="employee-select-item">
+                    <input
+                      type="checkbox"
+                      id={`emp-${emp.id}`}
+                      value={emp.id}
+                      checked={selectedEmployeeIds.includes(emp.id)}
+                      onChange={handleEmployeeSelection}
+                    />
+                    <label htmlFor={`emp-${emp.id}`}>{emp.name}</label>
+                  </div>
+                ))}
+            </div>
+          </div>
+          <div className="control-section">
+            <h3>2. בחר תקופה</h3>
+            <div className="form-group">
+              <label>מתאריך</label>
+              <input
+                type="date"
+                value={dateRange.start}
+                onChange={(e) =>
+                  setDateRange((p) => ({ ...p, start: e.target.value }))
+                }
+              />
+            </div>
+            <div className="form-group">
+              <label>עד תאריך</label>
+              <input
+                type="date"
+                value={dateRange.end}
+                onChange={(e) =>
+                  setDateRange((p) => ({ ...p, end: e.target.value }))
+                }
+              />
+            </div>
+          </div>
+        </div>
+        <div style={{ textAlign: "center", marginTop: "2rem" }}>
+          <button onClick={handleGenerate} disabled={!isReady}>
+            הפק דוח שכר
+          </button>
+        </div>
       </div>
+
+      {payrollResult && (
+        <div className="card">
+          <h3>
+            תוצאות דוח שכר לתקופה: {dateRange.start} עד {dateRange.end}
+          </h3>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>שם העובד</th>
+                  <th>מחלקה</th>
+                  <th>סה"כ שעות</th>
+                  <th>שכר לתשלום</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payrollResult.details.map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.name}</td>
+                    <td>{item.department}</td>
+                    <td>{item.totalHours.toFixed(2)}</td>
+                    <td style={{ fontWeight: "bold" }}>
+                      ₪{item.totalPay.toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan="2">
+                    <strong>סה"כ</strong>
+                  </td>
+                  <td>
+                    <strong>
+                      {payrollResult.summary.totalHours.toFixed(2)}
+                    </strong>
+                  </td>
+                  <td>
+                    <strong>
+                      ₪{payrollResult.summary.totalPay.toFixed(2)}
+                    </strong>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
     </>
   );
 }
-
 // --- Modals and other components ---
 function EmployeeFormModal({ show, onClose, onSave, employee }) {
   const [formData, setFormData] = useState({
@@ -760,6 +1035,8 @@ function Toast({ message, type, onDismiss }) {
   return <div className={`toast ${type}`}>{message}</div>;
 }
 
+// Paste this code over the existing App function at the bottom of App.js
+
 function App() {
   const [employees, setEmployees] = useState(
     () => JSON.parse(localStorage.getItem("employees")) || initialData.employees
@@ -771,9 +1048,9 @@ function App() {
   const [absences, setAbsences] = useState(
     () => JSON.parse(localStorage.getItem("absences")) || initialData.absences
   );
-  const [settings] = useState(
+  const [settings, setSettings] = useState(
     () => JSON.parse(localStorage.getItem("settings")) || initialData.settings
-  );
+  ); // UPDATED to use setSettings
   const [currentUser, setCurrentUser] = useState(
     () => JSON.parse(localStorage.getItem("currentUser")) || null
   );
@@ -784,7 +1061,7 @@ function App() {
     localStorage.setItem("employees", JSON.stringify(employees));
     localStorage.setItem("attendance", JSON.stringify(attendance));
     localStorage.setItem("absences", JSON.stringify(absences));
-    localStorage.setItem("settings", JSON.stringify(settings));
+    localStorage.setItem("settings", JSON.stringify(settings)); // UPDATED to save settings
   }, [currentUser, employees, attendance, absences, settings]);
 
   useEffect(() => {
@@ -804,14 +1081,12 @@ function App() {
       if (emp.status === "sick" || emp.status === "vacation") {
         return { ...emp, status: newStatus };
       }
-      return emp; // Only update if necessary, to prevent re-renders
+      return emp;
     });
-    // A quick check to see if an update is actually needed
     if (JSON.stringify(employees) !== JSON.stringify(updatedEmployees)) {
       setEmployees(updatedEmployees);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [absences]);
+  }, [absences, employees]);
 
   const addToast = useCallback((message, type = "info") => {
     const id = Date.now();
@@ -821,6 +1096,7 @@ function App() {
   const handleLogin = (user) => setCurrentUser(user);
   const handleLogout = () => setCurrentUser(null);
 
+  // UPDATED: Pass setSettings to the context
   const contextValue = {
     employees,
     setEmployees,
@@ -831,6 +1107,7 @@ function App() {
     currentUser,
     addToast,
     settings,
+    setSettings,
   };
 
   return (

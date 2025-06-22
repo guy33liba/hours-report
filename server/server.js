@@ -261,7 +261,36 @@ app.delete(
     }
   }
 );
+// server.js - החלף את ה-route הקיים בגרסה משופרת זו
 
+app.post(
+  "/api/employees/reset-password",
+  authenticateToken,
+  authorizeManager,
+  async (req, res) => {
+    const { userId, newPassword } = req.body;
+
+    // ... validation ...
+
+    try {
+      // THE FIX IS HERE: We use parseInt() on the userId
+      const result = await pool.query(
+        "UPDATE employees SET password = $1 WHERE _id = $2",
+        [newPassword, parseInt(userId, 10)]
+      );
+
+      if (result.rowCount === 0) {
+        return res.status(404).json({ message: "העובד לא נמצא." });
+      }
+
+      res.json({ message: "הסיסמה עודכנה בהצלחה." });
+    } catch (error) {
+      // This is the block that is likely running and causing the error
+      console.error("!!! DATABASE ERROR while resetting password:", error);
+      res.status(500).json({ message: "שגיאת שרת פנימית." });
+    }
+  }
+);
 app.listen(PORT, () => {
   console.log(`✅ Server is running on port ${PORT}`);
 });

@@ -16,7 +16,39 @@ import {
   Link,
 } from "react-router-dom";
 import "./styles.css";
+// הוסף בראש קובץ App.js
+const API_BASE_URL = "/api"; // ודא שזה מוגדר כך, לשימוש ב-Proxy
 
+const apiFetch = async (endpoint, options = {}) => {
+  // קורא את הטוקן האמיתי מהאחסון המקומי
+  const token = localStorage.getItem("token");
+  const headers = { ...options.headers };
+
+  if (!(options.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+    // שים לב: תגובת שגיאה מהשרת (כמו 401 או 403) עדיין יכולה להכיל גוף JSON
+    const text = await response.text();
+    const data = text ? JSON.parse(text) : {}; // טיפול במקרה של גוף ריק
+
+    if (!response.ok) {
+      throw new Error(data.message || "An error occurred");
+    }
+    return data;
+  } catch (error) {
+    console.error("API Fetch Error:", endpoint, error);
+    throw error;
+  }
+};
 const AppContext = createContext();
 
 const initialData = {
@@ -289,36 +321,40 @@ function Dashboard() {
   );
 }
 
-// --- NEW COMPONENT FOR PASSWORD RESET ---
 function ResetPasswordModal({ show, onClose, employee }) {
-  const { addToast, setEmployees } = useContext(AppContext);
+  const { addToast, fetchData } = useContext(AppContext);
   const [newPassword, setNewPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Clear password field when modal is closed or employee changes
     if (!show) {
       setNewPassword("");
+      setIsLoading(false);
     }
   }, [show]);
 
   if (!show || !employee) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (newPassword.length < 6) {
       addToast("הסיסמה חייבת להכיל לפחות 6 תווים", "danger");
       return;
     }
-
-    // Update the employee's password in the main state
-    setEmployees((prevEmployees) =>
-      prevEmployees.map((emp) =>
-        emp.id === employee.id ? { ...emp, password: newPassword } : emp
-      )
-    );
-
-    addToast(`הסיסמה של ${employee.name} אופסה בהצלחה!`, "success");
-    onClose(); // Close the modal
+    setIsLoading(true);
+    try {
+      await apiFetch("/employees/reset-password", {
+        method: "POST",
+        body: JSON.stringify({ userId: employee.id, newPassword }),
+      });
+      addToast(`הסיסמה של ${employee.name} אופסה בהצלחה!`, "success");
+      fetchData(); // מרענן את המידע מהשרת
+      onClose();
+    } catch (error) {
+      addToast(error.message || "שגיאה באיפוס הסיסמה", "danger");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -341,10 +377,17 @@ function ResetPasswordModal({ show, onClose, employee }) {
           />
         </div>
         <div className="form-actions">
-          <button type="button" className="secondary" onClick={onClose}>
+          <button
+            type="button"
+            className="secondary"
+            onClick={onClose}
+            disabled={isLoading}
+          >
             ביטול
           </button>
-          <button type="submit">אפס סיסמה</button>
+          <button type="submit" disabled={isLoading}>
+            {isLoading ? "מאפס..." : "אפס סיסמה"}
+          </button>
         </div>
       </form>
     </Modal>
@@ -352,11 +395,8 @@ function ResetPasswordModal({ show, onClose, employee }) {
 }
 
 function EmployeeListPage() {
-  const { employees, setEmployees, setAbsences, addToast } =
-    useContext(AppContext);
+  const { employees, addToast, fetchData } = useContext(AppContext);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isAbsenceModalOpen, setIsAbsenceModalOpen] = useState(false);
-  // New state for the password reset modal
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] =
     useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -365,47 +405,51 @@ function EmployeeListPage() {
     setSelectedEmployee(employee);
     setIsEditModalOpen(true);
   };
-  const handleOpenAbsenceModal = (employee) => {
-    setSelectedEmployee(employee);
-    setIsAbsenceModalOpen(true);
-  };
-  // New function to open the password reset modal
+
   const handleOpenResetPasswordModal = (employee) => {
     setSelectedEmployee(employee);
     setIsResetPasswordModalOpen(true);
   };
 
-  const handleSaveEmployee = (employeeData) => {
-    if (selectedEmployee) {
-      setEmployees((prev) =>
-        prev.map((emp) =>
-          emp.id === selectedEmployee.id ? { ...emp, ...employeeData } : emp
-        )
-      );
-      addToast("פרטי העובד עודכנו", "success");
-    } else {
-      setEmployees((prev) => [
-        ...prev,
-        { ...employeeData, id: Date.now(), password: "123", status: "absent" },
-      ]);
-      addToast("עובד חדש נוסף", "success");
+  const handleSaveEmployee = async (employeeData) => {
+    try {
+      if (selectedEmployee) {
+        await apiFetch(`/employees/${selectedEmployee.id}`, {
+          method: "PUT",
+          body: JSON.stringify(employeeData),
+        });
+        addToast("פרטי העובד עודכנו", "success");
+      } else {
+        await apiFetch("/employees", {
+          method: "POST",
+          body: JSON.stringify(employeeData),
+        });
+        addToast("עובד חדש נוסף", "success");
+      }
+      setIsEditModalOpen(false);
+      fetchData(); // <-- מרענן את הרשימה מהשרת
+    } catch (error) {
+      addToast(error.message, "danger");
     }
-    setIsEditModalOpen(false);
   };
-  const handleDeleteEmployee = (employeeId) => {
+
+  const handleDeleteEmployee = async (employeeId) => {
     if (window.confirm("למחוק עובד זה?")) {
-      setEmployees((prev) => prev.filter((emp) => emp.id !== employeeId));
-      setAbsences((prev) =>
-        prev.filter((abs) => abs.employeeId !== employeeId)
-      );
-      addToast("העובד נמחק", "danger");
+      try {
+        await apiFetch(`/employees/${employeeId}`, { method: "DELETE" });
+        addToast("העובד נמחק", "danger");
+        fetchData(); // <-- מרענן את הרשימה מהשרת
+      } catch (error) {
+        addToast(error.message, "danger");
+      }
     }
   };
+
   return (
     <>
       <div className="page-header">
         <h2>ניהול עובדים</h2>
-        <DigitalClock />
+        <button onClick={() => handleOpenEditModal()}>הוסף עובד חדש</button>
       </div>
       <div className="card">
         <div className="table-container">
@@ -426,18 +470,11 @@ function EmployeeListPage() {
                   <td>{emp.role === "manager" ? "מנהל" : "עובד"}</td>
                   <td className="actions-cell">
                     <button
-                      onClick={() => handleOpenAbsenceModal(emp)}
-                      className="secondary"
-                    >
-                      היעדרויות
-                    </button>
-                    <button
                       onClick={() => handleOpenEditModal(emp)}
                       className="secondary"
                     >
                       ערוך
                     </button>
-                    {/* THIS CONDITION IS NOW REMOVED, a manager can reset any password */}
                     <button
                       onClick={() => handleOpenResetPasswordModal(emp)}
                       className="secondary warning"
@@ -463,17 +500,12 @@ function EmployeeListPage() {
         onSave={handleSaveEmployee}
         employee={selectedEmployee}
       />
-      <AbsenceManagementModal
-        show={isAbsenceModalOpen}
-        onClose={() => setIsAbsenceModalOpen(false)}
-        employee={selectedEmployee}
-      />
-      {/* New Modal Render */}
       <ResetPasswordModal
         show={isResetPasswordModalOpen}
         onClose={() => setIsResetPasswordModalOpen(false)}
         employee={selectedEmployee}
       />
+      {/* Absence modal needs to be connected too if you use it */}
     </>
   );
 }
@@ -1060,22 +1092,38 @@ function EmployeeFormModal({ show, onClose, onSave, employee }) {
     </Modal>
   );
 }
+// החלף את כל הפונקציה LoginPage בזו:
 function LoginPage({ onLogin }) {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const { employees } = useContext(AppContext);
-  const handleSubmit = (e) => {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const user = employees.find(
-      (emp) => emp.name === name && emp.password === password
-    );
-    if (user) {
-      onLogin(user);
-    } else {
-      setError("שם משתמש או סיסמה שגויים");
+    setError("");
+    setIsLoading(true);
+    try {
+      // קריאה ל-API של השרת כדי לבצע לוגין
+      const data = await apiFetch("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ name, password }),
+      });
+
+      // השרת יחזיר טוקן ופרטי משתמש אם ההתחברות הצליחה
+      if (data.token && data.user) {
+        onLogin(data.user, data.token); // קריאה לפונקציה הראשית עם המידע החדש
+      } else {
+        setError("תגובה לא תקינה מהשרת");
+      }
+    } catch (err) {
+      // הודעת השגיאה תגיע מהשרת (למשל, "שם משתמש או סיסמה שגויים")
+      setError(err.message || "אירעה שגיאה בהתחברות");
+    } finally {
+      setIsLoading(false);
     }
   };
+
   return (
     <div className="login-page-wrapper">
       <div className="login-container">
@@ -1104,8 +1152,12 @@ function LoginPage({ onLogin }) {
               required
             />
           </div>
-          <button type="submit" className="button-full-width">
-            התחבר
+          <button
+            type="submit"
+            className="button-full-width"
+            disabled={isLoading}
+          >
+            {isLoading ? "מתחבר..." : "התחבר"}
           </button>
         </form>
       </div>

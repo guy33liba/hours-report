@@ -1,4 +1,4 @@
-// App.js - COMPLETE VERSION with FUNCTIONAL REPORTS PAGE
+// App.js - COMPLETE VERSION with ADVANCED SETTINGS (No IP) and functional Payroll
 import React, {
   useState,
   useEffect,
@@ -48,7 +48,10 @@ const initialData = {
   ],
   attendance: [],
   absences: [],
-  settings: { standardWorkDayHours: 8.5 },
+  settings: {
+    standardWorkDayHours: 8.5,
+    overtimeRatePercent: 150,
+  },
 };
 
 const calculateNetSeconds = (entry) => {
@@ -71,6 +74,7 @@ const Icon = ({ path, size = 18 }) => (
   </svg>
 );
 const ICONS = {
+  /* ... Icons remain the same ... */
   DASHBOARD: "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z",
   EMPLOYEES:
     "M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z",
@@ -84,6 +88,7 @@ const ICONS = {
     "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2h8v-2H4V5z",
 };
 const DigitalClock = () => {
+  /* ... Unchanged ... */
   const [time, setTime] = useState(new Date());
   useEffect(() => {
     const timerId = setInterval(() => setTime(new Date()), 1000);
@@ -94,6 +99,7 @@ const DigitalClock = () => {
   );
 };
 const Modal = ({ show, onClose, children, title }) => {
+  /* ... Unchanged ... */
   if (!show) return null;
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -109,8 +115,26 @@ const Modal = ({ show, onClose, children, title }) => {
     </div>
   );
 };
+const ToggleSwitch = (
+  { label, checked, onChange, name } /* ... Unchanged ... */
+) => (
+  <div className="toggle-switch">
+    <label htmlFor={name}>{label}</label>
+    <label className="switch">
+      <input
+        type="checkbox"
+        id={name}
+        name={name}
+        checked={checked}
+        onChange={onChange}
+      />
+      <span className="slider"></span>
+    </label>
+  </div>
+);
 
 function EmployeeTimer({ employeeId }) {
+  /* ... Unchanged ... */
   const { attendance } = useContext(AppContext);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const activeEntry = useMemo(
@@ -145,20 +169,14 @@ function EmployeeTimer({ employeeId }) {
   return <div className="employee-timer">{formatTime(elapsedSeconds)}</div>;
 }
 
-// Paste this code over the existing Dashboard function in your App.js
-
 function Dashboard() {
+  /* ... Unchanged ... */
   const { employees, attendance, setAttendance, addToast, currentUser } =
     useContext(AppContext);
-
-  // Determine which employees to display based on user role
   const employeesToDisplay = useMemo(() => {
-    if (currentUser.role === "manager") {
-      return employees; // Manager sees everyone
-    }
-    return employees.filter((emp) => emp.id === currentUser.id); // Employee sees only themselves
+    if (currentUser.role === "manager") return employees;
+    return employees.filter((emp) => emp.id === currentUser.id);
   }, [employees, currentUser]);
-
   const getEmployeeStatus = (employee) => {
     if (employee.status === "sick" || employee.status === "vacation")
       return {
@@ -173,7 +191,6 @@ function Dashboard() {
     if (lastEntry.onBreak) return { text: "בהפסקה", class: "on_break" };
     return { text: "נוכח", class: "present" };
   };
-
   const handleClockIn = (employeeId) => {
     setAttendance((prev) => [
       ...prev,
@@ -188,7 +205,6 @@ function Dashboard() {
     ]);
     addToast("כניסה הוחתמה בהצלחה", "success");
   };
-
   const handleClockOut = (employeeId) => {
     setAttendance((prev) =>
       prev.map((a) =>
@@ -199,7 +215,6 @@ function Dashboard() {
     );
     addToast("יציאה הוחתמה בהצלחה");
   };
-
   const handleBreakToggle = (employeeId) => {
     let isOnBreak = false;
     setAttendance((prev) =>
@@ -222,7 +237,6 @@ function Dashboard() {
     );
     addToast(isOnBreak ? "יציאה להפסקה" : "חזרה מהפסקה");
   };
-
   return (
     <>
       <div className="page-header">
@@ -279,7 +293,9 @@ function Dashboard() {
     </>
   );
 }
+
 function EmployeeListPage() {
+  /* ... Unchanged ... */
   const { employees, setEmployees, setAbsences, addToast } =
     useContext(AppContext);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -319,7 +335,6 @@ function EmployeeListPage() {
       addToast("העובד נמחק", "danger");
     }
   };
-
   return (
     <>
       <div className="page-header">
@@ -384,20 +399,15 @@ function EmployeeListPage() {
   );
 }
 
-// --- NEW FUNCTIONAL REPORTS PAGE ---
-// Paste this code over the existing ReportsPage function in your App.js
-
 function ReportsPage() {
+  /* ... Unchanged ... */
   const { employees, attendance } = useContext(AppContext);
   const [range, setRange] = useState({ start: "", end: "" });
-
   const reportData = useMemo(() => {
     if (!range.start || !range.end) return [];
-
     const startDate = new Date(range.start);
     const endDate = new Date(range.end);
     endDate.setHours(23, 59, 59, 999);
-
     return employees
       .map((emp) => {
         const empAttendance = attendance.filter(
@@ -407,23 +417,15 @@ function ReportsPage() {
             new Date(a.clockIn) <= endDate &&
             a.clockOut
         );
-
         const totalHours = empAttendance.reduce(
           (sum, entry) => sum + calculateNetSeconds(entry) / 3600,
           0
         );
         const totalPay = totalHours * emp.hourlyRate;
-
-        return {
-          ...emp,
-          totalHours,
-          totalPay,
-        };
+        return { ...emp, totalHours, totalPay };
       })
-      .filter((emp) => emp.totalHours > 0); // Only include employees who actually worked
+      .filter((emp) => emp.totalHours > 0);
   }, [range, employees, attendance]);
-
-  // New: Calculate summary KPIs from the report data
   const summary = useMemo(() => {
     return reportData.reduce(
       (acc, curr) => {
@@ -435,30 +437,28 @@ function ReportsPage() {
       { totalEmployees: 0, totalHours: 0, totalPay: 0 }
     );
   }, [reportData]);
-
   const handleExport = () => {
+    /* ... Unchanged ... */
     if (!reportData.length) return;
-    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-    csvContent += "שם העובד,מחלקה,סהכ שעות,עלות שכר משוערת\r\n";
+    let csvContent =
+      "data:text/csv;charset=utf-8,\uFEFF" +
+      "שם העובד,מחלקה,סהכ שעות,עלות שכר משוערת\r\n";
     reportData.forEach((item) => {
-      const row = [
-        `"${item.name}"`,
-        `"${item.department}"`,
-        item.totalHours.toFixed(2),
-        item.totalPay.toFixed(2),
-      ].join(",");
-      csvContent += row + "\r\n";
+      csvContent +=
+        [
+          `"${item.name}"`,
+          `"${item.department}"`,
+          item.totalHours.toFixed(2),
+          item.totalPay.toFixed(2),
+        ].join(",") + "\r\n";
     });
-
-    const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    link.setAttribute("href", encodeURI(csvContent));
     link.setAttribute("download", `report_${range.start}_to_${range.end}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
-
   return (
     <>
       <div className="page-header">
@@ -497,10 +497,8 @@ function ReportsPage() {
           </div>
         </div>
       </div>
-
       {reportData.length > 0 && (
         <div className="report-results">
-          {/* NEW: Summary KPI Cards */}
           <div className="kpi-grid">
             <div className="card kpi-card">
               <h4>עובדים בדוח</h4>
@@ -515,8 +513,6 @@ function ReportsPage() {
               <p className="kpi-value">₪{summary.totalPay.toFixed(2)}</p>
             </div>
           </div>
-
-          {/* Improved Details Table */}
           <div className="card">
             <h3>פירוט לפי עובד</h3>
             <div className="table-container">
@@ -546,7 +542,6 @@ function ReportsPage() {
           </div>
         </div>
       )}
-
       {range.start && range.end && reportData.length === 0 && (
         <div className="card">
           <p style={{ textAlign: "center" }}>
@@ -557,29 +552,30 @@ function ReportsPage() {
     </>
   );
 }
-// Paste this code over the existing SettingsPage function in your App.js
 
+// --- UPDATED SettingsPage ---
 function SettingsPage() {
   const { settings, setSettings, addToast } = useContext(AppContext);
-
-  // Create a local state for the form so changes are not saved until the user clicks "Save"
   const [localSettings, setLocalSettings] = useState(settings);
 
   useEffect(() => {
-    // If the global settings change (e.g., loaded from storage), update the local form state
     setLocalSettings(settings);
   }, [settings]);
 
   const handleChange = (e) => {
-    const { name, value, type } = e.target;
-    // Make sure to handle numbers correctly
-    const parsedValue = type === "number" ? parseFloat(value) : value;
-    setLocalSettings((prev) => ({ ...prev, [name]: parsedValue }));
+    const { name, value, type, checked } = e.target;
+    const val =
+      type === "checkbox"
+        ? checked
+        : type === "number"
+        ? parseFloat(value)
+        : value;
+    setLocalSettings((prev) => ({ ...prev, [name]: val }));
   };
 
   const handleSave = (e) => {
     e.preventDefault();
-    setSettings(localSettings); // Update the global state with the local changes
+    setSettings(localSettings);
     addToast("ההגדרות נשמרו בהצלחה!", "success");
   };
 
@@ -608,13 +604,22 @@ function SettingsPage() {
               onChange={handleChange}
             />
           </div>
-          {/* You can add more settings here in the future */}
-          {/* Example:
-                    <div className="form-group">
-                        <label htmlFor="overtimeRate">אחוז שעות נוספות (%)</label>
-                        ...
-                    </div>
-                    */}
+          <div className="form-group">
+            <label htmlFor="overtimeRatePercent">
+              אחוז תשלום שעות נוספות (%)
+            </label>
+            <p className="form-group-description">
+              התעריף לתשלום עבור כל שעה נוספת. לדוגמה: 150.
+            </p>
+            <input
+              id="overtimeRatePercent"
+              name="overtimeRatePercent"
+              type="number"
+              step="1"
+              value={localSettings.overtimeRatePercent}
+              onChange={handleChange}
+            />
+          </div>
           <div className="form-actions">
             <button type="submit">שמור הגדרות</button>
           </div>
@@ -623,8 +628,8 @@ function SettingsPage() {
     </>
   );
 }
-// Paste this code over the existing PayrollPage function in your App.js
 
+// --- UPDATED PayrollPage ---
 function PayrollPage() {
   const { employees, attendance, settings } = useContext(AppContext);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
@@ -637,25 +642,22 @@ function PayrollPage() {
       e.target.checked ? [...prev, id] : prev.filter((empId) => empId !== id)
     );
   };
-
   const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      setSelectedEmployeeIds(
-        employees.filter((emp) => emp.role === "employee").map((emp) => emp.id)
-      );
-    } else {
-      setSelectedEmployeeIds([]);
-    }
+    setSelectedEmployeeIds(
+      e.target.checked
+        ? employees
+            .filter((emp) => emp.role === "employee")
+            .map((emp) => emp.id)
+        : []
+    );
   };
 
   const handleGenerate = () => {
     if (selectedEmployeeIds.length === 0 || !dateRange.start || !dateRange.end)
       return;
-
     const startDate = new Date(dateRange.start);
     const endDate = new Date(dateRange.end);
     endDate.setHours(23, 59, 59, 999);
-
     const details = employees
       .filter((emp) => selectedEmployeeIds.includes(emp.id))
       .map((emp) => {
@@ -667,68 +669,46 @@ function PayrollPage() {
             a.clockOut
         );
 
-        const totalHours = empAttendance.reduce(
-          (sum, entry) => sum + calculateNetSeconds(entry) / 3600,
-          0
-        );
-        const totalPay = totalHours * emp.hourlyRate;
+        let totalRegularHours = 0;
+        let totalOvertimeHours = 0;
+
+        empAttendance.forEach((entry) => {
+          const totalHours = calculateNetSeconds(entry) / 3600;
+          const overtime = Math.max(
+            0,
+            totalHours - settings.standardWorkDayHours
+          );
+          const regular = totalHours - overtime;
+          totalRegularHours += regular;
+          totalOvertimeHours += overtime;
+        });
+
+        const basePay = totalRegularHours * emp.hourlyRate;
+        const overtimePay =
+          totalOvertimeHours *
+          emp.hourlyRate *
+          (settings.overtimeRatePercent / 100);
 
         return {
           id: emp.id,
           name: emp.name,
           department: emp.department,
-          totalHours,
-          totalPay,
+          totalRegularHours,
+          totalOvertimeHours,
+          basePay,
+          overtimePay,
+          totalPay: basePay + overtimePay,
         };
       });
 
-    const summary = details.reduce(
-      (acc, curr) => {
-        acc.totalHours += curr.totalHours;
-        acc.totalPay += curr.totalPay;
-        return acc;
-      },
-      { totalHours: 0, totalPay: 0 }
-    );
-
-    setPayrollResult({ details, summary });
+    setPayrollResult({ details });
   };
-
-  const handleExport = () => {
-    if (!payrollResult) return;
-    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-    csvContent += "שם העובד,מחלקה,סהכ שעות,שכר לתשלום\r\n";
-    payrollResult.details.forEach((item) => {
-      csvContent += `${item.name},${item.department},${item.totalHours.toFixed(
-        2
-      )},${item.totalPay.toFixed(2)}\r\n`;
-    });
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `payroll_report.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const isReady =
-    selectedEmployeeIds.length > 0 && dateRange.start && dateRange.end;
 
   return (
     <>
       <div className="page-header">
         <h2>חישוב שכר</h2>
-        <div className="page-actions">
-          <DigitalClock />
-          <button
-            onClick={handleExport}
-            disabled={!payrollResult}
-            className="secondary"
-          >
-            ייצא ל-CSV
-          </button>
-        </div>
+        <DigitalClock />
       </div>
       <div className="card">
         <div className="payroll-controls">
@@ -789,56 +769,49 @@ function PayrollPage() {
           </div>
         </div>
         <div style={{ textAlign: "center", marginTop: "2rem" }}>
-          <button onClick={handleGenerate} disabled={!isReady}>
+          <button
+            onClick={handleGenerate}
+            disabled={
+              !(
+                selectedEmployeeIds.length > 0 &&
+                dateRange.start &&
+                dateRange.end
+              )
+            }
+          >
             הפק דוח שכר
           </button>
         </div>
       </div>
-
       {payrollResult && (
         <div className="card">
-          <h3>
-            תוצאות דוח שכר לתקופה: {dateRange.start} עד {dateRange.end}
-          </h3>
+          <h3>תוצאות דוח שכר</h3>
           <div className="table-container">
             <table>
               <thead>
                 <tr>
-                  <th>שם העובד</th>
-                  <th>מחלקה</th>
-                  <th>סה"כ שעות</th>
-                  <th>שכר לתשלום</th>
+                  <th>שם</th>
+                  <th>שעות רגילות</th>
+                  <th>שעות נוספות</th>
+                  <th>שכר בסיס</th>
+                  <th>תוספת ש"נ</th>
+                  <th>סה"כ לתשלום</th>
                 </tr>
               </thead>
               <tbody>
                 {payrollResult.details.map((item) => (
                   <tr key={item.id}>
                     <td>{item.name}</td>
-                    <td>{item.department}</td>
-                    <td>{item.totalHours.toFixed(2)}</td>
+                    <td>{item.totalRegularHours.toFixed(2)}</td>
+                    <td>{item.totalOvertimeHours.toFixed(2)}</td>
+                    <td>₪{item.basePay.toFixed(2)}</td>
+                    <td>₪{item.overtimePay.toFixed(2)}</td>
                     <td style={{ fontWeight: "bold" }}>
                       ₪{item.totalPay.toFixed(2)}
                     </td>
                   </tr>
                 ))}
               </tbody>
-              <tfoot>
-                <tr>
-                  <td colSpan="2">
-                    <strong>סה"כ</strong>
-                  </td>
-                  <td>
-                    <strong>
-                      {payrollResult.summary.totalHours.toFixed(2)}
-                    </strong>
-                  </td>
-                  <td>
-                    <strong>
-                      ₪{payrollResult.summary.totalPay.toFixed(2)}
-                    </strong>
-                  </td>
-                </tr>
-              </tfoot>
             </table>
           </div>
         </div>
@@ -846,8 +819,101 @@ function PayrollPage() {
     </>
   );
 }
-// --- Modals and other components ---
+
+// --- Other Components (Modals, Login, etc.) ---
+function AbsenceManagementModal({ show, onClose, employee }) {
+  /* ... Unchanged ... */
+  const { absences, setAbsences, addToast } = useContext(AppContext);
+  const [type, setType] = useState("vacation");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  if (!show || !employee) return null;
+  const employeeAbsences = absences.filter((a) => a.employeeId === employee.id);
+  const handleAddAbsence = (e) => {
+    e.preventDefault();
+    if (new Date(endDate) < new Date(startDate)) {
+      addToast("תאריך סיום לא יכול להיות לפני תאריך ההתחלה", "danger");
+      return;
+    }
+    setAbsences((prev) => [
+      ...prev,
+      { id: Date.now(), employeeId: employee.id, type, startDate, endDate },
+    ]);
+    addToast("היעדרות נוספה בהצלחה", "success");
+    setStartDate("");
+    setEndDate("");
+  };
+  const handleDeleteAbsence = (id) => {
+    setAbsences((prev) => prev.filter((a) => a.id !== id));
+    addToast("היעדרות נמחקה");
+  };
+  return (
+    <Modal
+      show={show}
+      onClose={onClose}
+      title={`ניהול היעדרויות: ${employee.name}`}
+    >
+      <form onSubmit={handleAddAbsence} className="absence-form">
+        <div className="form-group">
+          <label>סוג היעדרות</label>
+          <select value={type} onChange={(e) => setType(e.target.value)}>
+            <option value="vacation">חופשה</option>
+            <option value="sick">מחלה</option>
+          </select>
+        </div>
+        <div className="form-group">
+          <label>מתאריך</label>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            required
+          />
+        </div>
+        <div className="form-group">
+          <label>עד תאריך</label>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            required
+          />
+        </div>
+        <button type="submit">הוסף היעדרות</button>
+      </form>
+      <div className="absences-list">
+        <h4>היעדרויות קיימות</h4>
+        {employeeAbsences.length > 0 ? (
+          <table>
+            <tbody>
+              {employeeAbsences.map((abs) => (
+                <tr key={abs.id}>
+                  <td>
+                    <strong>{abs.type === "sick" ? "מחלה" : "חופשה"}</strong>
+                  </td>
+                  <td>{abs.startDate}</td>
+                  <td>{abs.endDate}</td>
+                  <td>
+                    <button
+                      onClick={() => handleDeleteAbsence(abs.id)}
+                      className="danger-text"
+                    >
+                      מחק
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p>אין היעדרויות רשומות.</p>
+        )}
+      </div>
+    </Modal>
+  );
+}
 function EmployeeFormModal({ show, onClose, onSave, employee }) {
+  /* ... Unchanged ... */
   const [formData, setFormData] = useState({
     name: "",
     department: "תמיכה",
@@ -935,101 +1001,8 @@ function EmployeeFormModal({ show, onClose, onSave, employee }) {
     </Modal>
   );
 }
-
-function AbsenceManagementModal({ show, onClose, employee }) {
-  const { absences, setAbsences, addToast } = useContext(AppContext);
-  const [type, setType] = useState("vacation");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-
-  if (!show || !employee) return null;
-  const employeeAbsences = absences.filter((a) => a.employeeId === employee.id);
-  const handleAddAbsence = (e) => {
-    e.preventDefault();
-    if (new Date(endDate) < new Date(startDate)) {
-      addToast("תאריך סיום לא יכול להיות לפני תאריך ההתחלה", "danger");
-      return;
-    }
-    setAbsences((prev) => [
-      ...prev,
-      { id: Date.now(), employeeId: employee.id, type, startDate, endDate },
-    ]);
-    addToast("היעדרות נוספה בהצלחה", "success");
-    setStartDate("");
-    setEndDate("");
-  };
-  const handleDeleteAbsence = (id) => {
-    setAbsences((prev) => prev.filter((a) => a.id !== id));
-    addToast("היעדרות נמחקה");
-  };
-
-  return (
-    <Modal
-      show={show}
-      onClose={onClose}
-      title={`ניהול היעדרויות: ${employee.name}`}
-    >
-      <form onSubmit={handleAddAbsence} className="absence-form">
-        <div className="form-group">
-          <label>סוג היעדרות</label>
-          <select value={type} onChange={(e) => setType(e.target.value)}>
-            <option value="vacation">חופשה</option>
-            <option value="sick">מחלה</option>
-          </select>
-        </div>
-        <div className="form-group">
-          <label>מתאריך</label>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            required
-          />
-        </div>
-        <div className="form-group">
-          <label>עד תאריך</label>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            required
-          />
-        </div>
-        <button type="submit">הוסף היעדרות</button>
-      </form>
-      <div className="absences-list">
-        <h4>היעדרויות קיימות</h4>
-        {employeeAbsences.length > 0 ? (
-          <table>
-            <tbody>
-              {employeeAbsences.map((abs) => (
-                <tr key={abs.id}>
-                  <td>
-                    <strong>{abs.type === "sick" ? "מחלה" : "חופשה"}</strong>
-                  </td>
-                  <td>{abs.startDate}</td>
-                  <td>{abs.endDate}</td>
-                  <td>
-                    <button
-                      onClick={() => handleDeleteAbsence(abs.id)}
-                      className="danger-text"
-                    >
-                      מחק
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p>אין היעדרויות רשומות.</p>
-        )}
-      </div>
-    </Modal>
-  );
-}
-
 function LoginPage({ onLogin }) {
+  /* ... Unchanged ... */
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -1081,8 +1054,8 @@ function LoginPage({ onLogin }) {
     </div>
   );
 }
-
 function Toast({ message, type, onDismiss }) {
+  /* ... Unchanged ... */
   useEffect(() => {
     const timer = setTimeout(onDismiss, 4000);
     return () => clearTimeout(timer);
@@ -1090,8 +1063,7 @@ function Toast({ message, type, onDismiss }) {
   return <div className={`toast ${type}`}>{message}</div>;
 }
 
-// Paste this code over the existing App function at the bottom of App.js
-
+// --- The Main App Component ---
 function App() {
   const [employees, setEmployees] = useState(
     () => JSON.parse(localStorage.getItem("employees")) || initialData.employees
@@ -1105,20 +1077,18 @@ function App() {
   );
   const [settings, setSettings] = useState(
     () => JSON.parse(localStorage.getItem("settings")) || initialData.settings
-  ); // UPDATED to use setSettings
+  );
   const [currentUser, setCurrentUser] = useState(
     () => JSON.parse(localStorage.getItem("currentUser")) || null
   );
   const [toasts, setToasts] = useState([]);
-
   useEffect(() => {
     localStorage.setItem("currentUser", JSON.stringify(currentUser));
     localStorage.setItem("employees", JSON.stringify(employees));
     localStorage.setItem("attendance", JSON.stringify(attendance));
     localStorage.setItem("absences", JSON.stringify(absences));
-    localStorage.setItem("settings", JSON.stringify(settings)); // UPDATED to save settings
+    localStorage.setItem("settings", JSON.stringify(settings));
   }, [currentUser, employees, attendance, absences, settings]);
-
   useEffect(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -1133,7 +1103,11 @@ function App() {
         );
       });
       const newStatus = activeAbsence ? activeAbsence.type : "absent";
-      if (emp.status === "sick" || emp.status === "vacation") {
+      if (
+        emp.status === "sick" ||
+        emp.status === "vacation" ||
+        (activeAbsence && emp.status !== newStatus)
+      ) {
         return { ...emp, status: newStatus };
       }
       return emp;
@@ -1142,16 +1116,12 @@ function App() {
       setEmployees(updatedEmployees);
     }
   }, [absences, employees]);
-
   const addToast = useCallback((message, type = "info") => {
     const id = Date.now();
     setToasts((prev) => [...prev, { id, message, type }]);
   }, []);
-
   const handleLogin = (user) => setCurrentUser(user);
   const handleLogout = () => setCurrentUser(null);
-
-  // UPDATED: Pass setSettings to the context
   const contextValue = {
     employees,
     setEmployees,
@@ -1164,7 +1134,6 @@ function App() {
     settings,
     setSettings,
   };
-
   return (
     <AppContext.Provider value={contextValue}>
       <BrowserRouter>

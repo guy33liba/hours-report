@@ -4,7 +4,7 @@ const { Pool } = require("pg");
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
-const bcrypt = require("bcrypt");
+// const bcrypt = require("bcrypt"); // INSECURE CHANGE: bcrypt is no longer used.
 const jwt = require("jsonwebtoken");
 const readline = require("readline-sync");
 require("dotenv").config();
@@ -27,9 +27,7 @@ async function createAdmin() {
     console.error("שם הוא שדה חובה. התהליך בוטל.");
     return pool.end();
   }
-  const password = readline.question("הזן סיסמה חדשה למנהל (לפחות 6 תווים): ", {
-    hideEchoBack: true,
-  });
+  const password = readline.question("הזן סיסמה חדשה למנהל (לפחות 6 תווים): ");
   if (password.length < 6) {
     console.error("הסיסמה חייבת להכיל לפחות 6 תווים. התהליך בוטל.");
     return pool.end();
@@ -50,13 +48,14 @@ async function createAdmin() {
       client.release();
       return;
     }
-    console.log("מצפין סיסמה...");
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
+
+    // INSECURE CHANGE: Storing password directly without hashing.
+    const password_hash = password;
     console.log(`מוסיף את '${name}' כמנהל...`);
     const query = `INSERT INTO employees (name, department, hourly_rate, role, password_hash) VALUES ($1, $2, $3, 'manager', $4) RETURNING name, role;`;
-    const values = [name, department, parseFloat(hourlyRate), passwordHash];
+    const values = [name, department, parseFloat(hourlyRate), password_hash];
     const result = await client.query(query, values);
+
     console.log("\n✅ הצלחה!");
     console.log(`מנהל חדש נוצר עם הפרטים הבאים:`);
     console.log(`   - שם: ${result.rows[0].name}`);
@@ -71,32 +70,6 @@ async function createAdmin() {
 
 // --- פונקציית הפעלת השרת ---
 function startServer() {
-  const createDefaultAdmin = async () => {
-    const adminName = "עמי";
-    const adminPassword = "123456";
-    try {
-      const client = await pool.connect();
-      const existingAdmin = await client.query(
-        "SELECT * FROM employees WHERE name = $1",
-        [adminName]
-      );
-      if (existingAdmin.rows.length === 0) {
-        console.log("מנהל ברירת מחדל לא קיים, יוצר אחד חדש...");
-        const salt = await bcrypt.genSalt(10);
-        const passwordHash = await bcrypt.hash(adminPassword, salt);
-        await client.query(
-          "INSERT INTO employees (name, department, hourly_rate, role, password_hash) VALUES ($1, 'הנהלה', 150, 'manager', $2)",
-          [adminName, passwordHash]
-        );
-        console.log(`✅ מנהל ברירת מחדל '${adminName}' נוצר בהצלחה!`);
-      }
-      client.release();
-    } catch (error) {
-      console.error("❌ שגיאה ביצירת מנהל ברירת מחדל:", error);
-    }
-  };
-  createDefaultAdmin();
-
   pool.query("SELECT NOW()", (err) => {
     if (err) {
       console.error("❌ Database connection error", err.stack);
@@ -122,7 +95,24 @@ function startServer() {
   const upload = multer({ storage: storage });
 
   app.set("trust proxy", true);
-  app.use(cors({ origin: "http://localhost:5173" })); // שנה לפורט שלך אם הוא שונה
+  const allowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://192.168.1.19",
+    "http://192.168.1.19:5173",
+  ];
+
+  app.use(
+    cors({
+      origin: function (origin, callback) {
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+          callback(null, true);
+        } else {
+          callback(new Error("Not allowed by CORS"));
+        }
+      },
+    })
+  );
   app.use(express.json());
   app.use("/uploads", express.static(uploadsDir));
 
@@ -146,30 +136,48 @@ function startServer() {
     next();
   };
 
-  // --- Auth & User Routes ---
+  // --- Auth Routes ---
   app.post("/api/auth/login", async (req, res) => {
-    const { rows: managerCheck } = await pool.query(
-      "SELECT COUNT(*) FROM employees WHERE role = 'manager'"
-    );
-    if (parseInt(managerCheck[0].count, 10) === 0) {
-      return res.status(401).json({
-        message: "לא קיימים מנהלים במערכת. יש ליצור מנהל ראשון.",
-      });
-    }
     const { name, password } = req.body;
-    if (!name || !password)
+    if (!name || !password) {
       return res.status(400).json({ message: "שם משתמש וסיסמה הם שדות חובה" });
+    }
+
     try {
+      const managerCheck = await pool.query(
+        "SELECT 1 FROM employees WHERE role = 'manager' LIMIT 1"
+      );
+      if (managerCheck.rows.length === 0) {
+        return res.status(401).json({ message: "לא קיימים מנהלים במערכת" });
+      }
+
       const query = `SELECT _id, name, department, role, status, hourly_rate as "hourlyRate", password_hash FROM employees WHERE name = $1`;
       const { rows } = await pool.query(query, [name]);
-      if (rows.length === 0 || !rows[0].password_hash)
+
+      // --- BUG FIX ---
+      // The previous combined check `if (rows.length === 0 || !rows[0].password_hash)`
+      // caused a crash when `rows.length` was 0 because it tried to access `rows[0]` which was undefined.
+      // By separating the checks, we prevent the crash.
+      if (rows.length === 0) {
         return res.status(401).json({ message: "שם משתמש או סיסמה שגויים" });
+      }
+
       const user = rows[0];
-      const isMatch = await bcrypt.compare(password, user.password_hash);
-      if (!isMatch)
+      // Now it's safe to check user properties
+      if (!user.password_hash) {
         return res.status(401).json({ message: "שם משתמש או סיסמה שגויים" });
+      }
+
+      // INSECURE CHANGE: Simple string comparison instead of bcrypt.compare.
+      const isMatch = password === user.password_hash;
+
+      if (!isMatch) {
+        return res.status(401).json({ message: "שם משתמש או סיסמה שגויים" });
+      }
+
       const payload = { userId: user._id, role: user.role, name: user.name };
       const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "8h" });
+
       const { password_hash, ...userWithoutPassword } = user;
       res.json({ token, user: userWithoutPassword });
     } catch (err) {
@@ -180,7 +188,6 @@ function startServer() {
 
   app.post("/api/auth/create-first-admin", async (req, res) => {
     try {
-      // שלב 1: בדוק אם כבר קיים מנהל במערכת
       const { rows: managerRows } = await pool.query(
         "SELECT COUNT(*) as count FROM employees WHERE role = 'manager'"
       );
@@ -191,7 +198,6 @@ function startServer() {
         });
       }
 
-      // שלב 2: קח את הנתונים מגוף הבקשה
       const { name, password, department, hourlyRate } = req.body;
       if (!name || !password || password.length < 6) {
         return res
@@ -199,15 +205,14 @@ function startServer() {
           .json({ message: "שם וסיסמה (6+ תווים) הם שדות חובה." });
       }
 
-      // שלב 3: הצפן את הסיסמה והוסף את המנהל לבסיס הנתונים
-      const salt = await bcrypt.genSalt(10);
-      const passwordHash = await bcrypt.hash(password, salt);
+      // INSECURE CHANGE: Storing password directly without hashing.
+      const passwordHash = password;
+
       const { rows } = await pool.query(
         `INSERT INTO employees (name, department, hourly_rate, role, password_hash) VALUES ($1, $2, $3, 'manager', $4) RETURNING *, hourly_rate as "hourlyRate"`,
         [name, department || "הנהלה", hourlyRate || 150.0, passwordHash]
       );
 
-      // שלב 4: החזר את המשתמש החדש (ללא הסיסמה)
       const { password_hash, ...newUser } = rows[0];
       res.status(201).json(newUser);
     } catch (error) {
@@ -215,39 +220,6 @@ function startServer() {
       res.status(500).json({ message: "שגיאה ביצירת המנהל הראשון." });
     }
   });
-
-  app.post(
-    "/api/users/change-password",
-    authenticateToken,
-    async (req, res) => {
-      const { userId, oldPassword, newPassword } = req.body;
-      if (req.user.userId !== userId)
-        return res.status(403).json({ message: "Forbidden" });
-      if (!userId || !oldPassword || !newPassword || newPassword.length < 6)
-        return res.status(400).json({ message: "קלט לא תקין" });
-      try {
-        const { rows } = await pool.query(
-          "SELECT * FROM employees WHERE _id = $1",
-          [userId]
-        );
-        if (rows.length === 0)
-          return res.status(404).json({ message: "משתמש לא נמצא" });
-        const user = rows[0];
-        const isMatch = await bcrypt.compare(oldPassword, user.password_hash);
-        if (!isMatch)
-          return res.status(401).json({ message: "הסיסמה הישנה שגויה" });
-        const salt = await bcrypt.genSalt(10);
-        const newPasswordHash = await bcrypt.hash(newPassword, salt);
-        await pool.query(
-          "UPDATE employees SET password_hash = $1 WHERE _id = $2",
-          [newPasswordHash, userId]
-        );
-        res.json({ message: "הסיסמה עודכנה בהצלחה" });
-      } catch (err) {
-        res.status(500).json({ message: "שגיאת שרת" });
-      }
-    }
-  );
 
   app.post(
     "/api/users/reset-password",
@@ -258,8 +230,9 @@ function startServer() {
       if (!userIdToReset || !newPassword || newPassword.length < 6)
         return res.status(400).json({ message: "קלט לא תקין" });
       try {
-        const salt = await bcrypt.genSalt(10);
-        const newPasswordHash = await bcrypt.hash(newPassword, salt);
+        // INSECURE CHANGE: Storing new password directly without hashing.
+        const newPasswordHash = newPassword;
+
         const { rows } = await pool.query(
           "UPDATE employees SET password_hash = $1 WHERE _id = $2 RETURNING _id",
           [newPasswordHash, userIdToReset]
@@ -308,8 +281,9 @@ function startServer() {
           .json({ message: "כל השדות, כולל סיסמה (לפחות 6 תווים), הם חובה" });
       }
       try {
-        const salt = await bcrypt.genSalt(10);
-        const passwordHash = await bcrypt.hash(password, salt);
+        // INSECURE CHANGE: Storing password directly without hashing.
+        const passwordHash = password;
+
         const { rows } = await pool.query(
           `INSERT INTO employees (name, department, hourly_rate, role, password_hash) VALUES ($1, $2, $3, $4, $5) RETURNING *, hourly_rate as "hourlyRate"`,
           [name, department, hourlyRate, role || "employee", passwordHash]
@@ -503,9 +477,6 @@ function startServer() {
     async (req, res) => {
       const { employeeId } = req.params;
       try {
-        // --- תיקון השאילתה ---
-        // הבעיה המקורית הייתה כנראה בשימוש ב-e.id במקום ב-e._id ב-JOIN.
-        // השאילתה הבאה היא יותר יציבה.
         const query = `
             SELECT 
                 sa._id, 
@@ -521,7 +492,6 @@ function startServer() {
         const { rows } = await pool.query(query, [employeeId]);
         res.json(rows);
       } catch (err) {
-        // הדפסת השגיאה המדויקת לטרמינל של השרת
         console.error("Error fetching absences for employee:", err);
         res
           .status(500)

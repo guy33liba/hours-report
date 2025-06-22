@@ -1,3 +1,5 @@
+// App.js
+
 import React, {
   useState,
   useEffect,
@@ -6,6 +8,7 @@ import React, {
   createContext,
   useContext,
   useReducer,
+  useRef,
 } from "react";
 import {
   BrowserRouter,
@@ -13,76 +16,54 @@ import {
   Route,
   NavLink,
   Navigate,
-  Outlet,
-  useLocation,
 } from "react-router-dom";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-} from "chart.js";
-import "./styles.css";
+import "./App.css";
 
-// 1. API SERVICE
-const API_BASE_URL = "http://localhost:5000/api";
-
-const apiFetch = async (endpoint, options = {}) => {
-  const token = localStorage.getItem("token");
-  const headers = { ...options.headers };
-
-  if (!(options.body instanceof FormData)) {
-    headers["Content-Type"] = "application/json";
-  }
-
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
-  try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...options,
-      headers,
-    });
-
-    if (response.status === 401) {
-      // If we used an old token and it failed, then we clear and refresh.
-      if (token && endpoint !== "/auth/login") {
-        localStorage.removeItem("token");
-        localStorage.removeItem("currentUser");
-        window.location.href = "/";
-        throw new Error("פג תוקף משתמש, יש להתחבר מחדש.");
-      }
-      // If it was a failed login attempt, just throw a regular error.
-      const errorData = await response.json();
-      throw new Error(errorData.message || "שם משתמש או סיסמה שגויים");
-    }
-
-    if (response.status === 204) return null;
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.message || "אירעה שגיאה בשרת.");
-    return data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// 2. CONTEXT, HOOKS & CONSTANTS
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
+const Icon = ({ path, size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+    <path d={path}></path>
+  </svg>
 );
-const AppContext = createContext();
-const ToastContext = createContext();
-const useToaster = () => useContext(ToastContext);
-
+const ICONS = {
+  DASHBOARD: "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z",
+  EMPLOYEES:
+    "M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z",
+  REPORTS:
+    "M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z",
+  PAYROLL:
+    "M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41s-.22-1.05-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z",
+  SETTINGS:
+    "M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.69-1.62-0.92L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 l-3.84,0c-0.24,0-0.44,0.17-0.48,0.41L9.2,5.59C8.6,5.82,8.08,6.13,7.58,6.51L5.19,5.55C4.97,5.48,4.72,5.55,4.6,5.77L2.68,9.09 c-0.11,0.2-0.06,0.47,0.12,0.61L4.83,11.28c-0.05,0.3-0.07,0.62-0.07,0.94c0,0.32,0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.69,1.62,0.92l0.44,2.78 c0.04,0.24,0.24,0.41,0.48,0.41l3.84,0c0.24,0,0.44-0.17-0.48-0.41l0.44-2.78c0.59-0.23,1.12-0.54,1.62-0.92l2.39,0.96 c0.22,0.08,0.47,0.01,0.59-0.22l1.92-3.32c0.12-0.2,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z",
+  LOGOUT:
+    "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2h8v-2H4V5z",
+  ON_BREAK:
+    "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z",
+  SICK: "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z",
+  VACATION:
+    "M21.99 8c0-.55-.45-1-1-1h-2.01V5c0-1.1-.9-2-2-2H7c-1.1 0-2 .9-2 2v2H3c-.55 0-1 .45-1 1s.45 1 1 1h18c.55 0 1-.45 1-1zM7 11h10v8H7v-8z",
+};
+const STATUSES = {
+  PRESENT: { key: "present", text: "נוכח", colorClass: "present", icon: null },
+  ON_BREAK: {
+    key: "on_break",
+    text: "הפסקה",
+    colorClass: "on_break",
+    icon: ICONS.ON_BREAK,
+  },
+  SICK: { key: "sick", text: "מחלה", colorClass: "sick", icon: ICONS.SICK },
+  VACATION: {
+    key: "vacation",
+    text: "חופשה",
+    colorClass: "vacation",
+    icon: ICONS.VACATION,
+  },
+  ABSENT: {
+    key: "absent",
+    text: "לא בעבודה",
+    colorClass: "absent",
+    icon: null,
+  },
+};
 const useLocalStorage = (key, initialValue) => {
   const [value, setValue] = useState(() => {
     try {
@@ -101,151 +82,7 @@ const useLocalStorage = (key, initialValue) => {
   }, [key, value]);
   return [value, setValue];
 };
-
-const useSortableData = (items, config = null) => {
-  const [sortConfig, setSortConfig] = useState(config);
-  const sortedItems = useMemo(() => {
-    let sortableItems = items ? [...items] : [];
-    if (sortConfig !== null) {
-      sortableItems.sort((a, b) => {
-        const valA = a[sortConfig.key] || "";
-        const valB = b[sortConfig.key] || "";
-        if (typeof valA === "number" && typeof valB === "number")
-          return sortConfig.direction === "ascending"
-            ? valA - valB
-            : valB - valA;
-        const strA = String(valA);
-        const strB = String(valB);
-        return sortConfig.direction === "ascending"
-          ? strA.localeCompare(strB)
-          : strB.localeCompare(strA);
-      });
-    }
-    return sortableItems;
-  }, [items, sortConfig]);
-  const requestSort = (key) => {
-    let direction = "ascending";
-    if (
-      sortConfig &&
-      sortConfig.key === key &&
-      sortConfig.direction === "ascending"
-    )
-      direction = "descending";
-    setSortConfig({ key, direction });
-  };
-  return { items: sortedItems, requestSort, sortConfig };
-};
-
-const ICONS = {
-  EYE_OPEN:
-    "M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5zm0 12c-2.48 0-4.5-2.02-4.5-4.5S9.52 7.5 12 7.5s4.5 2.02 4.5 4.5-2.02 4.5-4.5 4.5zm0-7c-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5 2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5z",
-  EYE_CLOSED:
-    "M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.38 1.12 2.5 2.5 2.5.22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.48 0-4.5-2.02-4.5-4.5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.38-1.12-2.5-2.5-2.5-.05 0-.1.01-.16.02z",
-  DASHBOARD: "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z",
-  EMPLOYEES:
-    "M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z",
-  REPORTS:
-    "M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z",
-  PAYROLL:
-    "M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41s-.22-1.05-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z",
-  SETTINGS:
-    "M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.69-1.62-0.92L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 l-3.84,0c-0.24,0-0.44,0.17-0.48,0.41L9.2,5.59C8.6,5.82,8.08,6.13,7.58,6.51L5.19,5.55C4.97,5.48,4.72,5.55,4.6,5.77L2.68,9.09 c-0.11,0.2-0.06,0.47,0.12,0.61L4.83,11.28c-0.05,0.3-0.07,0.62-0.07,0.94c0,0.32,0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.69,1.62,0.92l0.44,2.78 c0.04,0.24,0.24,0.41,0.48,0.41l3.84,0c0.24,0-0.44,0.17-0.48,0.41l0.44-2.78c0.59-0.23,1.12-0.54,1.62-0.92l2.39,0.96 c0.22,0.08,0.47,0.01,0.59-0.22l1.92-3.32c0.12-0.2,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z",
-  LOGOUT:
-    "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2h8v-2H4V5z",
-  DOWNLOAD: "M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z",
-  SORT: "M3 18h6v-2H3v2zM3 6v2h18V6H3zm0 7h12v-2H3v2z",
-  MENU: "M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z",
-};
-const STATUSES = {
-  PRESENT: { key: "present", text: "נוכח", colorClass: "present" },
-  SICK: { key: "sick", text: "מחלה", colorClass: "sick" },
-  VACATION: { key: "vacation", text: "חופשה", colorClass: "vacation" },
-  ABSENT: { key: "absent", text: "לא בעבודה", colorClass: "absent" },
-};
-const initialAppState = {
-  settings: {
-    standardWorkDayHours: 8.5,
-    overtimeRatePercent: 150,
-    restrictByIp: false,
-    allowedIps: "127.0.0.1, ::1",
-    paidVacation: true,
-    paidSickLeave: true,
-  },
-};
-const appReducer = (state, action) => {
-  switch (action.type) {
-    case "SET_SETTINGS":
-      return { ...state, settings: action.payload };
-    default:
-      return state;
-  }
-};
-
-// 3. UI & HELPER COMPONENTS
-const LoadingSpinner = () => <div className="loader"></div>;
-const Icon = React.memo(({ path, size = 18, className = "" }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="currentColor"
-    className={className}
-  >
-    <path d={path}></path>
-  </svg>
-));
-
-// === FIX: Improved form components with accessibility ===
-const FormInput = React.memo(({ label, icon, onIconClick, ...props }) => {
-  const id = props.id || props.name;
-  return (
-    <div className="form-group">
-      <label htmlFor={id}>{label}</label>
-      <div className="input-with-icon">
-        <input {...props} id={id} />
-        {icon && (
-          <button
-            type="button"
-            className="input-icon-button"
-            onClick={onIconClick}
-            aria-label={props.type === "password" ? "הסתר סיסמה" : "הצג סיסמה"}
-          >
-            {icon}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-});
-
-const FormTextarea = React.memo(({ label, ...props }) => {
-  const id = props.id || props.name;
-  return (
-    <div className="form-group">
-      <label htmlFor={id}>{label}</label> <textarea {...props} id={id} />
-    </div>
-  );
-});
-
-const ToggleSwitch = React.memo(({ label, checked, onChange, name }) => (
-  <div className="toggle-switch">
-    <label htmlFor={name} style={{ cursor: "pointer" }}>
-      {label}
-    </label>
-    <label className="switch">
-      <input
-        type="checkbox"
-        id={name}
-        name={name}
-        checked={checked}
-        onChange={onChange}
-      />
-      <span className="slider"></span>
-    </label>
-  </div>
-));
-// === END OF FIX ===
-
+const ToastContext = createContext();
 const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
   const addToast = useCallback((message, type = "info") => {
@@ -266,8 +103,8 @@ const ToastProvider = ({ children }) => {
                 t.type === "success"
                   ? "var(--success-color)"
                   : t.type === "danger"
-                  ? "var(--danger-color)"
-                  : "var(--text-dark)",
+                  ? "var(--danger-color)" // הוספה חדשה
+                  : "var(--font-dark)",
             }}
           >
             {t.message}
@@ -277,93 +114,567 @@ const ToastProvider = ({ children }) => {
     </ToastContext.Provider>
   );
 };
+const useToaster = () => useContext(ToastContext);
+const calculateNetHours = (attendanceEntry) => {
+  if (!attendanceEntry || !attendanceEntry.clockIn) return 0;
 
-const SortableHeader = React.memo(
-  ({ children, name, sortConfig, requestSort }) => {
-    const isSorted = sortConfig && sortConfig.key === name;
-    const directionClass = isSorted
-      ? sortConfig.direction === "ascending"
-        ? "desc"
-        : "asc"
-      : "";
-    return (
-      <th className="sortable" onClick={() => requestSort(name)}>
-        {children}
-        <Icon path={ICONS.SORT} className={`sort-icon ${directionClass}`} />
-      </th>
+  // If clock-out is not defined, use the current time for calculation
+  const clockOutTime = attendanceEntry.clockOut
+    ? new Date(attendanceEntry.clockOut)
+    : new Date();
+  const clockInTime = new Date(attendanceEntry.clockIn);
+
+  let totalMilliseconds = clockOutTime - clockInTime;
+
+  // Subtract break times
+  if (attendanceEntry.breaks && attendanceEntry.breaks.length > 0) {
+    const totalBreakMilliseconds = attendanceEntry.breaks.reduce(
+      (acc, breakItem) => {
+        if (breakItem.start && breakItem.end) {
+          return acc + (new Date(breakItem.end) - new Date(breakItem.start));
+        }
+        // If a break is still ongoing, calculate duration until now
+        if (breakItem.start && !breakItem.end) {
+          return acc + (new Date() - new Date(breakItem.start));
+        }
+        return acc;
+      },
+      0
     );
-  }
-);
 
-const ProtectedRoute = ({ isAllowed, redirectPath = "/", children }) => {
-  if (!isAllowed) return <Navigate to={redirectPath} replace />;
-  return children ? children : <Outlet />;
+    totalMilliseconds -= totalBreakMilliseconds;
+  }
+
+  // Return hours, ensuring it's not negative
+  return Math.max(0, totalMilliseconds / 36e5);
+};
+const initialData = {
+  employees: [
+    {
+      id: 1,
+      name: "ישראל ישראלי",
+      department: "פיתוח",
+      role: "manager",
+      hourlyRate: 120,
+      status: STATUSES.ABSENT.key,
+    },
+    {
+      id: 2,
+      name: "דנה כהן",
+      department: "שיווק",
+      role: "employee",
+      hourlyRate: 60,
+      status: STATUSES.ABSENT.key,
+    },
+  ],
+  attendance: [],
+  scheduledAbsences: [],
+  settings: {
+    standardWorkDayHours: 8.5,
+    overtimeRatePercent: 150,
+    restrictByIp: true,
+    allowedIps: "192.168.1.1, 8.8.8.8",
+    alertOnLateArrival: true,
+  },
+};
+const dataReducer = (state, action) => {
+  switch (action.type) {
+    case "SET_INITIAL_DATA":
+      return {
+        ...action.payload,
+        settings: {
+          ...initialData.settings,
+          ...(action.payload.settings || {}),
+        },
+      };
+    case "UPDATE_SETTINGS":
+      return { ...state, settings: { ...state.settings, ...action.payload } };
+    case "UPDATE_EMPLOYEE_STATUS":
+      return {
+        ...state,
+        employees: state.employees.map((e) =>
+          e.id === action.payload.id
+            ? { ...e, status: action.payload.status }
+            : e
+        ),
+      };
+    case "ADD_ATTENDANCE":
+      return { ...state, attendance: [...state.attendance, action.payload] };
+    case "UPDATE_LAST_ATTENDANCE": {
+      const idx = state.attendance.findLastIndex(
+        (a) => a.employeeId === action.payload.employeeId && !a.clockOut
+      );
+      if (idx === -1) return state;
+      const newAtt = [...state.attendance];
+      newAtt[idx] = { ...newAtt[idx], ...action.payload.data };
+      return { ...state, attendance: newAtt };
+    }
+    case "ADD_EMPLOYEE":
+      return {
+        ...state,
+        employees: [
+          ...state.employees,
+          { ...action.payload, id: Date.now(), status: STATUSES.ABSENT.key },
+        ],
+      };
+    case "UPDATE_EMPLOYEE":
+      return {
+        ...state,
+        employees: state.employees.map((e) =>
+          e.id === action.payload.id ? { ...e, ...action.payload } : e
+        ),
+      };
+    case "DELETE_EMPLOYEE":
+      return {
+        ...state,
+        employees: state.employees.filter((e) => e.id !== action.payload),
+        attendance: state.attendance.filter(
+          (a) => a.employeeId !== action.payload
+        ),
+      };
+    case "ADD_ABSENCE":
+      return {
+        ...state,
+        scheduledAbsences: [
+          ...state.scheduledAbsences,
+          { ...action.payload, id: Date.now() },
+        ],
+      };
+    case "DELETE_ABSENCE":
+      return {
+        ...state,
+        scheduledAbsences: state.scheduledAbsences.filter(
+          (a) => a.id !== action.payload
+        ),
+      };
+    default:
+      return state;
+  }
 };
 
-const Modal = React.memo(({ show, onClose, children, ...props }) => {
-  if (!show) return null;
+const AppContext = createContext();
+const ToggleSwitch = ({ label, checked, onChange, name }) => (
+  <div className="toggle-switch">
+    <span>{label}</span>
+    <label className="switch">
+      <input
+        type="checkbox"
+        name={name}
+        checked={checked}
+        onChange={onChange}
+      />
+      <span className="slider"></span>
+    </label>
+  </div>
+);
+const FormInput = ({ label, ...props }) => (
+  <div className="form-group">
+    <label>{label}</label>
+    <input {...props} />
+  </div>
+);
+const FormTextarea = ({ label, ...props }) => (
+  <div className="form-group">
+    <label>{label}</label>
+    <textarea {...props} />
+  </div>
+);
+
+function Dashboard() {
+  const { state } = useContext(AppContext);
+  const summary = useMemo(() => {
+    if (!state || !state.settings || !state.employees || !state.attendance) {
+      return { totalHours: 0, overtimeHours: 0, totalPay: 0, presentCount: 0 };
+    }
+    let totalHours = 0,
+      overtimeHours = 0,
+      totalPay = 0;
+    const todayStr = new Date().toDateString();
+    const activeEmployees = state.employees.filter(
+      (emp) => emp.status !== STATUSES.ABSENT.key
+    );
+    activeEmployees.forEach((emp) => {
+      const todayEntries = state.attendance.filter(
+        (a) =>
+          a.employeeId === emp.id &&
+          new Date(a.clockIn).toDateString() === todayStr
+      );
+      let empTodayHours = 0;
+      todayEntries.forEach((entry) => {
+        empTodayHours += calculateNetHours(entry);
+      });
+      const validEmpHours = Number(empTodayHours) || 0;
+      const maxHours = Number(state.settings.standardWorkDayHours) || 9;
+      const hourlyRate = Number(emp.hourlyRate) || 0;
+      const overtimeRatePercent =
+        Number(state.settings.overtimeRatePercent) || 150;
+      totalHours += validEmpHours;
+      const empRegular = Math.min(validEmpHours, maxHours);
+      const empOvertime = Math.max(0, validEmpHours - maxHours);
+      overtimeHours += empOvertime;
+      totalPay +=
+        empRegular * hourlyRate +
+        empOvertime * hourlyRate * (overtimeRatePercent / 100);
+    });
+    return {
+      totalHours: totalHours || 0,
+      overtimeHours: overtimeHours || 0,
+      totalPay: totalPay || 0,
+      presentCount: activeEmployees.length,
+    };
+  }, [state]);
+
+  return (
+    <>
+      <h2>סקירה כללית</h2>
+      <div
+        className="dashboard-grid"
+        style={{ gridTemplateColumns: "repeat(4, 1fr)", gap: "20px" }}
+      >
+        <div className="card kpi-card">
+          <h3>סה"כ שעות היום</h3>
+          <p className="kpi-value">{summary.totalHours.toFixed(2)}</p>
+        </div>
+        <div className="card kpi-card">
+          <h3>שעות נוספות</h3>
+          <p className="kpi-value">{summary.overtimeHours.toFixed(2)}</p>
+        </div>
+        <div className="card kpi-card">
+          <h3>עובדים נוכחים</h3>
+          <p className="kpi-value">{summary.presentCount}</p>
+        </div>
+        <div className="card kpi-card">
+          <h3>שכר מוערך להיום</h3>
+          <p className="kpi-value">₪{summary.totalPay.toFixed(2)}</p>
+        </div>
+      </div>
+      <div className="dashboard-grid">
+        <RealTimePresenceCard />
+      </div>
+    </>
+  );
+}
+
+function RealTimePresenceCard() {
+  const { dispatch } = useContext(AppContext);
+  const toaster = useToaster();
+
+  // This logic now lives in the parent, to be passed down
+
+  const handleStatusChange = async (employee, newStatusKey) => {
+    // הפכנו את הפונקציה ל-async
+    if (employee.status === newStatusKey) return;
+
+    const { settings } = state; // קבלת ההגדרות מה-state
+
+    // --- בדיקת IP חדשה ---
+    // בודקים רק בפעולת "כניסה" (מעבר מ"לא בעבודה" ל"נוכח")
+    if (
+      newStatusKey === STATUSES.PRESENT.key &&
+      employee.status === STATUSES.ABSENT.key &&
+      settings.restrictByIp
+    ) {
+      try {
+        const response = await fetch("https://api.ipify.org?format=json");
+        const data = await response.json();
+        const userIp = data.ip;
+
+        const allowedIps = settings.allowedIps
+          .split(",")
+          .map((ip) => ip.trim());
+
+        if (!allowedIps.includes(userIp)) {
+          toaster(
+            `שגיאה: לא ניתן להחתים נוכחות מכתובת ה-IP הנוכחית (${userIp})`,
+            "danger"
+          );
+          return; // עצירת הפעולה אם ה-IP לא מורשה
+        }
+      } catch (error) {
+        toaster("שגיאה: לא ניתן היה לאמת את כתובת ה-IP. נסה שוב.", "danger");
+        console.error("IP check failed:", error);
+        return;
+      }
+    }
+    // -------------------------
+
+    const now = new Date().toISOString();
+    const newStatusObject = Object.values(STATUSES).find(
+      (s) => s.key === newStatusKey
+    );
+    const toasterMessage = `${employee.name} שינה סטטוס ל: ${newStatusObject.text}`;
+
+    dispatch({
+      type: "UPDATE_EMPLOYEE_STATUS",
+      payload: { id: employee.id, status: newStatusKey },
+    });
+
+    // ... (שאר הלוגיקה של הפונקציה נשארת זהה)
+    if (
+      newStatusKey === STATUSES.PRESENT.key &&
+      employee.status === STATUSES.ABSENT.key
+    ) {
+      dispatch({
+        type: "ADD_ATTENDANCE",
+        payload: {
+          id: Date.now(),
+          employeeId: employee.id,
+          clockIn: now,
+          clockOut: null,
+        },
+      });
+      toaster(toasterMessage, "success");
+    }
+    // Start Break (from Present to On Break)
+    else if (newStatusKey === STATUSES.ON_BREAK.key) {
+      dispatch({
+        type: "START_BREAK",
+        payload: { employeeId: employee.id, time: now },
+      });
+      toaster(toasterMessage);
+    }
+    // End Break (from On Break to Present)
+    else if (
+      newStatusKey === STATUSES.PRESENT.key &&
+      employee.status === STATUSES.ON_BREAK.key
+    ) {
+      dispatch({
+        type: "END_BREAK",
+        payload: { employeeId: employee.id, time: now },
+      });
+      toaster(toasterMessage);
+    }
+    // Clock-Out (from any active state to Absent)
+    else if (newStatusKey === STATUSES.ABSENT.key) {
+      // If employee was on break, end the break first
+      if (employee.status === STATUSES.ON_BREAK.key) {
+        dispatch({
+          type: "END_BREAK",
+          payload: { employeeId: employee.id, time: now },
+        });
+      }
+      dispatch({
+        type: "UPDATE_LAST_ATTENDANCE",
+        payload: { employeeId: employee.id, data: { clockOut: now } },
+      });
+      toaster(toasterMessage);
+    }
+  };
+
+  const { state } = useContext(AppContext);
+
+  return (
+    <div className="card">
+      <h3>נוכחות בזמן אמת</h3>
+      {state.employees
+        .filter((e) => e.role === "employee")
+        .map((emp) => (
+          <EmployeeRow
+            key={emp.id}
+            employee={emp}
+            onStatusChange={handleStatusChange}
+          />
+        ))}
+    </div>
+  );
+}
+
+function EmployeeRow({ employee, onStatusChange }) {
+  const { state } = useContext(AppContext);
+  const [elapsedTime, setElapsedTime] = useState(0);
+
+  useEffect(() => {
+    let interval;
+    const isPresentOrOnBreak =
+      employee.status === STATUSES.PRESENT.key ||
+      employee.status === STATUSES.ON_BREAK.key;
+
+    if (isPresentOrOnBreak) {
+      // Set initial time immediately
+      const todayEntry = state.attendance.findLast(
+        (a) => a.employeeId === employee.id && !a.clockOut
+      );
+      if (todayEntry) {
+        setElapsedTime(calculateNetHours(todayEntry));
+      }
+
+      // Update every second
+      interval = setInterval(() => {
+        const todayEntry = state.attendance.findLast(
+          (a) => a.employeeId === employee.id && !a.clockOut
+        );
+        if (todayEntry) {
+          setElapsedTime(calculateNetHours(todayEntry));
+        }
+      }, 1000);
+    } else {
+      setElapsedTime(0); // Reset if not working
+    }
+
+    return () => clearInterval(interval); // Cleanup on unmount or status change
+  }, [employee.status, state.attendance, employee.id]);
+
+  const formatTime = (hours) => {
+    if (hours <= 0) return "00:00:00";
+    const totalSeconds = Math.floor(hours * 3600);
+    const h = Math.floor(totalSeconds / 3600)
+      .toString()
+      .padStart(2, "0");
+    const m = Math.floor((totalSeconds % 3600) / 60)
+      .toString()
+      .padStart(2, "0");
+    const s = (totalSeconds % 60).toString().padStart(2, "0");
+    return `${h}:${m}:${s}`;
+  };
+
+  const statusObject =
+    Object.values(STATUSES).find((s) => s.key === employee.status) ||
+    STATUSES.ABSENT;
+  const isWorking = employee.status === STATUSES.PRESENT.key;
+  const isOnBreak = employee.status === STATUSES.ON_BREAK.key;
+  const isAbsent = employee.status === STATUSES.ABSENT.key;
+
+  const statusIndicatorStyle = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
+    fontWeight: 500,
+    padding: "4px 10px",
+    borderRadius: "6px",
+    transition: "all 0.3s ease",
+    width: "120px", // Fixed width for alignment
+    justifyContent: "center",
+  };
+
+  if (isOnBreak) {
+    statusIndicatorStyle.backgroundColor = "var(--warning-color)";
+    statusIndicatorStyle.color = "#FFFFFF";
+  }
+
   return (
     <div
-      className="modal-backdrop"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
+      style={{
+        display: "grid",
+        gridTemplateColumns: "2fr 1fr 2fr", // Give more space to sides
+        alignItems: "center",
+        padding: "12px 0",
+        borderBottom: "1px solid var(--border-color)",
+      }}
     >
+      {/* Column 1: Employee Info & Timer */}
       <div
-        className="modal-content"
-        onClick={(e) => e.stopPropagation()}
-        {...props}
+        style={{
+          justifySelf: "start",
+          display: "flex",
+          alignItems: "center",
+          gap: "20px",
+        }}
       >
+        <div>
+          <div style={{ fontWeight: 500 }}>{employee.name}</div>
+          <div style={{ fontSize: "14px", color: "var(--font-light)" }}>
+            {employee.department}
+          </div>
+        </div>
+        {!isAbsent && (
+          <div
+            style={{
+              textAlign: "right",
+              color: "var(--primary-color)",
+              fontFamily: "monospace",
+              fontSize: "18px",
+            }}
+          >
+            {formatTime(elapsedTime)}
+          </div>
+        )}
+      </div>
+
+      {/* Column 2: Status Indicator */}
+      <div style={{ justifySelf: "center" }}>
+        <div style={statusIndicatorStyle}>
+          <div
+            className={`status-dot ${statusObject.colorClass}`}
+            style={
+              isOnBreak
+                ? {
+                    backgroundColor: "white",
+                    border: "1px solid var(--warning-color)",
+                  }
+                : {}
+            }
+          ></div>
+          <span>{statusObject.text}</span>
+        </div>
+      </div>
+
+      {/* Column 3: Action Buttons */}
+      <div style={{ justifySelf: "end", display: "flex", gap: "8px" }}>
         <button
-          onClick={onClose}
-          className="modal-close-btn"
-          aria-label="סגור חלון"
+          onClick={() => onStatusChange(employee, STATUSES.PRESENT.key)}
+          className={isWorking ? "secondary" : ""}
+          disabled={
+            isWorking ||
+            employee.status === "vacation" ||
+            employee.status === "sick"
+          }
+          title={isOnBreak ? "חזרה לעבודה" : "התחלת עבודה"}
         >
-          ×
+          {isOnBreak ? "חזור לעבודה" : "כניסה"}
         </button>
-        {children}
+        <button
+          onClick={() => onStatusChange(employee, STATUSES.ON_BREAK.key)}
+          className={isWorking ? "warning" : "secondary"}
+          disabled={!isWorking}
+          title="יציאה להפסקה"
+        >
+          הפסקה
+        </button>
+        <button
+          onClick={() => onStatusChange(employee, STATUSES.ABSENT.key)}
+          className={isAbsent ? "secondary" : ""}
+          disabled={isAbsent}
+          title="סיום עבודה"
+        >
+          יציאה
+        </button>
       </div>
     </div>
   );
-});
-
-// 4. PAGE-SPECIFIC COMPONENTS
-
+}
 function EmployeeForm({ initialData, onSave, onCancel }) {
   const [formData, setFormData] = useState({
     name: "",
     department: "",
     hourlyRate: "",
     role: "employee",
-    password: "",
+    status: STATUSES.ABSENT.key,
   });
   useEffect(() => {
     if (initialData) {
-      setFormData({
-        name: initialData.name || "",
-        department: initialData.department || "",
-        hourlyRate: initialData.hourlyRate || "",
-        role: initialData.role || "employee",
-        password: "",
-      });
+      setFormData(initialData);
     } else {
       setFormData({
         name: "",
         department: "",
         hourlyRate: "",
         role: "employee",
-        password: "",
+        status: STATUSES.ABSENT.key,
       });
     }
   }, [initialData]);
-  const handleChange = (e) =>
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+  const handleStatusChange = (statusKey) => {
+    setFormData((prev) => ({ ...prev, status: statusKey }));
+  };
   const handleSubmit = (e) => {
     e.preventDefault();
-    const dataToSend = { ...formData };
-    if (initialData && !formData.password) delete dataToSend.password;
-    onSave(dataToSend);
+    onSave(formData);
   };
+
   return (
     <form onSubmit={handleSubmit}>
       <h3 style={{ marginTop: 0, borderBottom: "none" }}>
@@ -373,7 +684,7 @@ function EmployeeForm({ initialData, onSave, onCancel }) {
         style={{
           marginTop: 0,
           marginBottom: "24px",
-          color: "var(--text-light)",
+          color: "var(--font-light)",
         }}
       >
         מלא את הפרטים הבאים כדי להוסיף או לעדכן עובד במערכת.
@@ -400,27 +711,38 @@ function EmployeeForm({ initialData, onSave, onCancel }) {
         onChange={handleChange}
         required
       />
-      <FormInput
-        label={initialData ? "סיסמה חדשה (אופציונלי)" : "סיסמה"}
-        type="password"
-        name="password"
-        value={formData.password}
-        onChange={handleChange}
-        required={!initialData}
-        minLength={6}
-      />
       <div className="form-group">
-        <label htmlFor="role-select">תפקיד</label>
-        <select
-          id="role-select"
-          name="role"
-          value={formData.role}
-          onChange={handleChange}
-        >
+        <label>תפקיד</label>
+        <select name="role" value={formData.role} onChange={handleChange}>
           <option value="employee">עובד</option>
           <option value="manager">מנהל</option>
         </select>
       </div>
+      {initialData && (
+        <div className="form-group">
+          <label>סטטוס נוכחי</label>
+          <div className="status-selector">
+            {Object.values(STATUSES).map((statusInfo) => (
+              <div
+                key={statusInfo.key}
+                className={`status-tag ${
+                  formData.status === statusInfo.key
+                    ? "selected " + statusInfo.colorClass
+                    : ""
+                }`}
+                onClick={() => handleStatusChange(statusInfo.key)}
+              >
+                {statusInfo.icon ? (
+                  <Icon path={statusInfo.icon} className="status-tag-icon" />
+                ) : (
+                  <div className={`status-dot ${statusInfo.colorClass}`}></div>
+                )}
+                <span>{statusInfo.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div
         style={{
           display: "flex",
@@ -438,999 +760,888 @@ function EmployeeForm({ initialData, onSave, onCancel }) {
   );
 }
 
-// === NEW COMPONENT: Content for the reset password modal ===
-function ResetPasswordModalContent({ employeeName, onSubmit, onCancel }) {
-  const [newPassword, setNewPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    await onSubmit(newPassword);
-    setIsLoading(false);
-  };
-
+function EmployeeModal({ show, onClose, employee, onSave }) {
+  if (!show) return null;
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, []);
   return (
-    <form onSubmit={handleSubmit}>
-      <h3 style={{ marginTop: 0 }}>איפוס סיסמה עבור {employeeName}</h3>
-      <p style={{ color: "var(--text-light)", marginTop: 0 }}>
-        הזן סיסמה חדשה לעובד. העובד יצטרך להשתמש בסיסמה זו בכניסה הבאה.
-      </p>
-      <FormInput
-        label="סיסמה חדשה"
-        type="password"
-        name="newPassword"
-        value={newPassword}
-        onChange={(e) => setNewPassword(e.target.value)}
-        required
-        minLength={6}
-        autoFocus
-      />
-      <div
-        style={{
-          display: "flex",
-          gap: "12px",
-          justifyContent: "flex-end",
-          marginTop: "24px",
-        }}
-      >
-        <button type="button" className="secondary" onClick={onCancel}>
-          ביטול
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="modal-close-btn">
+          ×
         </button>
-        <button type="submit" disabled={isLoading}>
-          {isLoading ? <LoadingSpinner /> : "אפס סיסמה"}
-        </button>
+        <EmployeeForm
+          initialData={employee}
+          onSave={onSave}
+          onCancel={onClose}
+        />
       </div>
-    </form>
+    </div>
   );
 }
+// App.js
 
-// === NEW COMPONENT: Content for the absence management modal ===
-function AbsenceManagementModalContent({
+function AbsenceManagementModal({
+  show,
+  onClose,
   employee,
   absences,
-  isLoading,
   onAdd,
   onDelete,
 }) {
-  const [form, setForm] = useState({
+  const [newAbsence, setNewAbsence] = useState({
     type: "vacation",
     startDate: "",
     endDate: "",
-    notes: "",
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleChange = (e) => {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-  };
+  if (!show || !employee) return null;
 
-  const handleSubmit = async (e) => {
+  const handleAddAbsence = (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    await onAdd(form);
-    setIsSubmitting(false);
-    setForm({ type: "vacation", startDate: "", endDate: "", notes: "" });
+    if (newAbsence.startDate && newAbsence.endDate) {
+      onAdd({
+        employeeId: employee.id,
+        ...newAbsence,
+      });
+      setNewAbsence({ type: "vacation", startDate: "", endDate: "" }); // Reset form
+    }
   };
 
   return (
-    <div>
-      <h3 style={{ marginTop: 0 }}>ניהול היעדרויות עבור {employee?.name}</h3>
-      <div className="absence-modal-layout">
-        <div className="absence-list">
-          <h4>היעדרויות קיימות</h4>
-          {isLoading ? (
-            <LoadingSpinner />
-          ) : absences.length === 0 ? (
-            <p>אין היעדרויות רשומות.</p>
-          ) : (
-            <ul>
-              {absences.map((abs) => (
-                <li key={abs._id}>
-                  <span>
-                    <strong>{abs.type === "sick" ? "מחלה" : "חופשה"}:</strong>{" "}
-                    {new Date(abs.startDate).toLocaleDateString("he-IL")} -{" "}
-                    {new Date(abs.endDate).toLocaleDateString("he-IL")}
-                  </span>
-                  <button
-                    className="danger secondary"
-                    onClick={() => onDelete(abs._id)}
-                  >
-                    מחק
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <form onSubmit={handleSubmit} className="absence-form">
-          <h4>הוספת היעדרות חדשה</h4>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="modal-close-btn">
+          ×
+        </button>
+        <h3 style={{ marginTop: 0 }}>ניהול היעדרויות עבור {employee.name}</h3>
+
+        {/* Form to add new absence */}
+        <form
+          onSubmit={handleAddAbsence}
+          className="payroll-controls"
+          style={{ padding: "16px", marginBottom: "24px" }}
+        >
           <div className="form-group">
-            <label htmlFor="absence-type">סוג היעדרות</label>
+            <label>סוג היעדרות</label>
             <select
-              id="absence-type"
-              name="type"
-              value={form.type}
-              onChange={handleChange}
+              value={newAbsence.type}
+              onChange={(e) =>
+                setNewAbsence({ ...newAbsence, type: e.target.value })
+              }
             >
               <option value="vacation">חופשה</option>
               <option value="sick">מחלה</option>
             </select>
           </div>
-          <FormInput
-            label="תאריך התחלה"
-            type="date"
-            name="startDate"
-            value={form.startDate}
-            onChange={handleChange}
-            required
-          />
-          <FormInput
-            label="תאריך סיום"
-            type="date"
-            name="endDate"
-            value={form.endDate}
-            onChange={handleChange}
-            required
-          />
-          <FormTextarea
-            label="הערות (אופציונלי)"
-            name="notes"
-            value={form.notes}
-            onChange={handleChange}
-            rows={2}
-          />
-          <button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? <LoadingSpinner /> : "הוסף היעדרות"}
+          <div className="form-group">
+            <label>מתאריך</label>
+            <input
+              type="date"
+              value={newAbsence.startDate}
+              onChange={(e) =>
+                setNewAbsence({ ...newAbsence, startDate: e.target.value })
+              }
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>עד תאריך</label>
+            <input
+              type="date"
+              value={newAbsence.endDate}
+              onChange={(e) =>
+                setNewAbsence({ ...newAbsence, endDate: e.target.value })
+              }
+              required
+            />
+          </div>
+          <button type="submit" style={{ gridColumn: "1 / -1" }}>
+            הוסף היעדרות
           </button>
         </form>
-      </div>
-    </div>
-  );
-}
 
-function ChangePasswordForm() {
-  const { currentUser } = useContext(AppContext);
-  const toaster = useToaster();
-  const [passwords, setPasswords] = useState({
-    oldPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const handleChange = (e) =>
-    setPasswords((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-  const handleSubmit = useCallback(
-    async (e) => {
-      e.preventDefault();
-      if (passwords.newPassword !== passwords.confirmPassword)
-        return toaster("הסיסמאות החדשות אינן תואמות", "danger");
-      if (passwords.newPassword.length < 6)
-        return toaster("סיסמה חדשה חייבת להכיל לפחות 6 תווים", "danger");
-      setIsLoading(true);
-      try {
-        const data = await apiFetch("/users/change-password", {
-          method: "POST",
-          body: JSON.stringify({
-            userId: currentUser._id,
-            oldPassword: passwords.oldPassword,
-            newPassword: passwords.newPassword,
-          }),
-        });
-        toaster(data.message, "success");
-        setPasswords({ oldPassword: "", newPassword: "", confirmPassword: "" });
-      } catch (error) {
-        toaster(error.message, "danger");
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [passwords, currentUser, toaster]
-  );
-  return (
-    <form onSubmit={handleSubmit}>
-      <FormInput
-        label="סיסמה נוכחית"
-        type="password"
-        name="oldPassword"
-        value={passwords.oldPassword}
-        onChange={handleChange}
-        required
-      />
-      <FormInput
-        label="סיסמה חדשה"
-        type="password"
-        name="newPassword"
-        value={passwords.newPassword}
-        onChange={handleChange}
-        required
-        minLength={6}
-      />
-      <FormInput
-        label="אימות סיסמה חדשה"
-        type="password"
-        name="confirmPassword"
-        value={passwords.confirmPassword}
-        onChange={handleChange}
-        required
-        minLength={6}
-      />
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-start",
-          marginTop: "1.5rem",
-        }}
-      >
-        <button type="submit" disabled={isLoading}>
-          {isLoading ? <LoadingSpinner /> : "שמור סיסמה חדשה"}
-        </button>
-      </div>
-    </form>
-  );
-}
-
-function EmployeeRow({ employee, attendanceRecord, onStatusUpdate }) {
-  const { state } = useContext(AppContext);
-  const toaster = useToaster();
-  const [elapsedTime, setElapsedTime] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    let interval;
-    if (employee.status === STATUSES.PRESENT.key && attendanceRecord) {
-      const updateTimer = () => {
-        const clockInTime = new Date(attendanceRecord.clockIn);
-        const now = new Date();
-        const diff = now - clockInTime;
-        setElapsedTime(Math.max(0, diff / 36e5));
-      };
-      updateTimer();
-      interval = setInterval(updateTimer, 1000);
-    } else {
-      setElapsedTime(0);
-    }
-    return () => clearInterval(interval);
-  }, [employee.status, attendanceRecord]);
-
-  const handleClockAction = useCallback(
-    async (action) => {
-      if (isLoading) return;
-      setIsLoading(true);
-      try {
-        const updatedEmployee = await apiFetch(`/attendance/${action}`, {
-          method: "POST",
-          body: JSON.stringify({
-            employeeId: employee._id,
-            settings: state.settings,
-          }),
-        });
-        onStatusUpdate(updatedEmployee);
-        toaster(
-          `${updatedEmployee.name} החתים ${
-            action === "clock-in" ? "כניסה" : "יציאה"
-          }.`,
-          "success"
-        );
-      } catch (error) {
-        toaster(
-          `שגיאה בהחתמת ${action === "clock-in" ? "כניסה" : "יציאה"}: ${
-            error.message
-          }`,
-          "danger"
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [isLoading, employee._id, state.settings, onStatusUpdate, toaster]
-  );
-
-  const formatTime = (hours) => {
-    if (hours <= 0) return "00:00:00";
-    const totalSeconds = Math.floor(hours * 3600);
-    const h = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
-    const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
-    const s = String(totalSeconds % 60).padStart(2, "0");
-    return `${h}:${m}:${s}`;
-  };
-
-  const statusObject =
-    Object.values(STATUSES).find((s) => s.key === employee.status) ||
-    STATUSES.ABSENT;
-  const isPresent = employee.status === STATUSES.PRESENT.key;
-
-  return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "2fr 1fr 1fr",
-        alignItems: "center",
-        padding: "1rem 0",
-        borderBottom: "1px solid var(--border-color)",
-      }}
-    >
-      <div
-        style={{
-          justifySelf: "start",
-          display: "flex",
-          alignItems: "center",
-          gap: "1rem",
-        }}
-      >
-        <div>
-          <div style={{ fontWeight: 500 }}>{employee.name}</div>
-          <div style={{ fontSize: "0.875rem", color: "var(--text-light)" }}>
-            {employee.department}
-          </div>
-        </div>
-        {isPresent && (
-          <div
-            style={{
-              color: "var(--primary-color)",
-              fontFamily: "monospace",
-              fontSize: "1.125rem",
-            }}
-          >
-            {formatTime(elapsedTime)}
-          </div>
-        )}
-      </div>
-      <div style={{ justifySelf: "center" }}>
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.5rem",
-          }}
-        >
-          <div className={`status-dot ${statusObject.colorClass}`}></div>
-          <span>{statusObject.text}</span>
-        </div>
-      </div>
-      <div style={{ justifySelf: "end", display: "flex", gap: "0.5rem" }}>
-        <button
-          onClick={() => handleClockAction("clock-in")}
-          disabled={isPresent || isLoading}
-        >
-          כניסה
-        </button>
-        <button
-          onClick={() => handleClockAction("clock-out")}
-          disabled={!isPresent || isLoading}
-        >
-          יציאה
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function Dashboard() {
-  const { currentUser } = useContext(AppContext);
-  const [employees, setEmployees] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const toaster = useToaster();
-  const [openAttendance, setOpenAttendance] = useState([]);
-
-  const fetchData = useCallback(async () => {
-    if (!currentUser) {
-      setIsLoading(false);
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const [employeesData, attendanceData] = await Promise.all([
-        apiFetch("/employees"),
-        apiFetch("/attendance/today/open"),
-      ]);
-      setEmployees(employeesData);
-      setOpenAttendance(attendanceData);
-    } catch (err) {
-      if (currentUser.role === "manager") toaster(err.message, "danger");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [toaster, currentUser]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  const updateEmployeeInList = useCallback((updatedEmployee) => {
-    setEmployees((prev) =>
-      prev.map((emp) =>
-        emp._id === updatedEmployee._id ? updatedEmployee : emp
-      )
-    );
-    apiFetch("/attendance/today/open")
-      .then(setOpenAttendance)
-      .catch(() => {});
-  }, []);
-
-  return (
-    <>
-      <div className="page-header">
-        <h2>סקירה כללית</h2>
-      </div>
-      <div className="card">
-        <h3>נוכחות בזמן אמת</h3>
-        {isLoading ? (
-          <LoadingSpinner />
+        {/* List of current absences */}
+        <h4>היעדרויות קיימות</h4>
+        {absences.length > 0 ? (
+          <ul style={{ listStyle: "none", padding: 0 }}>
+            {absences.map((absence) => (
+              <li
+                key={absence.id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "8px",
+                  borderBottom: "1px solid var(--border-color)",
+                }}
+              >
+                <div>
+                  <span style={{ fontWeight: 500 }}>
+                    {STATUSES[absence.type.toUpperCase()].text}
+                  </span>
+                  :  {new Date(absence.startDate).toLocaleDateString("he-IL")} -{" "}
+                  {new Date(absence.endDate).toLocaleDateString("he-IL")}
+                </div>
+                <button
+                  onClick={() => onDelete(absence.id)}
+                  className="secondary"
+                  style={{
+                    borderColor: "var(--danger-color)",
+                    color: "var(--danger-color)",
+                    padding: "5px 10px",
+                  }}
+                >
+                  מחק
+                </button>
+              </li>
+            ))}
+          </ul>
         ) : (
-          employees
-            .filter((e) => {
-              if (currentUser.role === "manager") return e.role === "employee";
-              if (currentUser.role === "employee")
-                return e._id === currentUser._id;
-              return false;
-            })
-            .map((emp) => {
-              const attendanceRecord = openAttendance.find(
-                (att) => att.employee === emp._id
-              );
-              return (
-                <EmployeeRow
-                  key={emp._id}
-                  employee={emp}
-                  attendanceRecord={attendanceRecord}
-                  onStatusUpdate={updateEmployeeInList}
-                />
-              );
-            })
+          <p>אין היעדרויות מתוכננות עבור עובד זה.</p>
         )}
       </div>
-    </>
+    </div>
   );
 }
 
 function EmployeeList() {
+  const { state, dispatch } = useContext(AppContext);
   const toaster = useToaster();
-  const [employees, setEmployees] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [departmentFilter, setDepartmentFilter] = useState("");
   const [isAbsenceModalOpen, setIsAbsenceModalOpen] = useState(false);
-  const [absencesForEmployee, setAbsencesForEmployee] = useState([]);
-  const [isLoadingAbsences, setIsLoadingAbsences] = useState(false);
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] =
-    useState(false);
 
-  const fetchEmployees = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const data = await apiFetch("/employees");
-      setEmployees(data);
-    } catch (error) {
-      toaster(error.message, "danger");
-    } finally {
-      setIsLoading(false);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+
+  const handleOpenEdit = (employee) => {
+    setSelectedEmployee(employee);
+    setIsEditModalOpen(true);
+  };
+
+  const handleOpenAbsences = (employee) => {
+    setSelectedEmployee(employee);
+    setIsAbsenceModalOpen(true);
+  };
+
+  const handleDeleteEmployee = (employee) => {
+    if (window.confirm(`האם אתה בטוח שברצונך למחוק את ${employee.name}?`)) {
+      dispatch({ type: "DELETE_EMPLOYEE", payload: employee.id });
+      toaster(`${employee.name} נמחק בהצלחה.`);
     }
-  }, [toaster]);
+  };
 
-  useEffect(() => {
-    fetchEmployees();
-  }, [fetchEmployees]);
-
-  const {
-    items: sortedEmployees,
-    requestSort,
-    sortConfig,
-  } = useSortableData(
-    employees.filter(
-      (emp) =>
-        emp.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        (departmentFilter === "" || emp.department === departmentFilter)
-    ),
-    { key: "name", direction: "ascending" }
-  );
-  const uniqueDepartments = useMemo(
-    () => [...new Set(employees.map((emp) => emp.department))],
-    [employees]
-  );
-
-  const closeModal = useCallback(() => {
-    setIsEditModalOpen(false);
-    setIsConfirmModalOpen(false);
-    setIsAbsenceModalOpen(false);
-    setIsDetailsModalOpen(false);
-    setIsResetPasswordModalOpen(false);
-    setSelectedEmployee(null);
-  }, []);
-
-  const handleOpenAbsenceModal = useCallback(
-    async (employee) => {
-      setSelectedEmployee(employee);
-      setIsLoadingAbsences(true);
-      setIsAbsenceModalOpen(true);
-      try {
-        const data = await apiFetch(`/absences/employee/${employee._id}`);
-        setAbsencesForEmployee(data);
-      } catch (err) {
-        toaster(err.message, "danger");
-      } finally {
-        setIsLoadingAbsences(false);
-      }
-    },
-    [toaster]
-  );
-
-  const handleSaveEmployee = useCallback(
-    async (employeeData) => {
-      const isUpdating = selectedEmployee && selectedEmployee._id;
-      const endpoint = isUpdating
-        ? `/employees/${selectedEmployee._id}`
-        : "/employees";
-      const method = isUpdating ? "PUT" : "POST";
-      try {
-        await apiFetch(endpoint, {
-          method,
-          body: JSON.stringify(employeeData),
-        });
-        toaster(`העובד ${isUpdating ? "עודכן" : "נוסף"} בהצלחה!`, "success");
-        closeModal();
-        fetchEmployees();
-      } catch (error) {
-        toaster(error.message, "danger");
-      }
-    },
-    [selectedEmployee, closeModal, fetchEmployees, toaster]
-  );
-
-  const handleConfirmDelete = useCallback(async () => {
-    if (!selectedEmployee) return;
-    try {
-      await apiFetch(`/employees/${selectedEmployee._id}`, {
-        method: "DELETE",
+  const handleSaveEmployee = (employeeData) => {
+    if (selectedEmployee && selectedEmployee.id) {
+      dispatch({
+        type: "UPDATE_EMPLOYEE",
+        payload: { ...employeeData, id: selectedEmployee.id },
       });
-      toaster(`${selectedEmployee.name} נמחק.`);
-      closeModal();
-      fetchEmployees();
-    } catch (error) {
-      toaster(error.message, "danger");
+      toaster("פרטי העובד עודכנו!", "success");
+    } else {
+      dispatch({ type: "ADD_EMPLOYEE", payload: employeeData });
+      toaster("עובד חדש נוסף בהצלחה!", "success");
     }
-  }, [selectedEmployee, closeModal, fetchEmployees, toaster]);
+    setIsEditModalOpen(false);
+  };
 
-  const handleAddAbsence = useCallback(
-    async (absenceData) => {
-      try {
-        const newAbsence = await apiFetch("/absences", {
-          method: "POST",
-          body: JSON.stringify({
-            ...absenceData,
-            employeeId: selectedEmployee._id,
-          }),
-        });
-        setAbsencesForEmployee((prev) =>
-          [...prev, newAbsence].sort(
-            (a, b) => new Date(b.startDate) - new Date(a.startDate)
-          )
-        );
-        toaster("היעדרות נוספה בהצלחה", "success");
-      } catch (err) {
-        toaster(err.message, "danger");
-      }
-    },
-    [selectedEmployee, toaster]
-  );
+  const handleAddAbsence = (absenceData) => {
+    dispatch({ type: "ADD_ABSENCE", payload: absenceData });
+    toaster("היעדרות נוספה בהצלחה", "success");
+  };
 
-  const handleDeleteAbsence = useCallback(
-    async (absenceId) => {
-      try {
-        await apiFetch(`/absences/${absenceId}`, { method: "DELETE" });
-        setAbsencesForEmployee((prev) =>
-          prev.filter((a) => a._id !== absenceId)
-        );
-        toaster("ההיעדרות נמחקה", "info");
-      } catch (err) {
-        toaster(err.message, "danger");
-      }
-    },
-    [toaster]
-  );
-
-  const handleResetPassword = useCallback(
-    async (newPassword) => {
-      if (!selectedEmployee) return;
-      try {
-        await apiFetch("/users/reset-password", {
-          method: "POST",
-          body: JSON.stringify({
-            userIdToReset: selectedEmployee._id,
-            newPassword,
-          }),
-        });
-        toaster("הסיסמה אופסה בהצלחה", "success");
-        closeModal();
-      } catch (err) {
-        toaster(err.message, "danger");
-      }
-    },
-    [selectedEmployee, closeModal, toaster]
-  );
+  const handleDeleteAbsence = (absenceId) => {
+    dispatch({ type: "DELETE_ABSENCE", payload: absenceId });
+    toaster("היעדרות נמחקה");
+  };
 
   return (
     <>
-      <div className="page-header">
-        <h2>ניהול עובדים</h2>
-        <div className="page-actions">
-          <button onClick={() => setIsEditModalOpen(true)}>
+      <div className="card">
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <h2>ניהול עובדים</h2>
+          <button
+            onClick={() => {
+              setSelectedEmployee(null);
+              setIsEditModalOpen(true);
+            }}
+          >
             הוסף עובד חדש
           </button>
         </div>
+        <table>
+          <thead>
+            <tr>
+              <th>שם</th>
+              <th>מחלקה</th>
+              <th>תעריף</th>
+              <th>סטטוס נוכחי</th>
+              <th>פעולות</th>
+            </tr>
+          </thead>
+          <tbody>
+            {state.employees.map((emp) => {
+              const statusObject =
+                Object.values(STATUSES).find((s) => s.key === emp.status) ||
+                STATUSES.ABSENT;
+              return (
+                <tr key={emp.id}>
+                  <td>{emp.name}</td>
+                  <td>{emp.department}</td>
+                  <td>₪{emp.hourlyRate}/שעה</td>
+                  <td>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      <div
+                        className={`status-dot ${statusObject.colorClass}`}
+                      ></div>
+                      <span>{statusObject.text}</span>
+                    </div>
+                  </td>
+                  <td style={{ display: "flex", gap: "8px" }}>
+                    <button
+                      className="secondary"
+                      onClick={() => handleOpenEdit(emp)}
+                    >
+                      ערוך
+                    </button>
+                    <button
+                      className="secondary"
+                      onClick={() => handleOpenAbsences(emp)}
+                    >
+                      היעדרויות
+                    </button>
+                    <button
+                      className="secondary"
+                      onClick={() => handleDeleteEmployee(emp)}
+                      style={{
+                        borderColor: "var(--danger-color)",
+                        color: "var(--danger-color)",
+                      }}
+                    >
+                      מחק
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
-      <div className="filter-controls">
-        <FormInput
-          type="text"
-          placeholder="חיפוש לפי שם..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          name="search-employee"
-        />
-        <div className="form-group">
-          <select
-            value={departmentFilter}
-            onChange={(e) => setDepartmentFilter(e.target.value)}
-            aria-label="סינון לפי מחלקה"
-          >
-            <option value="">כל המחלקות</option>
-            {uniqueDepartments.map((dep) => (
-              <option key={dep} value={dep}>
-                {dep}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+
+      <EmployeeModal
+        show={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        employee={selectedEmployee}
+        onSave={handleSaveEmployee}
+      />
+
+      <AbsenceManagementModal
+        show={isAbsenceModalOpen}
+        onClose={() => setIsAbsenceModalOpen(false)}
+        employee={selectedEmployee}
+        // --- כאן התיקון ---
+        absences={
+          selectedEmployee && state.scheduledAbsences
+            ? state.scheduledAbsences.filter(
+                (a) => a.employeeId === selectedEmployee.id
+              )
+            : []
+        }
+        onAdd={handleAddAbsence}
+        onDelete={handleDeleteAbsence}
+      />
+    </>
+  );
+}
+function ReportsPage() {
+  const { state } = useContext(AppContext);
+  const [range, setRange] = useState({ start: "", end: "" });
+  const reportData = useMemo(() => {
+    if (!range.start || !range.end || !state.settings) return [];
+    const startDate = new Date(range.start);
+    const endDate = new Date(range.end);
+    endDate.setHours(23, 59, 59, 999);
+    return state.employees.map((emp) => {
+      const entries = state.attendance.filter(
+        (a) =>
+          a.employeeId === emp.id &&
+          new Date(a.clockIn) >= startDate &&
+          new Date(a.clockIn) <= endDate
+      );
+      let totalHours = 0,
+        overtime = 0,
+        pay = 0;
+      entries.forEach((entry) => {
+        const hours = calculateNetHours(entry);
+        const validHours = Number(hours) || 0;
+        const maxHours = Number(state.settings.standardWorkDayHours) || 9;
+        const hourlyRate = Number(emp.hourlyRate) || 0;
+        const overtimeRatePercent =
+          Number(state.settings.overtimeRatePercent) || 150;
+        totalHours += validHours;
+        const regular = Math.min(validHours, maxHours);
+        const ot = Math.max(0, validHours - maxHours);
+        overtime += ot;
+        pay +=
+          regular * hourlyRate + ot * hourlyRate * (overtimeRatePercent / 100);
+      });
+      return {
+        id: emp.id,
+        name: emp.name,
+        department: emp.department,
+        totalHours,
+        overtime,
+        pay,
+      };
+    });
+  }, [range, state]);
+
+  const summary = useMemo(
+    () =>
+      reportData.reduce(
+        (acc, curr) => {
+          acc.totalHours += curr.totalHours;
+          acc.overtime += curr.overtime;
+          acc.pay += curr.pay;
+          return acc;
+        },
+        { totalHours: 0, overtime: 0, pay: 0 }
+      ),
+    [reportData]
+  );
+  const handleExportCSV = () => {
+    if (reportData.length === 0) return;
+    const headers = [
+      "שם עובד",
+      "מחלקה",
+      'סה"כ שעות',
+      "שעות נוספות",
+      "שכר משוער",
+    ];
+    const rows = reportData.map((r) => [
+      `"${r.name}"`,
+      `"${r.department}"`,
+      r.totalHours.toFixed(2),
+      r.overtime.toFixed(2),
+      r.pay.toFixed(2),
+    ]);
+    let csvContent =
+      "data:text/csv;charset=utf-8,\uFEFF" +
+      headers.join(",") +
+      "\n" +
+      rows.map((e) => e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `report_${range.start}_to_${range.end}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  const handlePrint = () => {
+    window.print();
+  };
+
+  return (
+    <>
+      <style>{`@media print { body * { visibility: hidden; } #print-area, #print-area * { visibility: visible; } #print-area { position: absolute; left: 0; top: 0; width: 100%; } .no-print { display: none; } }`}</style>
       <div className="card">
-        <div className="table-container">
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+          className="no-print"
+        >
+          <h2>דוחות נוכחות</h2>
+          <div style={{ display: "flex", gap: "10px" }}>
+            <button
+              onClick={handleExportCSV}
+              className="secondary"
+              disabled={reportData.length === 0}
+            >
+              ייצא ל-CSV
+            </button>
+            <button
+              onClick={handlePrint}
+              className="secondary"
+              disabled={reportData.length === 0}
+            >
+              הדפס
+            </button>
+          </div>
+        </div>
+        <div
+          style={{ display: "flex", gap: 20, marginBottom: 20 }}
+          className="no-print"
+        >
+          <input
+            type="date"
+            value={range.start}
+            onChange={(e) => setRange({ ...range, start: e.target.value })}
+          />
+          <input
+            type="date"
+            value={range.end}
+            onChange={(e) => setRange({ ...range, end: e.target.value })}
+          />
+        </div>
+        <div id="print-area">
+          {reportData.length > 0 && (
+            <>
+              <h3
+                style={{
+                  borderBottom: "none",
+                  textAlign: "center",
+                  fontSize: "20px",
+                }}
+              >
+                סיכום לתקופה:{" "}
+                {new Date(range.start).toLocaleDateString("he-IL")} -{" "}
+                {new Date(range.end).toLocaleDateString("he-IL")}
+              </h3>
+              <div
+                className="dashboard-grid"
+                style={{
+                  gridTemplateColumns: "repeat(3, 1fr)",
+                  gap: "15px",
+                  marginBottom: "30px",
+                }}
+              >
+                <div
+                  className="card kpi-card"
+                  style={{
+                    padding: 15,
+                    border: "none",
+                    background: "var(--primary-light)",
+                  }}
+                >
+                  <h4>סה"כ שעות</h4>
+                  <p className="kpi-value">{summary.totalHours.toFixed(2)}</p>
+                </div>
+                <div
+                  className="card kpi-card"
+                  style={{
+                    padding: 15,
+                    border: "none",
+                    background: "var(--primary-light)",
+                  }}
+                >
+                  <h4>שעות נוספות</h4>
+                  <p className="kpi-value">{summary.overtime.toFixed(2)}</p>
+                </div>
+                <div
+                  className="card kpi-card"
+                  style={{
+                    padding: 15,
+                    border: "none",
+                    background: "var(--primary-light)",
+                  }}
+                >
+                  <h4>עלות שכר</h4>
+                  <p className="kpi-value">₪{summary.pay.toFixed(2)}</p>
+                </div>
+              </div>
+            </>
+          )}
           <table>
             <thead>
               <tr>
-                <SortableHeader
-                  name="name"
-                  sortConfig={sortConfig}
-                  requestSort={requestSort}
-                >
-                  שם
-                </SortableHeader>
-                <SortableHeader
-                  name="department"
-                  sortConfig={sortConfig}
-                  requestSort={requestSort}
-                >
-                  מחלקה
-                </SortableHeader>
-                <SortableHeader
-                  name="hourlyRate"
-                  sortConfig={sortConfig}
-                  requestSort={requestSort}
-                >
-                  תעריף
-                </SortableHeader>
-                <th>סטטוס נוכחי</th> <th>פעולות</th>
+                <th>שם עובד</th>
+                <th>מחלקה</th>
+                <th>סה"כ שעות</th>
+                <th>שעות נוספות</th>
+                <th>שכר משוער</th>
               </tr>
             </thead>
             <tbody>
-              {isLoading ? (
-                <tr>
-                  <td
-                    colSpan="5"
-                    style={{ textAlign: "center", padding: "40px" }}
-                  >
-                    <LoadingSpinner />
-                  </td>
-                </tr>
-              ) : sortedEmployees.length === 0 ? (
+              {reportData.length > 0 ? (
+                reportData.map((r) => (
+                  <tr key={r.id}>
+                    <td>{r.name}</td>
+                    <td>{r.department}</td>
+                    <td>{r.totalHours.toFixed(2)}</td>
+                    <td>{r.overtime.toFixed(2)}</td>
+                    <td>₪{r.pay.toFixed(2)}</td>
+                  </tr>
+                ))
+              ) : (
                 <tr>
                   <td
                     colSpan="5"
                     style={{ textAlign: "center", padding: "20px" }}
                   >
-                    לא נמצאו עובדים.
+                    יש לבחור טווח תאריכים כדי להציג את הדוח.
                   </td>
                 </tr>
-              ) : (
-                sortedEmployees.map((emp) => {
-                  const statusObject =
-                    Object.values(STATUSES).find((s) => s.key === emp.status) ||
-                    STATUSES.ABSENT;
-                  return (
-                    <tr key={emp._id}>
-                      <td>{emp.name}</td> <td>{emp.department}</td>
-                      <td>₪{emp.hourlyRate}/שעה</td>
-                      <td>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                          }}
-                        >
-                          <div
-                            className={`status-dot ${statusObject.colorClass}`}
-                          ></div>
-                          <span>{statusObject.text}</span>
-                        </div>
-                      </td>
-                      <td
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: "0.5rem",
-                        }}
-                      >
-                        <button
-                          className="secondary"
-                          onClick={() => {
-                            setSelectedEmployee(emp);
-                            setIsEditModalOpen(true);
-                          }}
-                        >
-                          ערוך
-                        </button>
-                        <button
-                          className="secondary"
-                          onClick={() => {
-                            setSelectedEmployee(emp);
-                            setIsDetailsModalOpen(true);
-                          }}
-                        >
-                          פירוט
-                        </button>
-                        <button
-                          className="secondary"
-                          onClick={() => {
-                            setSelectedEmployee(emp);
-                            setIsResetPasswordModalOpen(true);
-                          }}
-                        >
-                          איפוס סיסמה
-                        </button>
-                        <button
-                          className="secondary"
-                          onClick={() => handleOpenAbsenceModal(emp)}
-                        >
-                          היעדרויות
-                        </button>
-                        <button
-                          className="danger secondary"
-                          onClick={() => {
-                            setSelectedEmployee(emp);
-                            setIsConfirmModalOpen(true);
-                          }}
-                        >
-                          מחק
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
               )}
             </tbody>
           </table>
         </div>
       </div>
-      {/* === FIX: Added all missing modals for employee actions === */}
-      <Modal show={isEditModalOpen} onClose={closeModal}>
-        <EmployeeForm
-          initialData={selectedEmployee}
-          onSave={handleSaveEmployee}
-          onCancel={closeModal}
-        />
-      </Modal>
-
-      <Modal
-        show={isConfirmModalOpen}
-        onClose={closeModal}
-        style={{ maxWidth: "400px" }}
-      >
-        <h3 style={{ marginTop: 0 }}>אישור מחיקה</h3>
-        <p>
-          האם אתה בטוח שברצונך למחוק את העובד{" "}
-          <strong>{selectedEmployee?.name}</strong>? פעולה זו אינה הפיכה.
-        </p>
-        <div
-          style={{
-            display: "flex",
-            gap: "12px",
-            justifyContent: "flex-end",
-            marginTop: "24px",
-          }}
-        >
-          <button type="button" className="secondary" onClick={closeModal}>
-            ביטול
-          </button>
-          <button
-            type="button"
-            className="danger"
-            onClick={handleConfirmDelete}
-          >
-            אישור ומחיקה
-          </button>
-        </div>
-      </Modal>
-
-      <Modal
-        show={isDetailsModalOpen}
-        onClose={closeModal}
-        style={{ maxWidth: "450px" }}
-      >
-        <h3 style={{ marginTop: 0 }}>פרטי עובד</h3>
-        {selectedEmployee && (
-          <div className="employee-details-modal">
-            <p>
-              <strong>שם:</strong> {selectedEmployee.name}
-            </p>
-            <p>
-              <strong>מחלקה:</strong> {selectedEmployee.department}
-            </p>
-            <p>
-              <strong>תעריף שעתי:</strong> ₪{selectedEmployee.hourlyRate}
-            </p>
-            <p>
-              <strong>תפקיד:</strong>{" "}
-              {selectedEmployee.role === "manager" ? "מנהל" : "עובד"}
-            </p>
-          </div>
-        )}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            marginTop: "24px",
-          }}
-        >
-          <button type="button" onClick={closeModal}>
-            סגור
-          </button>
-        </div>
-      </Modal>
-
-      <Modal
-        show={isResetPasswordModalOpen}
-        onClose={closeModal}
-        style={{ maxWidth: "450px" }}
-      >
-        <ResetPasswordModalContent
-          employeeName={selectedEmployee?.name}
-          onSubmit={handleResetPassword}
-          onCancel={closeModal}
-        />
-      </Modal>
-
-      <Modal
-        show={isAbsenceModalOpen}
-        onClose={closeModal}
-        style={{ maxWidth: "700px" }}
-      >
-        <AbsenceManagementModalContent
-          employee={selectedEmployee}
-          absences={absencesForEmployee}
-          isLoading={isLoadingAbsences}
-          onAdd={handleAddAbsence}
-          onDelete={handleDeleteAbsence}
-        />
-      </Modal>
-      {/* === END OF FIX === */}
     </>
   );
 }
 
-function CreateAdminModal({ show, onClose, onAdminCreated }) {
+function SettingsPage() {
+  const { state, dispatch } = useContext(AppContext);
+  const [settings, setSettings] = useState(state.settings);
   const toaster = useToaster();
-  const [formData, setFormData] = useState({
-    name: "",
-    password: "",
-    department: "הנהלה",
-    hourlyRate: "150",
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-
-  const handleChange = (e) =>
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-
-  const togglePasswordVisibility = () => {
-    setIsPasswordVisible((prev) => !prev);
+  useEffect(() => {
+    setSettings(state.settings);
+  }, [state.settings]);
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setSettings((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.name || !formData.password || formData.password.length < 6) {
-      toaster("שם וסיסמה (לפחות 6 תווים) הם שדות חובה.", "danger");
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const newUser = await apiFetch("/auth/create-first-admin", {
-        method: "POST",
-        body: JSON.stringify(formData),
-      });
-      toaster(`מנהל "${newUser.name}" נוצר בהצלחה!`, "success");
-      onAdminCreated();
-    } catch (error) {
-      toaster(error.message, "danger");
-    } finally {
-      setIsLoading(false);
-    }
+  const handleSave = () => {
+    dispatch({ type: "UPDATE_SETTINGS", payload: settings });
+    toaster("ההגדרות נשמרו בהצלחה!", "success");
   };
-
   return (
-    <Modal show={show} onClose={onClose}>
-      <form onSubmit={handleSubmit} className="modal-form">
-        <h3>יצירת מנהל ראשון</h3>
-        <p className="modal-subtitle">
-          זוהי פעולה חד פעמית ליצירת המשתמש הראשי במערכת.
-        </p>
-
-        <FormInput
-          label="שם מנהל"
-          name="name"
-          value={formData.name}
-          onChange={handleChange}
-          required
-          autoFocus
-        />
-
-        <FormInput
-          label="סיסמה"
-          type={isPasswordVisible ? "text" : "password"}
-          name="password"
-          value={formData.password}
-          onChange={handleChange}
-          required
-          minLength={6}
-          icon={
-            <Icon
-              path={isPasswordVisible ? ICONS.EYE_CLOSED : ICONS.EYE_OPEN}
-              size={20}
-            />
-          }
-          onIconClick={togglePasswordVisibility}
-        />
-
-        <div className="form-grid">
+    <>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <h2>הגדרות מערכת</h2>
+        <button onClick={handleSave}>שמור שינויים</button>
+      </div>
+      <div className="settings-grid">
+        <div className="card">
+          <h3>מדיניות נוכחות</h3>
           <FormInput
-            label="מחלקה"
-            name="department"
-            value={formData.department}
-            onChange={handleChange}
-          />
-          <FormInput
-            label="תעריף שעתי"
+            label="יום עבודה סטנדרטי (שעות)"
             type="number"
-            name="hourlyRate"
-            value={formData.hourlyRate}
+            name="standardWorkDayHours"
+            value={settings.standardWorkDayHours}
+            onChange={handleChange}
+          />
+          <ToggleSwitch
+            label="התראה על איחור"
+            name="alertOnLateArrival"
+            checked={settings.alertOnLateArrival}
             onChange={handleChange}
           />
         </div>
-
-        <div className="form-actions">
-          <button type="button" className="secondary" onClick={onClose}>
-            ביטול
-          </button>
-          <button type="submit" disabled={isLoading}>
-            {isLoading ? <LoadingSpinner /> : "צור מנהל"}
-          </button>
+        <div className="card">
+          <h3>מדיניות שכר</h3>
+          <FormInput
+            label="תעריף שעות נוספות (%)"
+            type="number"
+            name="overtimeRatePercent"
+            value={settings.overtimeRatePercent}
+            onChange={handleChange}
+          />
         </div>
-      </form>
-    </Modal>
+        <div className="card">
+          <h3>אבטחה</h3>
+          <ToggleSwitch
+            label="הגבל החתמה לפי IP"
+            name="restrictByIp"
+            checked={settings.restrictByIp}
+            onChange={handleChange}
+          />
+          {settings.restrictByIp && (
+            <FormTextarea
+              label="כתובות IP מורשות (מופרד בפסיק)"
+              name="allowedIps"
+              value={settings.allowedIps}
+              onChange={handleChange}
+            />
+          )}
+        </div>
+      </div>
+    </>
   );
 }
-
+function PayrollPage() {
+  const { state } = useContext(AppContext);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
+  const [dateRange, setDateRange] = useState({ start: "", end: "" });
+  const [payrollResult, setPayrollResult] = useState(null);
+  const handleEmployeeSelection = (e) => {
+    const { value, checked } = e.target;
+    const id = parseInt(value);
+    if (checked) {
+      setSelectedEmployeeIds((prev) => [...prev, id]);
+    } else {
+      setSelectedEmployeeIds((prev) => prev.filter((empId) => empId !== id));
+    }
+  };
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedEmployeeIds(
+        state.employees
+          .filter((emp) => emp.role === "employee")
+          .map((emp) => emp.id)
+      );
+    } else {
+      setSelectedEmployeeIds([]);
+    }
+  };
+  const calculatePayroll = () => {
+    if (selectedEmployeeIds.length === 0 || !dateRange.start || !dateRange.end)
+      return null;
+    const startDate = new Date(dateRange.start);
+    const endDate = new Date(dateRange.end);
+    endDate.setHours(23, 59, 59, 999);
+    const details = state.employees
+      .filter((emp) => selectedEmployeeIds.includes(emp.id))
+      .map((emp) => {
+        const entries = state.attendance.filter(
+          (a) =>
+            a.employeeId === emp.id &&
+            new Date(a.clockIn) >= startDate &&
+            new Date(a.clockIn) <= endDate
+        );
+        let totalHours = 0,
+          overtimeHours = 0,
+          basePay = 0,
+          overtimePay = 0;
+        entries.forEach((entry) => {
+          const hours = calculateNetHours(entry);
+          const validHours = Number(hours) || 0;
+          const maxHours = Number(state.settings.standardWorkDayHours) || 9;
+          const hourlyRate = Number(emp.hourlyRate) || 0;
+          const overtimeRatePercent =
+            Number(state.settings.overtimeRatePercent) || 150;
+          totalHours += validHours;
+          const regular = Math.min(validHours, maxHours);
+          const overtime = Math.max(0, validHours - maxHours);
+          overtimeHours += overtime;
+          basePay += regular * hourlyRate;
+          overtimePay += overtime * hourlyRate * (overtimeRatePercent / 100);
+        });
+        return {
+          id: emp.id,
+          name: emp.name,
+          regularHours: totalHours - overtimeHours,
+          overtimeHours,
+          basePay,
+          overtimePay,
+          totalPay: basePay + overtimePay,
+        };
+      });
+    const summary = details.reduce(
+      (acc, curr) => {
+        acc.totalRegularHours += curr.regularHours;
+        acc.totalOvertime += curr.overtimeHours;
+        acc.totalBasePay += curr.basePay;
+        acc.totalOvertimePay += curr.overtimePay;
+        acc.totalPay += curr.totalPay;
+        return acc;
+      },
+      {
+        totalRegularHours: 0,
+        totalOvertime: 0,
+        totalBasePay: 0,
+        totalOvertimePay: 0,
+        totalPay: 0,
+      }
+    );
+    return { details, summary };
+  };
+  const handleGenerate = () => {
+    setPayrollResult(calculatePayroll());
+  };
+  const handleExportCSV = () => {
+    if (!payrollResult || payrollResult.details.length === 0) return;
+    const headers = [
+      "שם עובד",
+      "שעות רגילות",
+      "שעות נוספות",
+      "שכר בסיס",
+      'תוספת ש"נ',
+      'סה"כ לתשלום',
+    ];
+    const rows = payrollResult.details.map((r) => [
+      `"${r.name}"`,
+      r.regularHours.toFixed(2),
+      r.overtimeHours.toFixed(2),
+      r.basePay.toFixed(2),
+      r.overtimePay.toFixed(2),
+      r.totalPay.toFixed(2),
+    ]);
+    let csvContent =
+      "data:text/csv;charset=utf-8,\uFEFF" +
+      headers.join(",") +
+      "\n" +
+      rows.map((e) => e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute(
+      "download",
+      `payroll_${dateRange.start}_to_${dateRange.end}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  const isReady =
+    selectedEmployeeIds.length > 0 && dateRange.start && dateRange.end;
+  return (
+    <div className="card">
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <h2>הפקת דוח שכר</h2>
+        <button
+          onClick={handleExportCSV}
+          className="secondary"
+          disabled={!payrollResult}
+        >
+          ייצא ל-CSV
+        </button>
+      </div>
+      <div className="payroll-controls">
+        <div className="control-section">
+          <h3>1. בחר עובדים</h3>
+          <div className="employee-select-list">
+            <div className="select-all-item">
+              <input
+                type="checkbox"
+                id="select-all"
+                onChange={handleSelectAll}
+                checked={
+                  selectedEmployeeIds.length ===
+                    state.employees.filter((e) => e.role === "employee")
+                      .length &&
+                  state.employees.filter((e) => e.role === "employee").length >
+                    0
+                }
+              />
+              <label htmlFor="select-all">בחר הכל</label>
+            </div>
+            {state.employees
+              .filter((emp) => emp.role === "employee")
+              .map((emp) => (
+                <div key={emp.id} className="employee-select-item">
+                  <input
+                    type="checkbox"
+                    id={`emp-${emp.id}`}
+                    value={emp.id}
+                    checked={selectedEmployeeIds.includes(emp.id)}
+                    onChange={handleEmployeeSelection}
+                  />
+                  <label htmlFor={`emp-${emp.id}`}>{emp.name}</label>
+                </div>
+              ))}
+          </div>
+        </div>
+        <div className="control-section">
+          <h3>2. בחר תקופה</h3>
+          <FormInput
+            label="מתאריך"
+            type="date"
+            value={dateRange.start}
+            onChange={(e) =>
+              setDateRange((prev) => ({ ...prev, start: e.target.value }))
+            }
+          />
+          <FormInput
+            label="עד תאריך"
+            type="date"
+            value={dateRange.end}
+            onChange={(e) =>
+              setDateRange((prev) => ({ ...prev, end: e.target.value }))
+            }
+          />
+        </div>
+      </div>
+      <div style={{ textAlign: "center", marginTop: "24px" }}>
+        <button onClick={handleGenerate} disabled={!isReady}>
+          הפק דוח שכר
+        </button>
+      </div>
+      {payrollResult && (
+        <div
+          style={{
+            marginTop: "30px",
+            borderTop: "1px solid var(--border-color)",
+            paddingTop: "24px",
+          }}
+        >
+          <h3 style={{ textAlign: "center", borderBottom: "none" }}>
+            דוח שכר לתקופה:{" "}
+            {new Date(dateRange.start).toLocaleDateString("he-IL")} -{" "}
+            {new Date(dateRange.end).toLocaleDateString("he-IL")}
+          </h3>
+          <table className="payroll-table">
+            <thead>
+              <tr>
+                <th>שם עובד</th>
+                <th>שעות רגילות</th>
+                <th>שעות נוספות</th>
+                <th>שכר בסיס</th>
+                <th>תוספת ש"נ</th>
+                <th>סה"כ לתשלום</th>
+              </tr>
+            </thead>
+            <tbody>
+              {payrollResult.details.map((r) => (
+                <tr key={r.id}>
+                  <td>{r.name}</td>
+                  <td>{r.regularHours.toFixed(2)}</td>
+                  <td>{r.overtimeHours.toFixed(2)}</td>
+                  <td>₪{r.basePay.toFixed(2)}</td>
+                  <td>₪{r.overtimePay.toFixed(2)}</td>
+                  <td style={{ fontWeight: 700, fontSize: "16px" }}>
+                    ₪{r.totalPay.toFixed(2)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>סה"כ</td>
+                <td>{payrollResult.summary.totalRegularHours.toFixed(2)}</td>
+                <td>{payrollResult.summary.totalOvertime.toFixed(2)}</td>
+                <td>₪{payrollResult.summary.totalBasePay.toFixed(2)}</td>
+                <td>₪{payrollResult.summary.totalOvertimePay.toFixed(2)}</td>
+                <td>₪{payrollResult.summary.totalPay.toFixed(2)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
 function Login({ onLogin }) {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  // === FIX: State to manage the create admin modal visibility ===
-  const [showCreateAdminModal, setShowCreateAdminModal] = useState(false);
 
   const handleLoginSubmit = useCallback(
     async (e) => {
@@ -1445,18 +1656,8 @@ function Login({ onLogin }) {
         localStorage.setItem("token", data.token);
         onLogin(data.user);
       } catch (err) {
-        // === FIX: Logic to handle first-time admin creation ===
-        // This is a simulated server response. The backend should return a unique
-        // message when no admin accounts exist.
-        if (
-          err.message.includes("לא קיימים מנהלים במערכת") ||
-          err.message.includes("No admin accounts exist")
-        ) {
-          setShowCreateAdminModal(true);
-          setError("לא זוהה מנהל מערכת. יש ליצור את המשתמש הראשי הראשון.");
-        } else {
-          setError(err.message);
-        }
+        // עכשיו, כל שגיאה היא פשוט "שם משתמש או סיסמה שגויים"
+        setError(err.message || "שם משתמש או סיסמה שגויים");
       } finally {
         setIsLoading(false);
       }
@@ -1464,202 +1665,199 @@ function Login({ onLogin }) {
     [name, password, onLogin]
   );
 
-  const togglePasswordVisibility = () => {
-    setIsPasswordVisible((prev) => !prev);
-  };
-
-  const handleAdminCreated = () => {
-    setShowCreateAdminModal(false);
-    setError("מנהל נוצר. אנא התחבר עם הפרטים החדשים.");
-    setName("");
-    setPassword("");
-  };
+  const togglePasswordVisibility = () => setIsPasswordVisible((p) => !p);
 
   return (
-    <>
-      <div className="login-page-wrapper">
-        <div className="login-container">
-          <h1>Attend.ly</h1>
-          <p className="subtitle">מערכת ניהול נוכחות עובדים</p>
-          <form className="login-form" onSubmit={handleLoginSubmit}>
-            {error && <div className="login-error-message">{error}</div>}
-            <FormInput
-              label="שם משתמש"
-              type="text"
-              name="username"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              autoFocus
-            />
-            <FormInput
-              label="סיסמה"
-              type={isPasswordVisible ? "text" : "password"}
-              name="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              icon={
-                <Icon
-                  path={isPasswordVisible ? ICONS.EYE_CLOSED : ICONS.EYE_OPEN}
-                  size={20}
-                />
-              }
-              onIconClick={togglePasswordVisibility}
-            />
-            <button
-              type="submit"
-              style={{ width: "100%", marginTop: "1rem" }}
-              disabled={isLoading}
-            >
-              {isLoading ? <LoadingSpinner /> : "התחבר"}
-            </button>
-          </form>
-        </div>
-      </div>
-      {/* === FIX: Render the create admin modal when needed === */}
-      <CreateAdminModal
-        show={showCreateAdminModal}
-        onClose={() => setShowCreateAdminModal(false)}
-        onAdminCreated={handleAdminCreated}
-      />
-    </>
-  );
-}
-
-function App() {
-  const { currentUser, handleLogout } = useContext(AppContext);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const location = useLocation();
-
-  useEffect(() => {
-    if (isSidebarOpen) setIsSidebarOpen(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location]);
-
-  const toggleSidebar = useCallback(
-    () => setIsSidebarOpen((prev) => !prev),
-    []
-  );
-
-  return (
-    <div className="app-layout">
-      <button
-        className="mobile-nav-toggle"
-        onClick={toggleSidebar}
-        aria-label="פתח תפריט"
-      >
-        <Icon path={ICONS.MENU} size={24} />
-      </button>
-
-      <aside className={`sidebar ${isSidebarOpen ? "is-open" : ""}`}>
-        <div className="sidebar-header">
-          <h1>Attend.ly</h1>
-        </div>
-        <nav>
-          <NavLink to="/">
-            <Icon path={ICONS.DASHBOARD} /> סקירה כללית
-          </NavLink>
-          {currentUser.role === "manager" && (
-            <>
-              <NavLink to="/employees">
-                <Icon path={ICONS.EMPLOYEES} /> ניהול עובדים
-              </NavLink>
-              {/* <NavLink to="/reports"><Icon path={ICONS.REPORTS} /> דוחות</NavLink> */}
-              {/* <NavLink to="/payroll"><Icon path={ICONS.PAYROLL} /> חישוב שכר</NavLink> */}
-              {/* <NavLink to="/settings"><Icon path={ICONS.SETTINGS} /> הגדרות</NavLink> */}
-            </>
-          )}
-          {/* {currentUser.role === "employee" && <NavLink to="/my-area"><Icon path={ICONS.EMPLOYEES} /> אזור אישי</NavLink> } */}
-        </nav>
-        <div className="sidebar-footer">
-          <span>שלום, {currentUser.name}</span>
-          <button
-            onClick={handleLogout}
-            className="secondary"
-            style={{ width: "100%" }}
-          >
-            התנתקות
-          </button>
-        </div>
-      </aside>
-
-      {isSidebarOpen && (
-        <div className="sidebar-overlay" onClick={toggleSidebar}></div>
-      )}
-
-      <main className="main-content">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route
-            element={
-              <ProtectedRoute isAllowed={currentUser?.role === "manager"} />
+    <div className="login-page-wrapper">
+      <div className="login-container">
+        <h1>Attend.ly</h1>
+        <p className="subtitle">מערכת ניהול נוכחות עובדים</p>
+        <form className="login-form" onSubmit={handleLoginSubmit}>
+          {error && <div className="login-error-message">{error}</div>}
+          <FormInput
+            label="שם משתמש"
+            type="text"
+            name="username"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            autoFocus
+          />
+          <FormInput
+            label="סיסמה"
+            type={isPasswordVisible ? "text" : "password"}
+            name="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            icon={
+              <Icon
+                path={isPasswordVisible ? ICONS.EYE_CLOSED : ICONS.EYE_OPEN}
+                size={20}
+              />
             }
+            onIconClick={togglePasswordVisibility}
+          />
+          <button
+            type="submit"
+            style={{ width: "100%", marginTop: "1rem" }}
+            disabled={isLoading}
           >
-            <Route path="/employees" element={<EmployeeList />} />
-            {/* <Route path="/reports" element={<ReportsPage />} /> */}
-            {/* <Route path="/settings" element={<SettingsPage />} /> */}
-            {/* <Route path="/payroll" element={<PayrollPage />} /> */}
-          </Route>
-          {/* <Route element={<ProtectedRoute isAllowed={currentUser?.role === "employee"} />}> */}
-          {/* <Route path="/my-area" element={<MyAreaPage />} /> */}
-          {/* </Route> */}
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-      </main>
+            {isLoading ? <LoadingSpinner /> : "התחבר"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
-
-// This component correctly decides which view to show
-function AppRouter() {
-  const { currentUser, handleLogin } = useContext(AppContext);
-
-  // If there's no logged-in user, show the Login page
-  if (!currentUser) {
-    return <Login onLogin={handleLogin} />;
-  }
-
-  // If a user is logged in, show the main application
-  return <App />;
-}
-
-function Root() {
-  const [state, dispatch] = useReducer(appReducer, initialAppState);
+function App() {
+  const [state, dispatch] = useReducer(dataReducer, initialData);
   const [currentUser, setCurrentUser] = useLocalStorage("currentUser", null);
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  const handleLogin = useCallback(
-    (user) => {
-      if (user) setCurrentUser(user);
-    },
-    [setCurrentUser]
-  );
+  useEffect(() => {
+    const d = localStorage.getItem("appData");
+    if (d) dispatch({ type: "SET_INITIAL_DATA", payload: JSON.parse(d) });
+    setIsLoaded(true);
+  }, []);
 
-  const handleLogout = useCallback(() => {
-    setCurrentUser(null);
-    localStorage.removeItem("token");
-  }, [setCurrentUser]);
+  useEffect(() => {
+    if (isLoaded) localStorage.setItem("appData", JSON.stringify(state));
+  }, [state, isLoaded]);
 
-  const appContextValue = useMemo(
-    () => ({
-      state,
-      dispatch,
-      currentUser,
-      handleLogin,
-      handleLogout,
-    }),
-    [state, dispatch, currentUser, handleLogin, handleLogout]
-  );
+  useEffect(() => {
+    // Wait until the necessary data is actually loaded into the state
+    if (
+      !state.employees ||
+      state.employees.length === 0 ||
+      !state.scheduledAbsences
+    ) {
+      return;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize to beginning of the day
+
+    state.employees.forEach((emp) => {
+      // Find if there's a scheduled absence for today
+      const todaysAbsence = state.scheduledAbsences.find((a) => {
+        const startDate = new Date(a.startDate);
+        const endDate = new Date(a.endDate);
+        // Ensure dates are valid before comparing
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime()))
+          return false;
+        return (
+          a.employeeId === emp.id && today >= startDate && today <= endDate
+        );
+      });
+
+      if (todaysAbsence) {
+        // If employee is on a scheduled absence but status is not updated, update it
+        if (emp.status !== todaysAbsence.type) {
+          dispatch({
+            type: "UPDATE_EMPLOYEE_STATUS",
+            payload: { id: emp.id, status: todaysAbsence.type },
+          });
+        }
+      } else {
+        // If employee is NOT on a scheduled absence but status is 'vacation' or 'sick'
+        // (meaning the absence period ended), reset them to 'absent'.
+        if (emp.status === "vacation" || emp.status === "sick") {
+          dispatch({
+            type: "UPDATE_EMPLOYEE_STATUS",
+            payload: { id: emp.id, status: "absent" },
+          });
+        }
+      }
+    });
+    // Make the effect dependent on the actual data it uses
+  }, [state.employees, state.scheduledAbsences]);
+
+  useEffect(() => {
+    const d = localStorage.getItem("appData");
+    if (d) dispatch({ type: "SET_INITIAL_DATA", payload: JSON.parse(d) });
+    setIsLoaded(true);
+  }, []);
+  useEffect(() => {
+    if (isLoaded) localStorage.setItem("appData", JSON.stringify(state));
+  }, [state, isLoaded]);
+
+  const handleLogin = (id) => {
+    const user = state.employees.find((e) => e.id === parseInt(id));
+    if (user) setCurrentUser(user);
+  };
+  const handleLogout = () => setCurrentUser(null);
+
+  if (!isLoaded)
+    return (
+      <div
+        style={{
+          display: "flex",
+          height: "100vh",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        טוען מערכת...
+      </div>
+    );
 
   return (
-    <AppContext.Provider value={appContextValue}>
+    <AppContext.Provider value={{ state, dispatch }}>
       <ToastProvider>
         <BrowserRouter>
-          <AppRouter />
+          {!currentUser ? (
+            <Login onLogin={handleLogin} />
+          ) : (
+            <div className="app-layout">
+              <aside className="sidebar">
+                <div className="sidebar-header">
+                  <h1>Attend.ly</h1>
+                </div>
+                <nav>
+                  <NavLink to="/">
+                    <Icon path={ICONS.DASHBOARD} /> סקירה כללית
+                  </NavLink>
+                  <NavLink to="/employees">
+                    <Icon path={ICONS.EMPLOYEES} /> ניהול עובדים
+                  </NavLink>
+                  <NavLink to="/reports">
+                    <Icon path={ICONS.REPORTS} /> דוחות
+                  </NavLink>
+                  <NavLink to="/payroll">
+                    <Icon path={ICONS.PAYROLL} /> חישוב שכר
+                  </NavLink>
+                  <NavLink to="/settings">
+                    <Icon path={ICONS.SETTINGS} /> הגדרות
+                  </NavLink>
+                </nav>
+                <div className="sidebar-footer">
+                  <span>שלום, {currentUser.name}</span>
+                  <button
+                    onClick={handleLogout}
+                    className="secondary"
+                    style={{ width: "100%" }}
+                  >
+                    התנתקות
+                  </button>
+                </div>
+              </aside>
+              <main className="main-content">
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/employees" element={<EmployeeList />} />
+                  <Route path="/reports" element={<ReportsPage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/payroll" element={<PayrollPage />} />
+                  <Route path="*" element={<Navigate to="/" />} />
+                </Routes>
+              </main>
+            </div>
+          )}
         </BrowserRouter>
       </ToastProvider>
     </AppContext.Provider>
   );
 }
 
-export default Root;
+export default App;

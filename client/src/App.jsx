@@ -1146,9 +1146,7 @@ function App() {
                 <h1>Attend.ly</h1>
               </div>
               <nav>
-                <NavLink to="/">
-                  <Icon path={ICONS.DASHBOARD} /> סקירה כללית
-                </NavLink>
+                {/* Manager links appear first */}
                 {currentUser.role === "manager" && (
                   <>
                     <NavLink to="/employees">
@@ -1165,6 +1163,10 @@ function App() {
                     </NavLink>
                   </>
                 )}
+                {/* Dashboard link now appears at the bottom for everyone */}
+                <NavLink to="/">
+                  <Icon path={ICONS.DASHBOARD} /> סקירה כללית
+                </NavLink>
               </nav>
               <div className="sidebar-footer">
                 <span>שלום, {currentUser.name}</span>

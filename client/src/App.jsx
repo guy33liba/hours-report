@@ -385,12 +385,15 @@ function EmployeeListPage() {
 }
 
 // --- NEW FUNCTIONAL REPORTS PAGE ---
+// Paste this code over the existing ReportsPage function in your App.js
+
 function ReportsPage() {
   const { employees, attendance } = useContext(AppContext);
   const [range, setRange] = useState({ start: "", end: "" });
 
   const reportData = useMemo(() => {
     if (!range.start || !range.end) return [];
+
     const startDate = new Date(range.start);
     const endDate = new Date(range.end);
     endDate.setHours(23, 59, 59, 999);
@@ -404,23 +407,49 @@ function ReportsPage() {
             new Date(a.clockIn) <= endDate &&
             a.clockOut
         );
+
         const totalHours = empAttendance.reduce(
           (sum, entry) => sum + calculateNetSeconds(entry) / 3600,
           0
         );
-        return { ...emp, totalHours };
+        const totalPay = totalHours * emp.hourlyRate;
+
+        return {
+          ...emp,
+          totalHours,
+          totalPay,
+        };
       })
-      .filter((emp) => emp.totalHours > 0);
+      .filter((emp) => emp.totalHours > 0); // Only include employees who actually worked
   }, [range, employees, attendance]);
 
+  // New: Calculate summary KPIs from the report data
+  const summary = useMemo(() => {
+    return reportData.reduce(
+      (acc, curr) => {
+        acc.totalEmployees += 1;
+        acc.totalHours += curr.totalHours;
+        acc.totalPay += curr.totalPay;
+        return acc;
+      },
+      { totalEmployees: 0, totalHours: 0, totalPay: 0 }
+    );
+  }, [reportData]);
+
   const handleExport = () => {
+    if (!reportData.length) return;
     let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-    csvContent += "שם העובד,מחלקה,סהכ שעות\r\n";
+    csvContent += "שם העובד,מחלקה,סהכ שעות,עלות שכר משוערת\r\n";
     reportData.forEach((item) => {
-      csvContent += `${item.name},${item.department},${item.totalHours.toFixed(
-        2
-      )}\r\n`;
+      const row = [
+        `"${item.name}"`,
+        `"${item.department}"`,
+        item.totalHours.toFixed(2),
+        item.totalPay.toFixed(2),
+      ].join(",");
+      csvContent += row + "\r\n";
     });
+
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -467,41 +496,67 @@ function ReportsPage() {
             />
           </div>
         </div>
-        {range.start && range.end && (
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>שם העובד</th>
-                  <th>מחלקה</th>
-                  <th>סה"כ שעות עבודה בתקופה</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reportData.length > 0 ? (
-                  reportData.map((emp) => (
+      </div>
+
+      {reportData.length > 0 && (
+        <div className="report-results">
+          {/* NEW: Summary KPI Cards */}
+          <div className="kpi-grid">
+            <div className="card kpi-card">
+              <h4>עובדים בדוח</h4>
+              <p className="kpi-value">{summary.totalEmployees}</p>
+            </div>
+            <div className="card kpi-card">
+              <h4>סה"כ שעות עבודה</h4>
+              <p className="kpi-value">{summary.totalHours.toFixed(2)}</p>
+            </div>
+            <div className="card kpi-card">
+              <h4>עלות שכר משוערת</h4>
+              <p className="kpi-value">₪{summary.totalPay.toFixed(2)}</p>
+            </div>
+          </div>
+
+          {/* Improved Details Table */}
+          <div className="card">
+            <h3>פירוט לפי עובד</h3>
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>שם העובד</th>
+                    <th>מחלקה</th>
+                    <th>סה"כ שעות בתקופה</th>
+                    <th>עלות שכר משוערת</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reportData.map((emp) => (
                     <tr key={emp.id}>
                       <td>{emp.name}</td>
                       <td>{emp.department}</td>
                       <td>{emp.totalHours.toFixed(2)}</td>
+                      <td style={{ fontWeight: "bold" }}>
+                        ₪{emp.totalPay.toFixed(2)}
+                      </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="3" style={{ textAlign: "center" }}>
-                      לא נמצאו נתוני נוכחות לתקופה שנבחרה.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {range.start && range.end && reportData.length === 0 && (
+        <div className="card">
+          <p style={{ textAlign: "center" }}>
+            לא נמצאו נתוני נוכחות לתקופה שנבחרה.
+          </p>
+        </div>
+      )}
     </>
   );
 }
-
 // Paste this code over the existing SettingsPage function in your App.js
 
 function SettingsPage() {

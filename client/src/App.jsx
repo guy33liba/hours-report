@@ -1,4 +1,4 @@
-// App.js - FINAL STABLE VERSION WITH CORRECT ICONS
+// App.js - FINAL STABLE VERSION WITH PASSWORD RESET
 import React, {
   useState,
   useEffect,
@@ -74,7 +74,6 @@ const Icon = ({ path, size = 18 }) => (
   </svg>
 );
 
-// --- CORRECT AND COMPLETE ICONS OBJECT ---
 const ICONS = {
   DASHBOARD: "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z",
   EMPLOYEES:
@@ -90,7 +89,6 @@ const ICONS = {
 };
 
 const DigitalClock = () => {
-  /* ... Unchanged ... */
   const [time, setTime] = useState(new Date());
   useEffect(() => {
     const timerId = setInterval(() => setTime(new Date()), 1000);
@@ -101,7 +99,6 @@ const DigitalClock = () => {
   );
 };
 const Modal = ({ show, onClose, children, title }) => {
-  /* ... Unchanged ... */
   if (!show) return null;
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -134,7 +131,6 @@ const ToggleSwitch = ({ label, checked, onChange, name }) => (
 );
 
 function EmployeeTimer({ employeeId }) {
-  /* ... Unchanged ... */
   const { attendance } = useContext(AppContext);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const activeEntry = useMemo(
@@ -170,7 +166,6 @@ function EmployeeTimer({ employeeId }) {
 }
 
 function Dashboard() {
-  /* ... Unchanged ... */
   const { employees, attendance, setAttendance, addToast, currentUser } =
     useContext(AppContext);
   const employeesToDisplay = useMemo(() => {
@@ -294,13 +289,78 @@ function Dashboard() {
   );
 }
 
+// --- NEW COMPONENT FOR PASSWORD RESET ---
+function ResetPasswordModal({ show, onClose, employee }) {
+  const { addToast, setEmployees } = useContext(AppContext);
+  const [newPassword, setNewPassword] = useState("");
+
+  useEffect(() => {
+    // Clear password field when modal is closed or employee changes
+    if (!show) {
+      setNewPassword("");
+    }
+  }, [show]);
+
+  if (!show || !employee) return null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (newPassword.length < 6) {
+      addToast("הסיסמה חייבת להכיל לפחות 6 תווים", "danger");
+      return;
+    }
+
+    // Update the employee's password in the main state
+    setEmployees((prevEmployees) =>
+      prevEmployees.map((emp) =>
+        emp.id === employee.id ? { ...emp, password: newPassword } : emp
+      )
+    );
+
+    addToast(`הסיסמה של ${employee.name} אופסה בהצלחה!`, "success");
+    onClose(); // Close the modal
+  };
+
+  return (
+    <Modal
+      show={show}
+      onClose={onClose}
+      title={`איפוס סיסמה עבור ${employee.name}`}
+    >
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label htmlFor="newPassword">סיסמה חדשה</label>
+          <input
+            id="newPassword"
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            required
+            minLength={6}
+            autoFocus
+          />
+        </div>
+        <div className="form-actions">
+          <button type="button" className="secondary" onClick={onClose}>
+            ביטול
+          </button>
+          <button type="submit">אפס סיסמה</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function EmployeeListPage() {
-  /* ... Unchanged ... */
   const { employees, setEmployees, setAbsences, addToast } =
     useContext(AppContext);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAbsenceModalOpen, setIsAbsenceModalOpen] = useState(false);
+  // New state for the password reset modal
+  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] =
+    useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+
   const handleOpenEditModal = (employee = null) => {
     setSelectedEmployee(employee);
     setIsEditModalOpen(true);
@@ -309,6 +369,12 @@ function EmployeeListPage() {
     setSelectedEmployee(employee);
     setIsAbsenceModalOpen(true);
   };
+  // New function to open the password reset modal
+  const handleOpenResetPasswordModal = (employee) => {
+    setSelectedEmployee(employee);
+    setIsResetPasswordModalOpen(true);
+  };
+
   const handleSaveEmployee = (employeeData) => {
     if (selectedEmployee) {
       setEmployees((prev) =>
@@ -371,6 +437,13 @@ function EmployeeListPage() {
                     >
                       ערוך
                     </button>
+                    {/* THIS CONDITION IS NOW REMOVED, a manager can reset any password */}
+                    <button
+                      onClick={() => handleOpenResetPasswordModal(emp)}
+                      className="secondary warning"
+                    >
+                      אפס סיסמה
+                    </button>
                     <button
                       onClick={() => handleDeleteEmployee(emp.id)}
                       className="danger secondary"
@@ -395,12 +468,16 @@ function EmployeeListPage() {
         onClose={() => setIsAbsenceModalOpen(false)}
         employee={selectedEmployee}
       />
+      {/* New Modal Render */}
+      <ResetPasswordModal
+        show={isResetPasswordModalOpen}
+        onClose={() => setIsResetPasswordModalOpen(false)}
+        employee={selectedEmployee}
+      />
     </>
   );
 }
-
 function ReportsPage() {
-  /* ... Unchanged ... */
   const { employees, attendance } = useContext(AppContext);
   const [range, setRange] = useState({ start: "", end: "" });
   const reportData = useMemo(() => {
@@ -553,7 +630,6 @@ function ReportsPage() {
 }
 
 function SettingsPage() {
-  /* ... Unchanged ... */
   const { settings, setSettings, addToast } = useContext(AppContext);
   const [localSettings, setLocalSettings] = useState(settings);
   useEffect(() => {
@@ -625,7 +701,6 @@ function SettingsPage() {
 }
 
 function PayrollPage() {
-  /* ... Unchanged ... */
   const { employees, attendance, settings } = useContext(AppContext);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
@@ -808,7 +883,6 @@ function PayrollPage() {
 }
 
 function AbsenceManagementModal({ show, onClose, employee }) {
-  /* ... Unchanged ... */
   const { absences, setAbsences, addToast } = useContext(AppContext);
   const [type, setType] = useState("vacation");
   const [startDate, setStartDate] = useState("");
@@ -899,7 +973,6 @@ function AbsenceManagementModal({ show, onClose, employee }) {
   );
 }
 function EmployeeFormModal({ show, onClose, onSave, employee }) {
-  /* ... Unchanged ... */
   const [formData, setFormData] = useState({
     name: "",
     department: "תמיכה",
@@ -988,7 +1061,6 @@ function EmployeeFormModal({ show, onClose, onSave, employee }) {
   );
 }
 function LoginPage({ onLogin }) {
-  /* ... Unchanged ... */
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -1041,7 +1113,6 @@ function LoginPage({ onLogin }) {
   );
 }
 function Toast({ message, type, onDismiss }) {
-  /* ... Unchanged ... */
   useEffect(() => {
     const timer = setTimeout(onDismiss, 4000);
     return () => clearTimeout(timer);
@@ -1050,7 +1121,6 @@ function Toast({ message, type, onDismiss }) {
 }
 
 function App() {
-  /* ... Unchanged ... */
   const [employees, setEmployees] = useState(
     () => JSON.parse(localStorage.getItem("employees")) || initialData.employees
   );

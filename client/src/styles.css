@@ -1,21 +1,22 @@
-/* styles.css - UPGRADED PREMIUM DESIGN */
+/* styles.css - REFINED & POLISHED PREMIUM DESIGN */
 
 /* --- 1. Global Setup & Modern Variables --- */
 :root {
-  --primary-color: #4f46e5; /* A richer, modern Indigo */
-  --primary-hover: #4338ca; /* Darker shade for hover */
-  --primary-light: #eef2ff; /* Very light shade for backgrounds */
-  --danger-color: #ef4444; /* A vibrant red */
-  --danger-hover: #dc2626; /* Darker red for hover */
-  --success-color: #10b981; /* A clean, modern green */
-  --text-dark: #111827; /* Almost black for high contrast */
-  --text-main: #374151; /* Main text color */
-  --text-light: #6b7280; /* For subtitles and secondary text */
-  --border-color: #e5e7eb; /* A subtle, light gray border */
+  --primary-color: #4f46e5;
+  --primary-hover: #4338ca;
+  --primary-light: #eef2ff;
+  --danger-color: #ef4444;
+  --danger-hover: #dc2626;
+  --success-color: #10b981;
+  --warning-color: #f59e0b;
+  --text-dark: #111827;
+  --text-main: #374151;
+  --text-light: #6b7280;
+  --border-color: #e5e7eb;
   --card-bg: #ffffff;
   --app-bg: #f9fafb;
   --sidebar-width: 260px;
-  --border-radius: 0.75rem; /* Slightly more rounded corners (12px) */
+  --border-radius: 0.75rem;
   --box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --box-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
     0 4px 6px -4px rgba(0, 0, 0, 0.1);
@@ -40,9 +41,11 @@ body {
 
 h1,
 h2,
-h3 {
+h3,
+h4 {
   color: var(--text-dark);
   font-weight: 700;
+  margin: 0;
 }
 
 /* --- 3. Layout --- */
@@ -72,7 +75,7 @@ h3 {
 .sidebar-header h1 {
   color: var(--primary-color);
   text-align: center;
-  margin: 0 0 2.5rem;
+  margin-bottom: 2.5rem;
   font-size: 2rem;
   font-weight: 800;
 }
@@ -137,9 +140,16 @@ h3 {
   border-bottom: 1px solid var(--border-color);
 }
 .page-header h2 {
-  margin: 0;
   font-size: 2.25rem;
 }
+.digital-clock {
+  font-family: "Inter", monospace;
+  font-size: 1.5rem;
+  color: var(--text-light);
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
 button,
 .button-like-link {
   font-family: inherit;
@@ -161,13 +171,14 @@ button,
 }
 button:hover:not(:disabled),
 .button-like-link:hover {
-  background-color: var(--primary-hover);
   transform: translateY(-2px);
   box-shadow: var(--box-shadow-lg);
 }
 button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: var(--box-shadow);
 }
 button.secondary,
 .button-like-link.secondary {
@@ -278,9 +289,10 @@ tbody tr:hover {
   padding: 0;
   border-radius: var(--border-radius);
   width: 90%;
-  max-width: 550px;
+  max-width: 600px;
   box-shadow: var(--box-shadow-lg);
   animation: slideIn 0.3s;
+  overflow: hidden;
 }
 .modal-header {
   padding: 1.5rem 2rem;
@@ -356,7 +368,7 @@ tbody tr:hover {
 }
 .employee-row {
   display: grid;
-  grid-template-columns: 1.5fr 1fr auto;
+  grid-template-columns: 1.5fr auto 1fr auto;
   gap: 1.5rem;
   align-items: center;
   padding: 1.25rem;
@@ -381,6 +393,17 @@ tbody tr:hover {
   font-size: 0.875rem;
   color: var(--text-light);
 }
+.employee-timer {
+  font-family: monospace;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  min-width: 100px;
+  text-align: center;
+}
+.employee-timer-placeholder {
+  min-width: 100px;
+}
 .employee-status {
   display: flex;
   align-items: center;
@@ -402,11 +425,11 @@ tbody tr:hover {
   background-color: #10b981;
 }
 .status-on_break {
-  background-color: #fffbeb;
-  color: #b45309;
+  background-color: #fef3c7;
+  color: #92400e;
 }
 .status-on_break .status-dot {
-  background-color: #f59e0b;
+  background-color: var(--warning-color);
 }
 .status-absent {
   background-color: #f3f4f6;
@@ -415,30 +438,53 @@ tbody tr:hover {
 .status-absent .status-dot {
   background-color: #6b7280;
 }
+.status-sick {
+  background-color: #f3e8ff;
+  color: #7e22ce;
+}
+.status-sick .status-dot {
+  background-color: #a855f7;
+}
+.status-vacation {
+  background-color: #fff7ed;
+  color: #c2410c;
+}
+.status-vacation .status-dot {
+  background-color: #f97316;
+}
 
-/* --- 9. Detail Page & Reports --- */
-.details-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 2rem;
-  margin-bottom: 2rem;
-}
-.details-grid .card h3 {
-  margin: 0 0 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border-color);
-}
-.details-grid .card p {
-  margin: 0.75rem 0;
-  font-size: 1.125rem;
-}
-.report-controls {
+/* --- 9. Absences & Reports --- */
+.report-controls,
+.absence-form {
   display: flex;
   gap: 1.5rem;
   margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
 }
-.report-controls .form-group {
+.report-controls .form-group,
+.absence-form .form-group {
   margin-bottom: 0;
+  flex: 1;
+}
+.absence-form button {
+  flex-shrink: 0;
+  align-self: end;
+  height: calc(1.75rem + 22px);
+}
+.absences-list h4 {
+  margin: 1.5rem 0 1rem;
+}
+.absences-list table td {
+  padding: 0.75rem 1rem;
+}
+.danger-text {
+  background: none;
+  border: none;
+  color: var(--danger-color);
+  padding: 0;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 /* --- 10. Toasts (Notifications) --- */
@@ -501,9 +547,14 @@ tbody tr:hover {
 /* --- 12. Responsive Design --- */
 @media (max-width: 992px) {
   .sidebar {
+    position: fixed;
+    z-index: 1100;
     transform: translateX(100%);
   }
-  /* A class can be added with JS to open it, e.g., .sidebar.is-open { transform: translateX(0); } */
+  /* To open on mobile, you would add a class 'is-open' with JS */
+  .sidebar.is-open {
+    transform: translateX(0);
+  }
   .main-content {
     margin-right: 0;
   }
@@ -523,16 +574,13 @@ tbody tr:hover {
     text-align: center;
     gap: 1.25rem;
   }
-  .employee-info {
-    align-items: center;
-  }
-  .employee-actions {
+  .employee-info,
+  .employee-actions,
+  .employee-status {
     justify-content: center;
   }
-  .details-grid {
-    grid-template-columns: 1fr;
-  }
-  .report-controls {
+  .report-controls,
+  .absence-form {
     flex-direction: column;
   }
 }

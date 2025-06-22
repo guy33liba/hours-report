@@ -1,4 +1,4 @@
-// App.js - COMPLETE VERSION WITH DETAILS MODAL
+// App.js - COMPLETE VERSION with FUNCTIONAL REPORTS PAGE
 import React, {
   useState,
   useEffect,
@@ -13,13 +13,12 @@ import {
   Route,
   NavLink,
   Navigate,
+  Link,
 } from "react-router-dom";
 import "./styles.css";
 
-// --- Context for App-wide State and Functions ---
 const AppContext = createContext();
 
-// --- Initial Data ---
 const initialData = {
   employees: [
     {
@@ -33,7 +32,7 @@ const initialData = {
     {
       id: 2,
       name: "דנה כהן",
-      department: "שיווק",
+      department: "תמיכה",
       role: "employee",
       hourlyRate: 60,
       password: "123",
@@ -41,19 +40,31 @@ const initialData = {
     {
       id: 3,
       name: "אבי לוי",
-      department: "פיתוח",
+      department: "תמיכה",
       role: "employee",
       hourlyRate: 85,
       password: "123",
     },
   ],
   attendance: [],
-  settings: {
-    standardWorkDayHours: 8.5,
-  },
+  absences: [],
+  settings: { standardWorkDayHours: 8.5 },
 };
 
-// --- Reusable UI Components ---
+const calculateNetSeconds = (entry) => {
+  if (!entry || !entry.clockIn) return 0;
+  const clockOutTime = entry.clockOut ? new Date(entry.clockOut) : new Date();
+  let totalSeconds = (clockOutTime - new Date(entry.clockIn)) / 1000;
+  if (entry.breaks && entry.breaks.length > 0) {
+    const totalBreakSeconds = entry.breaks.reduce((acc, breakItem) => {
+      const breakEnd = breakItem.end ? new Date(breakItem.end) : new Date();
+      return acc + (breakEnd - new Date(breakItem.start)) / 1000;
+    }, 0);
+    totalSeconds -= totalBreakSeconds;
+  }
+  return Math.max(0, totalSeconds);
+};
+
 const Icon = ({ path, size = 18 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
     <path d={path}></path>
@@ -68,11 +79,19 @@ const ICONS = {
   PAYROLL:
     "M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41s-.22-1.05-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z",
   SETTINGS:
-    "M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.69-1.62-0.92L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 l-3.84,0c-0.24,0-0.44,0.17-0.48,0.41L9.2,5.59C8.6,5.82,8.08,6.13,7.58,6.51L5.19,5.55C4.97,5.48,4.72,5.55,4.6,5.77L2.68,9.09 c-0.11,0.2-0.06,0.47,0.12,0.61L4.83,11.28c-0.05,0.3-0.07,0.62-0.07,0.94c0,0.32,0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.69,1.62,0.92l0.44,2.78 c0.04,0.24,0.24,0.41,0.48,0.41l3.84,0c0.24,0,0.44-0.17-0.48-0.41l0.44-2.78c0.59-0.23,1.12-0.54,1.62-0.92l2.39,0.96 c0.22,0.08,0.47,0.01,0.59-0.22l1.92-3.32c0.12-0.2,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z",
+    "M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.69-1.62-0.92L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 l-3.84,0c-0.24,0-0.44,0.17-0.48,0.41L9.2,5.59C8.6,5.82,8.08,6.13,7.58,6.51L5.19,5.55C4.97,5.48,4.72,5.55,4.6,5.77L2.68,9.09 c-0.11,0.2-0.06,0.47,0.12,0.61L4.83,11.28c-0.05,0.3-0.07,0.62-0.07,0.94c0,0.32,0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.69,1.62,0.92l0.44,2.78 c0.04,0.24,0.24,0.41,0.48,0.41l3.84,0c0.24,0-0.44,0.17-0.48-0.41l0.44-2.78c0.59-0.23,1.12-0.54,1.62-0.92l2.39,0.96 c0.22,0.08,0.47,0.01,0.59-0.22l1.92-3.32c0.12-0.2,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z",
   LOGOUT:
     "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2h8v-2H4V5z",
-  DETAILS:
-    "M11 17h2v-6h-2v6zm1-8c-0.55 0-1 0.45-1 1s0.45 1 1 1 1-0.45 1-1-0.45-1-1-1zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z",
+};
+const DigitalClock = () => {
+  const [time, setTime] = useState(new Date());
+  useEffect(() => {
+    const timerId = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timerId);
+  }, []);
+  return (
+    <div className="digital-clock">{time.toLocaleTimeString("he-IL")}</div>
+  );
 };
 const Modal = ({ show, onClose, children, title }) => {
   if (!show) return null;
@@ -91,22 +110,58 @@ const Modal = ({ show, onClose, children, title }) => {
   );
 };
 
-// --- Main Pages ---
+function EmployeeTimer({ employeeId }) {
+  const { attendance } = useContext(AppContext);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const activeEntry = useMemo(
+    () => attendance.find((a) => a.employeeId === employeeId && !a.clockOut),
+    [attendance, employeeId]
+  );
+  useEffect(() => {
+    if (!activeEntry || activeEntry.onBreak) {
+      setElapsedSeconds(calculateNetSeconds(activeEntry || {}));
+      return;
+    }
+    const timerId = setInterval(
+      () => setElapsedSeconds(calculateNetSeconds(activeEntry)),
+      1000
+    );
+    setElapsedSeconds(calculateNetSeconds(activeEntry));
+    return () => clearInterval(timerId);
+  }, [activeEntry, activeEntry?.onBreak]);
+  const formatTime = (totalSeconds) => {
+    const h = Math.floor(totalSeconds / 3600)
+      .toString()
+      .padStart(2, "0");
+    const m = Math.floor((totalSeconds % 3600) / 60)
+      .toString()
+      .padStart(2, "0");
+    const s = Math.floor(totalSeconds % 60)
+      .toString()
+      .padStart(2, "0");
+    return `${h}:${m}:${s}`;
+  };
+  if (!activeEntry) return <div className="employee-timer-placeholder"></div>;
+  return <div className="employee-timer">{formatTime(elapsedSeconds)}</div>;
+}
 
 function Dashboard() {
   const { employees, attendance, setAttendance, addToast } =
     useContext(AppContext);
-
-  const getEmployeeStatus = (employeeId) => {
+  const getEmployeeStatus = (employee) => {
+    if (employee.status === "sick" || employee.status === "vacation")
+      return {
+        text: employee.status === "sick" ? "מחלה" : "חופשה",
+        class: employee.status,
+      };
     const lastEntry = attendance
-      .filter((a) => a.employeeId === employeeId)
+      .filter((a) => a.employeeId === employee.id)
       .sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn))[0];
     if (!lastEntry || lastEntry.clockOut)
       return { text: "לא בעבודה", class: "absent" };
     if (lastEntry.onBreak) return { text: "בהפסקה", class: "on_break" };
     return { text: "נוכח", class: "present" };
   };
-
   const handleClockIn = (employeeId) => {
     setAttendance((prev) => [
       ...prev,
@@ -115,30 +170,38 @@ function Dashboard() {
         employeeId,
         clockIn: new Date().toISOString(),
         clockOut: null,
+        breaks: [],
         onBreak: false,
       },
     ]);
     addToast("כניסה הוחתמה בהצלחה", "success");
   };
-
   const handleClockOut = (employeeId) => {
     setAttendance((prev) =>
       prev.map((a) =>
         !a.clockOut && a.employeeId === employeeId
-          ? { ...a, clockOut: new Date().toISOString(), onBreak: false }
+          ? { ...a, clockOut: new Date().toISOString() }
           : a
       )
     );
     addToast("יציאה הוחתמה בהצלחה");
   };
-
   const handleBreakToggle = (employeeId) => {
     let isOnBreak = false;
     setAttendance((prev) =>
       prev.map((a) => {
         if (!a.clockOut && a.employeeId === employeeId) {
-          isOnBreak = !a.onBreak;
-          return { ...a, onBreak: !a.onBreak };
+          const newBreakState = !a.onBreak;
+          const now = new Date().toISOString();
+          let newBreaks = [...(a.breaks || [])];
+          if (newBreakState) {
+            newBreaks.push({ start: now, end: null });
+            isOnBreak = true;
+          } else {
+            const last = newBreaks.findLastIndex((b) => !b.end);
+            if (last !== -1) newBreaks[last].end = now;
+          }
+          return { ...a, breaks: newBreaks, onBreak: newBreakState };
         }
         return a;
       })
@@ -150,20 +213,24 @@ function Dashboard() {
     <>
       <div className="page-header">
         <h2>לוח בקרה</h2>
+        <DigitalClock />
       </div>
       <div className="card">
         <h3>נוכחות בזמן אמת</h3>
         <div className="employee-list-realtime">
           {employees.map((emp) => {
-            const status = getEmployeeStatus(emp.id);
+            const status = getEmployeeStatus(emp);
             const isClockedIn =
               status.class === "present" || status.class === "on_break";
+            const isDisabled =
+              status.class === "sick" || status.class === "vacation";
             return (
               <div key={emp.id} className="employee-row">
                 <div className="employee-info">
                   <span className="employee-name">{emp.name}</span>
                   <span className="employee-department">{emp.department}</span>
                 </div>
+                <EmployeeTimer employeeId={emp.id} />
                 <div className="employee-status">
                   <span className={`status-dot ${status.class}`}></span>
                   {status.text}
@@ -171,20 +238,20 @@ function Dashboard() {
                 <div className="employee-actions">
                   <button
                     onClick={() => handleClockIn(emp.id)}
-                    disabled={isClockedIn}
+                    disabled={isClockedIn || isDisabled}
                   >
                     כניסה
                   </button>
                   <button
                     onClick={() => handleBreakToggle(emp.id)}
-                    disabled={!isClockedIn}
+                    disabled={!isClockedIn || isDisabled}
                     className="secondary"
                   >
                     {status.class === "on_break" ? "חזור מהפסקה" : "הפסקה"}
                   </button>
                   <button
                     onClick={() => handleClockOut(emp.id)}
-                    disabled={!isClockedIn}
+                    disabled={!isClockedIn || isDisabled}
                     className="danger"
                   >
                     יציאה
@@ -200,43 +267,42 @@ function Dashboard() {
 }
 
 function EmployeeListPage() {
-  const { employees, setEmployees, addToast } = useContext(AppContext);
+  const { employees, setEmployees, setAbsences, addToast } =
+    useContext(AppContext);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false); // NEW state for details modal
+  const [isAbsenceModalOpen, setIsAbsenceModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
-
   const handleOpenEditModal = (employee = null) => {
     setSelectedEmployee(employee);
     setIsEditModalOpen(true);
   };
-
-  // NEW function to open the details modal
-  const handleOpenDetailModal = (employee) => {
+  const handleOpenAbsenceModal = (employee) => {
     setSelectedEmployee(employee);
-    setIsDetailModalOpen(true);
+    setIsAbsenceModalOpen(true);
   };
-
   const handleSaveEmployee = (employeeData) => {
-    if (selectedEmployee && selectedEmployee.id) {
+    if (selectedEmployee) {
       setEmployees((prev) =>
         prev.map((emp) =>
           emp.id === selectedEmployee.id ? { ...emp, ...employeeData } : emp
         )
       );
-      addToast("פרטי העובד עודכנו בהצלחה", "success");
+      addToast("פרטי העובד עודכנו", "success");
     } else {
       setEmployees((prev) => [
         ...prev,
-        { ...employeeData, id: Date.now(), password: "123" },
+        { ...employeeData, id: Date.now(), password: "123", status: "absent" },
       ]);
-      addToast("עובד חדש נוסף בהצלחה", "success");
+      addToast("עובד חדש נוסף", "success");
     }
     setIsEditModalOpen(false);
   };
-
   const handleDeleteEmployee = (employeeId) => {
-    if (window.confirm("האם אתה בטוח שברצונך למחוק עובד זה?")) {
+    if (window.confirm("למחוק עובד זה?")) {
       setEmployees((prev) => prev.filter((emp) => emp.id !== employeeId));
+      setAbsences((prev) =>
+        prev.filter((abs) => abs.employeeId !== employeeId)
+      );
       addToast("העובד נמחק", "danger");
     }
   };
@@ -245,7 +311,7 @@ function EmployeeListPage() {
     <>
       <div className="page-header">
         <h2>ניהול עובדים</h2>
-        <button onClick={() => handleOpenEditModal()}>הוסף עובד חדש</button>
+        <DigitalClock />
       </div>
       <div className="card">
         <div className="table-container">
@@ -265,12 +331,11 @@ function EmployeeListPage() {
                   <td>{emp.department}</td>
                   <td>{emp.role === "manager" ? "מנהל" : "עובד"}</td>
                   <td className="actions-cell">
-                    {/* UPDATED: "פרטים" is now a button that opens a modal */}
                     <button
-                      onClick={() => handleOpenDetailModal(emp)}
+                      onClick={() => handleOpenAbsenceModal(emp)}
                       className="secondary"
                     >
-                      <Icon path={ICONS.DETAILS} size={16} /> פרטים
+                      היעדרויות
                     </button>
                     <button
                       onClick={() => handleOpenEditModal(emp)}
@@ -297,132 +362,78 @@ function EmployeeListPage() {
         onSave={handleSaveEmployee}
         employee={selectedEmployee}
       />
-      {/* NEW: Render the details modal */}
-      <EmployeeDetailModal
-        show={isDetailModalOpen}
-        onClose={() => setIsDetailModalOpen(false)}
+      <AbsenceManagementModal
+        show={isAbsenceModalOpen}
+        onClose={() => setIsAbsenceModalOpen(false)}
         employee={selectedEmployee}
       />
     </>
   );
 }
 
-// --- NEW MODAL for Employee Details ---
-function EmployeeDetailModal({ show, onClose, employee }) {
-  const { attendance } = useContext(AppContext);
-
-  if (!show || !employee) return null;
-
-  const employeeAttendance = attendance
-    .filter((a) => a.employeeId === employee.id)
-    .sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn));
-
-  const calculateHours = (entry) => {
-    if (!entry.clockOut) return "0.00";
-    return (
-      (new Date(entry.clockOut) - new Date(entry.clockIn)) /
-      3600000
-    ).toFixed(2);
-  };
-
-  return (
-    <Modal show={show} onClose={onClose} title={`פרטי עובד: ${employee.name}`}>
-      <div className="details-modal-content">
-        <div className="card details-card">
-          <h3>פרטים אישיים</h3>
-          <p>
-            <strong>שם:</strong> {employee.name}
-          </p>
-          <p>
-            <strong>מחלקה:</strong> {employee.department}
-          </p>
-          <p>
-            <strong>תפקיד:</strong>{" "}
-            {employee.role === "manager" ? "מנהל" : "עובד"}
-          </p>
-          <p>
-            <strong>תעריף שעתי:</strong> ₪{employee.hourlyRate}
-          </p>
-        </div>
-        <div className="card details-card">
-          <h3>היסטוריית נוכחות</h3>
-          {employeeAttendance.length > 0 ? (
-            <div className="table-container compact-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>תאריך</th>
-                    <th>כניסה</th>
-                    <th>יציאה</th>
-                    <th>שעות</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {employeeAttendance.map((entry) => (
-                    <tr key={entry.id}>
-                      <td>
-                        {new Date(entry.clockIn).toLocaleDateString("he-IL")}
-                      </td>
-                      <td>
-                        {new Date(entry.clockIn).toLocaleTimeString("he-IL", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </td>
-                      <td>
-                        {entry.clockOut
-                          ? new Date(entry.clockOut).toLocaleTimeString(
-                              "he-IL",
-                              { hour: "2-digit", minute: "2-digit" }
-                            )
-                          : "-"}
-                      </td>
-                      <td>{calculateHours(entry)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p>אין היסטוריית נוכחות.</p>
-          )}
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
+// --- NEW FUNCTIONAL REPORTS PAGE ---
 function ReportsPage() {
   const { employees, attendance } = useContext(AppContext);
   const [range, setRange] = useState({ start: "", end: "" });
+
   const reportData = useMemo(() => {
     if (!range.start || !range.end) return [];
     const startDate = new Date(range.start);
     const endDate = new Date(range.end);
     endDate.setHours(23, 59, 59, 999);
-    return employees.map((emp) => {
-      const empAttendance = attendance.filter(
-        (a) =>
-          a.employeeId === emp.id &&
-          new Date(a.clockIn) >= startDate &&
-          new Date(a.clockIn) <= endDate &&
-          a.clockOut
-      );
-      const totalHours = empAttendance.reduce(
-        (sum, entry) =>
-          sum + (new Date(entry.clockOut) - new Date(entry.clockIn)) / 3600000,
-        0
-      );
-      return { ...emp, totalHours };
-    });
+
+    return employees
+      .map((emp) => {
+        const empAttendance = attendance.filter(
+          (a) =>
+            a.employeeId === emp.id &&
+            new Date(a.clockIn) >= startDate &&
+            new Date(a.clockIn) <= endDate &&
+            a.clockOut
+        );
+        const totalHours = empAttendance.reduce(
+          (sum, entry) => sum + calculateNetSeconds(entry) / 3600,
+          0
+        );
+        return { ...emp, totalHours };
+      })
+      .filter((emp) => emp.totalHours > 0);
   }, [range, employees, attendance]);
+
+  const handleExport = () => {
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+    csvContent += "שם העובד,מחלקה,סהכ שעות\r\n";
+    reportData.forEach((item) => {
+      csvContent += `${item.name},${item.department},${item.totalHours.toFixed(
+        2
+      )}\r\n`;
+    });
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `report_${range.start}_to_${range.end}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <>
       <div className="page-header">
         <h2>דוחות נוכחות</h2>
+        <div className="page-actions">
+          <DigitalClock />
+          <button
+            onClick={handleExport}
+            disabled={!reportData.length}
+            className="secondary"
+          >
+            ייצא ל-CSV
+          </button>
+        </div>
       </div>
       <div className="card">
+        <h3>בחר טווח תאריכים לדוח</h3>
         <div className="report-controls">
           <div className="form-group">
             <label>מתאריך</label>
@@ -443,24 +454,32 @@ function ReportsPage() {
             />
           </div>
         </div>
-        {reportData.length > 0 && (
+        {range.start && range.end && (
           <div className="table-container">
             <table>
               <thead>
                 <tr>
-                  <th>שם</th>
+                  <th>שם העובד</th>
                   <th>מחלקה</th>
-                  <th>סה"כ שעות בתקופה</th>
+                  <th>סה"כ שעות עבודה בתקופה</th>
                 </tr>
               </thead>
               <tbody>
-                {reportData.map((emp) => (
-                  <tr key={emp.id}>
-                    <td>{emp.name}</td>
-                    <td>{emp.department}</td>
-                    <td>{emp.totalHours.toFixed(2)}</td>
+                {reportData.length > 0 ? (
+                  reportData.map((emp) => (
+                    <tr key={emp.id}>
+                      <td>{emp.name}</td>
+                      <td>{emp.department}</td>
+                      <td>{emp.totalHours.toFixed(2)}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="3" style={{ textAlign: "center" }}>
+                      לא נמצאו נתוני נוכחות לתקופה שנבחרה.
+                    </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -475,6 +494,7 @@ function SettingsPage() {
     <>
       <div className="page-header">
         <h2>הגדרות</h2>
+        <DigitalClock />
       </div>
       <div className="card">
         <p>כאן יוצגו הגדרות המערכת.</p>
@@ -482,12 +502,12 @@ function SettingsPage() {
     </>
   );
 }
-
 function PayrollPage() {
   return (
     <>
       <div className="page-header">
         <h2>חישוב שכר</h2>
+        <DigitalClock />
       </div>
       <div className="card">
         <p>כאן ניתן יהיה להפיק דוחות שכר.</p>
@@ -496,16 +516,22 @@ function PayrollPage() {
   );
 }
 
+// --- Modals and other components ---
 function EmployeeFormModal({ show, onClose, onSave, employee }) {
   const [formData, setFormData] = useState({
     name: "",
-    department: "",
+    department: "תמיכה",
     hourlyRate: "",
     role: "employee",
   });
   useEffect(() => {
     setFormData(
-      employee || { name: "", department: "", hourlyRate: "", role: "employee" }
+      employee || {
+        name: "",
+        department: "תמיכה",
+        hourlyRate: "",
+        role: "employee",
+      }
     );
   }, [employee]);
   const handleChange = (e) => {
@@ -536,14 +562,15 @@ function EmployeeFormModal({ show, onClose, onSave, employee }) {
         </div>
         <div className="form-group">
           <label htmlFor="department">מחלקה</label>
-          <input
+          <select
             id="department"
             name="department"
-            type="text"
             value={formData.department}
             onChange={handleChange}
-            required
-          />
+          >
+            <option value="תמיכה">תמיכה</option>
+            <option value="הנהלה">הנהלה</option>
+          </select>
         </div>
         <div className="form-group">
           <label htmlFor="hourlyRate">תעריף שעתי (₪)</label>
@@ -575,6 +602,99 @@ function EmployeeFormModal({ show, onClose, onSave, employee }) {
           <button type="submit">שמור</button>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+function AbsenceManagementModal({ show, onClose, employee }) {
+  const { absences, setAbsences, addToast } = useContext(AppContext);
+  const [type, setType] = useState("vacation");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  if (!show || !employee) return null;
+  const employeeAbsences = absences.filter((a) => a.employeeId === employee.id);
+  const handleAddAbsence = (e) => {
+    e.preventDefault();
+    if (new Date(endDate) < new Date(startDate)) {
+      addToast("תאריך סיום לא יכול להיות לפני תאריך ההתחלה", "danger");
+      return;
+    }
+    setAbsences((prev) => [
+      ...prev,
+      { id: Date.now(), employeeId: employee.id, type, startDate, endDate },
+    ]);
+    addToast("היעדרות נוספה בהצלחה", "success");
+    setStartDate("");
+    setEndDate("");
+  };
+  const handleDeleteAbsence = (id) => {
+    setAbsences((prev) => prev.filter((a) => a.id !== id));
+    addToast("היעדרות נמחקה");
+  };
+
+  return (
+    <Modal
+      show={show}
+      onClose={onClose}
+      title={`ניהול היעדרויות: ${employee.name}`}
+    >
+      <form onSubmit={handleAddAbsence} className="absence-form">
+        <div className="form-group">
+          <label>סוג היעדרות</label>
+          <select value={type} onChange={(e) => setType(e.target.value)}>
+            <option value="vacation">חופשה</option>
+            <option value="sick">מחלה</option>
+          </select>
+        </div>
+        <div className="form-group">
+          <label>מתאריך</label>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            required
+          />
+        </div>
+        <div className="form-group">
+          <label>עד תאריך</label>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            required
+          />
+        </div>
+        <button type="submit">הוסף היעדרות</button>
+      </form>
+      <div className="absences-list">
+        <h4>היעדרויות קיימות</h4>
+        {employeeAbsences.length > 0 ? (
+          <table>
+            <tbody>
+              {employeeAbsences.map((abs) => (
+                <tr key={abs.id}>
+                  <td>
+                    <strong>{abs.type === "sick" ? "מחלה" : "חופשה"}</strong>
+                  </td>
+                  <td>{abs.startDate}</td>
+                  <td>{abs.endDate}</td>
+                  <td>
+                    <button
+                      onClick={() => handleDeleteAbsence(abs.id)}
+                      className="danger-text"
+                    >
+                      מחק
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p>אין היעדרויות רשומות.</p>
+        )}
+      </div>
     </Modal>
   );
 }
@@ -640,7 +760,6 @@ function Toast({ message, type, onDismiss }) {
   return <div className={`toast ${type}`}>{message}</div>;
 }
 
-// --- The Main App Component ---
 function App() {
   const [employees, setEmployees] = useState(
     () => JSON.parse(localStorage.getItem("employees")) || initialData.employees
@@ -648,6 +767,9 @@ function App() {
   const [attendance, setAttendance] = useState(
     () =>
       JSON.parse(localStorage.getItem("attendance")) || initialData.attendance
+  );
+  const [absences, setAbsences] = useState(
+    () => JSON.parse(localStorage.getItem("absences")) || initialData.absences
   );
   const [settings] = useState(
     () => JSON.parse(localStorage.getItem("settings")) || initialData.settings
@@ -661,8 +783,35 @@ function App() {
     localStorage.setItem("currentUser", JSON.stringify(currentUser));
     localStorage.setItem("employees", JSON.stringify(employees));
     localStorage.setItem("attendance", JSON.stringify(attendance));
+    localStorage.setItem("absences", JSON.stringify(absences));
     localStorage.setItem("settings", JSON.stringify(settings));
-  }, [currentUser, employees, attendance, settings]);
+  }, [currentUser, employees, attendance, absences, settings]);
+
+  useEffect(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const updatedEmployees = employees.map((emp) => {
+      const activeAbsence = absences.find((a) => {
+        const startDate = new Date(a.startDate);
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(a.endDate);
+        endDate.setHours(0, 0, 0, 0);
+        return (
+          a.employeeId === emp.id && today >= startDate && today <= endDate
+        );
+      });
+      const newStatus = activeAbsence ? activeAbsence.type : "absent";
+      if (emp.status === "sick" || emp.status === "vacation") {
+        return { ...emp, status: newStatus };
+      }
+      return emp; // Only update if necessary, to prevent re-renders
+    });
+    // A quick check to see if an update is actually needed
+    if (JSON.stringify(employees) !== JSON.stringify(updatedEmployees)) {
+      setEmployees(updatedEmployees);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [absences]);
 
   const addToast = useCallback((message, type = "info") => {
     const id = Date.now();
@@ -677,6 +826,8 @@ function App() {
     setEmployees,
     attendance,
     setAttendance,
+    absences,
+    setAbsences,
     currentUser,
     addToast,
     settings,
@@ -752,4 +903,4 @@ function App() {
   );
 }
 
-export default App; 
+export default App;

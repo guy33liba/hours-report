@@ -1,4 +1,4 @@
-// App.js - COMPLETE VERSION WITH ALL PAGES
+// App.js - COMPLETE VERSION WITH DETAILS MODAL
 import React, {
   useState,
   useEffect,
@@ -13,15 +13,13 @@ import {
   Route,
   NavLink,
   Navigate,
-  useParams,
-  Link,
 } from "react-router-dom";
 import "./styles.css";
 
 // --- Context for App-wide State and Functions ---
 const AppContext = createContext();
 
-// --- Initial Data (Like a small database in the browser) ---
+// --- Initial Data ---
 const initialData = {
   employees: [
     {
@@ -110,13 +108,12 @@ function Dashboard() {
   };
 
   const handleClockIn = (employeeId) => {
-    const now = new Date().toISOString();
     setAttendance((prev) => [
       ...prev,
       {
         id: Date.now(),
         employeeId,
-        clockIn: now,
+        clockIn: new Date().toISOString(),
         clockOut: null,
         onBreak: false,
       },
@@ -125,11 +122,10 @@ function Dashboard() {
   };
 
   const handleClockOut = (employeeId) => {
-    const now = new Date().toISOString();
     setAttendance((prev) =>
       prev.map((a) =>
         !a.clockOut && a.employeeId === employeeId
-          ? { ...a, clockOut: now, onBreak: false }
+          ? { ...a, clockOut: new Date().toISOString(), onBreak: false }
           : a
       )
     );
@@ -137,17 +133,17 @@ function Dashboard() {
   };
 
   const handleBreakToggle = (employeeId) => {
+    let isOnBreak = false;
     setAttendance((prev) =>
-      prev.map((a) =>
-        !a.clockOut && a.employeeId === employeeId
-          ? { ...a, onBreak: !a.onBreak }
-          : a
-      )
+      prev.map((a) => {
+        if (!a.clockOut && a.employeeId === employeeId) {
+          isOnBreak = !a.onBreak;
+          return { ...a, onBreak: !a.onBreak };
+        }
+        return a;
+      })
     );
-    const currentStatus = getEmployeeStatus(employeeId);
-    addToast(
-      currentStatus.class === "on_break" ? "יציאה להפסקה" : "חזרה מהפסקה"
-    );
+    addToast(isOnBreak ? "יציאה להפסקה" : "חזרה מהפסקה");
   };
 
   return (
@@ -205,29 +201,37 @@ function Dashboard() {
 
 function EmployeeListPage() {
   const { employees, setEmployees, addToast } = useContext(AppContext);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false); // NEW state for details modal
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
 
-  const handleOpenModal = (employee = null) => {
-    setEditingEmployee(employee);
-    setIsModalOpen(true);
+  const handleOpenEditModal = (employee = null) => {
+    setSelectedEmployee(employee);
+    setIsEditModalOpen(true);
+  };
+
+  // NEW function to open the details modal
+  const handleOpenDetailModal = (employee) => {
+    setSelectedEmployee(employee);
+    setIsDetailModalOpen(true);
   };
 
   const handleSaveEmployee = (employeeData) => {
-    if (editingEmployee) {
+    if (selectedEmployee && selectedEmployee.id) {
       setEmployees((prev) =>
         prev.map((emp) =>
-          emp.id === editingEmployee.id ? { ...emp, ...employeeData } : emp
+          emp.id === selectedEmployee.id ? { ...emp, ...employeeData } : emp
         )
       );
       addToast("פרטי העובד עודכנו בהצלחה", "success");
     } else {
-      const newEmployee = { ...employeeData, id: Date.now(), password: "123" };
-      setEmployees((prev) => [...prev, newEmployee]);
+      setEmployees((prev) => [
+        ...prev,
+        { ...employeeData, id: Date.now(), password: "123" },
+      ]);
       addToast("עובד חדש נוסף בהצלחה", "success");
     }
-    setIsModalOpen(false);
-    setEditingEmployee(null);
+    setIsEditModalOpen(false);
   };
 
   const handleDeleteEmployee = (employeeId) => {
@@ -241,7 +245,7 @@ function EmployeeListPage() {
     <>
       <div className="page-header">
         <h2>ניהול עובדים</h2>
-        <button onClick={() => handleOpenModal()}>הוסף עובד חדש</button>
+        <button onClick={() => handleOpenEditModal()}>הוסף עובד חדש</button>
       </div>
       <div className="card">
         <div className="table-container">
@@ -261,14 +265,15 @@ function EmployeeListPage() {
                   <td>{emp.department}</td>
                   <td>{emp.role === "manager" ? "מנהל" : "עובד"}</td>
                   <td className="actions-cell">
-                    <Link
-                      to={`/employees/${emp.id}`}
-                      className="button-like-link secondary"
+                    {/* UPDATED: "פרטים" is now a button that opens a modal */}
+                    <button
+                      onClick={() => handleOpenDetailModal(emp)}
+                      className="secondary"
                     >
                       <Icon path={ICONS.DETAILS} size={16} /> פרטים
-                    </Link>
+                    </button>
                     <button
-                      onClick={() => handleOpenModal(emp)}
+                      onClick={() => handleOpenEditModal(emp)}
                       className="secondary"
                     >
                       ערוך
@@ -287,53 +292,43 @@ function EmployeeListPage() {
         </div>
       </div>
       <EmployeeFormModal
-        show={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        show={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
         onSave={handleSaveEmployee}
-        employee={editingEmployee}
+        employee={selectedEmployee}
+      />
+      {/* NEW: Render the details modal */}
+      <EmployeeDetailModal
+        show={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        employee={selectedEmployee}
       />
     </>
   );
 }
 
-function EmployeeDetailPage() {
-  const { id } = useParams();
-  const { employees, attendance } = useContext(AppContext);
+// --- NEW MODAL for Employee Details ---
+function EmployeeDetailModal({ show, onClose, employee }) {
+  const { attendance } = useContext(AppContext);
 
-  const employee = employees.find((emp) => emp.id === parseInt(id));
+  if (!show || !employee) return null;
+
   const employeeAttendance = attendance
-    .filter((a) => a.employeeId === parseInt(id))
+    .filter((a) => a.employeeId === employee.id)
     .sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn));
 
   const calculateHours = (entry) => {
     if (!entry.clockOut) return "0.00";
-    const hours =
-      (new Date(entry.clockOut) - new Date(entry.clockIn)) / 3600000;
-    return hours.toFixed(2);
+    return (
+      (new Date(entry.clockOut) - new Date(entry.clockIn)) /
+      3600000
+    ).toFixed(2);
   };
 
-  if (!employee) {
-    return (
-      <div className="card">
-        <h2>עובד לא נמצא</h2>
-        <p>
-          לא מצאנו עובד עם המזהה שצוין.{" "}
-          <Link to="/employees">חזור לרשימת העובדים</Link>.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <>
-      <div className="page-header">
-        <h2>פרטי עובד: {employee.name}</h2>
-        <Link to="/employees" className="button-like-link secondary">
-          חזרה לרשימה
-        </Link>
-      </div>
-      <div className="details-grid">
-        <div className="card">
+    <Modal show={show} onClose={onClose} title={`פרטי עובד: ${employee.name}`}>
+      <div className="details-modal-content">
+        <div className="card details-card">
           <h3>פרטים אישיים</h3>
           <p>
             <strong>שם:</strong> {employee.name}
@@ -349,66 +344,62 @@ function EmployeeDetailPage() {
             <strong>תעריף שעתי:</strong> ₪{employee.hourlyRate}
           </p>
         </div>
-      </div>
-      <div className="card">
-        <h3>היסטוריית נוכחות</h3>
-        {employeeAttendance.length > 0 ? (
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>תאריך</th>
-                  <th>שעת כניסה</th>
-                  <th>שעת יציאה</th>
-                  <th>סה"כ שעות</th>
-                </tr>
-              </thead>
-              <tbody>
-                {employeeAttendance.map((entry) => (
-                  <tr key={entry.id}>
-                    <td>
-                      {new Date(entry.clockIn).toLocaleDateString("he-IL")}
-                    </td>
-                    <td>
-                      {new Date(entry.clockIn).toLocaleTimeString("he-IL", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </td>
-                    <td>
-                      {entry.clockOut
-                        ? new Date(entry.clockOut).toLocaleTimeString("he-IL", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
-                        : "עדיין בעבודה"}
-                    </td>
-                    <td>{calculateHours(entry)}</td>
+        <div className="card details-card">
+          <h3>היסטוריית נוכחות</h3>
+          {employeeAttendance.length > 0 ? (
+            <div className="table-container compact-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>תאריך</th>
+                    <th>כניסה</th>
+                    <th>יציאה</th>
+                    <th>שעות</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p>אין היסטוריית נוכחות מתועדת עבור עובד זה.</p>
-        )}
+                </thead>
+                <tbody>
+                  {employeeAttendance.map((entry) => (
+                    <tr key={entry.id}>
+                      <td>
+                        {new Date(entry.clockIn).toLocaleDateString("he-IL")}
+                      </td>
+                      <td>
+                        {new Date(entry.clockIn).toLocaleTimeString("he-IL", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </td>
+                      <td>
+                        {entry.clockOut
+                          ? new Date(entry.clockOut).toLocaleTimeString(
+                              "he-IL",
+                              { hour: "2-digit", minute: "2-digit" }
+                            )
+                          : "-"}
+                      </td>
+                      <td>{calculateHours(entry)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p>אין היסטוריית נוכחות.</p>
+          )}
+        </div>
       </div>
-    </>
+    </Modal>
   );
 }
-
-// --- ALL NEW PAGES ADDED HERE ---
 
 function ReportsPage() {
   const { employees, attendance } = useContext(AppContext);
   const [range, setRange] = useState({ start: "", end: "" });
-
   const reportData = useMemo(() => {
     if (!range.start || !range.end) return [];
     const startDate = new Date(range.start);
     const endDate = new Date(range.end);
     endDate.setHours(23, 59, 59, 999);
-
     return employees.map((emp) => {
       const empAttendance = attendance.filter(
         (a) =>
@@ -417,11 +408,11 @@ function ReportsPage() {
           new Date(a.clockIn) <= endDate &&
           a.clockOut
       );
-      const totalHours = empAttendance.reduce((sum, entry) => {
-        const hours =
-          (new Date(entry.clockOut) - new Date(entry.clockIn)) / 3600000;
-        return sum + hours;
-      }, 0);
+      const totalHours = empAttendance.reduce(
+        (sum, entry) =>
+          sum + (new Date(entry.clockOut) - new Date(entry.clockIn)) / 3600000,
+        0
+      );
       return { ...emp, totalHours };
     });
   }, [range, employees, attendance]);
@@ -486,11 +477,7 @@ function SettingsPage() {
         <h2>הגדרות</h2>
       </div>
       <div className="card">
-        <p>
-          כאן יוצגו הגדרות המערכת. לדוגמה, קביעת שעות תקן ליום עבודה, אחוזי שעות
-          נוספות וכו'.
-        </p>
-        <p>הדף כרגע הוא דוגמה בלבד.</p>
+        <p>כאן יוצגו הגדרות המערכת.</p>
       </div>
     </>
   );
@@ -503,14 +490,11 @@ function PayrollPage() {
         <h2>חישוב שכר</h2>
       </div>
       <div className="card">
-        <p>כאן ניתן יהיה להפיק דוחות שכר מפורטים לעובדים לתקופה נבחרת.</p>
-        <p>הדף כרגע הוא דוגמה בלבד.</p>
+        <p>כאן ניתן יהיה להפיק דוחות שכר.</p>
       </div>
     </>
   );
 }
-
-// --- Modals and other components that don't change often ---
 
 function EmployeeFormModal({ show, onClose, onSave, employee }) {
   const [formData, setFormData] = useState({
@@ -665,6 +649,9 @@ function App() {
     () =>
       JSON.parse(localStorage.getItem("attendance")) || initialData.attendance
   );
+  const [settings] = useState(
+    () => JSON.parse(localStorage.getItem("settings")) || initialData.settings
+  );
   const [currentUser, setCurrentUser] = useState(
     () => JSON.parse(localStorage.getItem("currentUser")) || null
   );
@@ -674,7 +661,8 @@ function App() {
     localStorage.setItem("currentUser", JSON.stringify(currentUser));
     localStorage.setItem("employees", JSON.stringify(employees));
     localStorage.setItem("attendance", JSON.stringify(attendance));
-  }, [currentUser, employees, attendance]);
+    localStorage.setItem("settings", JSON.stringify(settings));
+  }, [currentUser, employees, attendance, settings]);
 
   const addToast = useCallback((message, type = "info") => {
     const id = Date.now();
@@ -691,6 +679,7 @@ function App() {
     setAttendance,
     currentUser,
     addToast,
+    settings,
   };
 
   return (
@@ -713,7 +702,6 @@ function App() {
                     <NavLink to="/employees">
                       <Icon path={ICONS.EMPLOYEES} /> ניהול עובדים
                     </NavLink>
-                    {/* ADDED: Links to new pages */}
                     <NavLink to="/reports">
                       <Icon path={ICONS.REPORTS} /> דוחות
                     </NavLink>
@@ -740,8 +728,6 @@ function App() {
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/employees" element={<EmployeeListPage />} />
-                <Route path="/employees/:id" element={<EmployeeDetailPage />} />
-                {/* ADDED: Routes for new pages */}
                 <Route path="/reports" element={<ReportsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/payroll" element={<PayrollPage />} />

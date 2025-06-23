@@ -351,29 +351,26 @@ function EmployeeListPage() {
     useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
 
-  // פונקציית השוואה למיון העובדים
   const sortedEmployees = useMemo(() => {
-    // מפת תפקידים עם סדר עדיפות
+    // Crucial: Default employees to an empty array if it's null or undefined.
+    const employeesArray = employees || [];
+
     const roleOrder = {
       manager: 1,
       support: 2,
-      // הוסף כאן תפקידים נוספים לפי הסדר הרצוי.
-      // תפקידים שלא מופיעים במפה יקבלו ערך גבוה יותר (לדוגמה, 99)
-      // ויופיעו בסוף, בסדר אלפביתי.
+      // Add other roles and their order here as needed (e.g., 'worker': 3)
     };
 
-    // יוצרים עותק של המערך וממיינים אותו
-    return [...employees].sort((a, b) => {
-      const orderA = roleOrder[a.role] || 99; // 99 למי שלא מוגדר
-      const orderB = roleOrder[b.role] || 99; // 99 למי שלא מוגדר
+    return [...employeesArray].sort((a, b) => {
+      const orderA = roleOrder[a.role] || 99; // Assign a high value for undefined roles
+      const orderB = roleOrder[b.role] || 99;
 
       if (orderA !== orderB) {
-        return orderA - orderB; // ממיין לפי סדר התפקיד
+        return orderA - orderB; // Sort by role priority
       }
-      // אם התפקידים זהים, ממיין לפי שם העובד (אלפביתי)
-      return a.name.localeCompare(b.name);
+      return a.name.localeCompare(b.name); // Then sort alphabetically by name
     });
-  }, [employees]); // התלות היא רק במערך העובדים המקורי
+  }, [employees]); // Recalculate only when 'employees' changes
 
   const handleOpenEditModal = (employee = null) => {
     setSelectedEmployee(employee);
@@ -388,12 +385,14 @@ function EmployeeListPage() {
   const handleSaveEmployee = async (employeeData) => {
     try {
       if (selectedEmployee) {
+        // Existing employee: PUT request
         await apiFetch(`/employees/${selectedEmployee.id}`, {
           method: "PUT",
           body: JSON.stringify(employeeData),
         });
         addToast("פרטי העובד עודכנו", "success");
       } else {
+        // New employee: POST request
         await apiFetch("/employees", {
           method: "POST",
           body: JSON.stringify(employeeData),
@@ -401,7 +400,7 @@ function EmployeeListPage() {
         addToast("עובד חדש נוסף", "success");
       }
       setIsEditModalOpen(false);
-      fetchData(); // רענן נתונים לאחר שמירה
+      fetchData(); // Re-fetch data to update the list
     } catch (error) {
       addToast(error.message, "danger");
     }
@@ -412,7 +411,7 @@ function EmployeeListPage() {
       try {
         await apiFetch(`/employees/${employeeId}`, { method: "DELETE" });
         addToast("העובד נמחק", "danger");
-        fetchData(); // רענן נתונים לאחר מחיקה
+        fetchData(); // Re-fetch data to update the list
       } catch (error) {
         addToast(error.message, "danger");
       }
@@ -437,41 +436,49 @@ function EmployeeListPage() {
               </tr>
             </thead>
             <tbody>
-              {/* השתמש במערך הממוין כאן */}
-              {sortedEmployees.map((emp) => (
-                <tr key={emp.id}>
-                  <td>{emp.name}</td>
-                  <td>{emp.department}</td>
-                  {/* הצג את התפקיד בעברית */}
-                  <td>
-                    {emp.role === "manager"
-                      ? "מנהל"
-                      : emp.role === "support"
-                      ? "תמיכה"
-                      : "עובד"}
-                  </td>
-                  <td className="actions-cell">
-                    <button
-                      onClick={() => handleOpenEditModal(emp)}
-                      className="secondary"
-                    >
-                      ערוך
-                    </button>
-                    <button
-                      onClick={() => handleOpenResetPasswordModal(emp)}
-                      className="secondary warning"
-                    >
-                      אפס סיסמה
-                    </button>
-                    <button
-                      onClick={() => handleDeleteEmployee(emp.id)}
-                      className="danger secondary"
-                    >
-                      מחק
-                    </button>
+              {/* Conditionally render table rows */}
+              {sortedEmployees.length > 0 ? (
+                sortedEmployees.map((emp) => (
+                  <tr key={emp.id}>
+                    <td>{emp.name}</td>
+                    <td>{emp.department}</td>
+                    <td>
+                      {/* Display role in Hebrew */}
+                      {emp.role === "manager"
+                        ? "מנהל"
+                        : emp.role === "support"
+                        ? "תמיכה"
+                        : "עובד"}
+                    </td>
+                    <td className="actions-cell">
+                      <button
+                        onClick={() => handleOpenEditModal(emp)}
+                        className="secondary"
+                      >
+                        ערוך
+                      </button>
+                      <button
+                        onClick={() => handleOpenResetPasswordModal(emp)}
+                        className="secondary warning"
+                      >
+                        אפס סיסמה
+                      </button>
+                      <button
+                        onClick={() => handleDeleteEmployee(emp.id)}
+                        className="danger secondary"
+                      >
+                        מחק
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="4" style={{ textAlign: "center" }}>
+                    אין עובדים להצגה.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>

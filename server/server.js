@@ -131,7 +131,7 @@ app.put(
     const { name, department, hourlyRate, role } = req.body;
     try {
       const { rows } = await pool.query(
-        "UPDATE employees SET name = $1, department = $2, hourlyRate = $3, role = $4 WHERE _id = $5 RETURNING id, name, department, role, hourlyRate, status",
+        "UPDATE employees SET name = $1, department = $2, hourlyRate = $3, role = $4 WHERE id = $5 RETURNING id, name, department, role, hourlyRate, status",
         [name, department, hourlyRate, role, id]
       );
       res.json(rows[0]);
@@ -159,7 +159,7 @@ app.delete(
 app.get("/api/attendance", authenticateToken, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      'SELECT employee_id as "employeeId", clock_in as "clockIn", clock_out as "clockOut", breaks, on_break as "onBreak" FROM attendance'
+      'SELECT employeeid as "employeeId", clock_in as "clockIn", clock_out as "clockOut", breaks, on_break as "onBreak" FROM attendance'
     );
     res.json(rows);
   } catch (err) {
@@ -170,12 +170,12 @@ app.get("/api/attendance", authenticateToken, async (req, res) => {
 app.post("/api/attendance/clock-in", authenticateToken, async (req, res) => {
   const { employeeId } = req.body;
   try {
-    await pool.query("UPDATE employees SET status = $1 WHERE _id = $2", [
+    await pool.query("UPDATE employees SET status = $1 WHERE id = $2", [
       "present",
       employeeId,
     ]);
     await pool.query(
-      "INSERT INTO attendance (employee_id, clock_in, on_break) VALUES ($1, NOW(), false)",
+      "INSERT INTO attendance (employeeid, clock_in, on_break) VALUES ($1, NOW(), false)",
       [employeeId]
     );
     res.status(201).json({ message: "Clock-in successful" });
@@ -187,12 +187,12 @@ app.post("/api/attendance/clock-in", authenticateToken, async (req, res) => {
 app.post("/api/attendance/clock-out", authenticateToken, async (req, res) => {
   const { employeeId } = req.body;
   try {
-    await pool.query("UPDATE employees SET status = $1 WHERE _id = $2", [
+    await pool.query("UPDATE employees SET status = $1 WHERE id = $2", [
       "absent",
       employeeId,
     ]);
     await pool.query(
-      "UPDATE attendance SET clock_out = NOW(), on_break = false WHERE employee_id = $1 AND clock_out IS NULL",
+      "UPDATE attendance SET clock_out = NOW(), on_break = false WHERE employeeid = $1 AND clock_out IS NULL",
       [employeeId]
     );
     res.json({ message: "Clock-out successful" });
@@ -206,7 +206,7 @@ app.post("/api/attendance/break", authenticateToken, async (req, res) => {
   const now = new Date();
   try {
     const { rows: current } = await pool.query(
-      "SELECT * FROM attendance WHERE employee_id = $1 AND clock_out IS NULL",
+      "SELECT * FROM attendance WHERE employeeid = $1 AND clock_out IS NULL",
       [employeeId]
     );
     if (current.length === 0)
@@ -218,14 +218,14 @@ app.post("/api/attendance/break", authenticateToken, async (req, res) => {
 
     if (onBreak) {
       breaks.push({ start: now, end: null });
-      await pool.query("UPDATE employees SET status = $1 WHERE _id = $2", [
+      await pool.query("UPDATE employees SET status = $1 WHERE id = $2", [
         "on_break",
         employeeId,
       ]);
     } else {
       const lastBreak = breaks[breaks.length - 1];
       if (lastBreak && !lastBreak.end) lastBreak.end = now;
-      await pool.query("UPDATE employees SET status = $1 WHERE _id = $2", [
+      await pool.query("UPDATE employees SET status = $1 WHERE id = $2", [
         "present",
         employeeId,
       ]);
@@ -245,7 +245,7 @@ app.post("/api/attendance/break", authenticateToken, async (req, res) => {
 app.get("/api/absences", authenticateToken, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      'SELECT id, employee_id as "employeeId", type, start_date as "startDate", end_date as "endDate" FROM scheduled_absences'
+      'SELECT id, employeeid as "employeeId", type, start_date as "startDate", end_date as "endDate" FROM scheduled_absences'
     );
     res.json(rows);
   } catch (err) {
@@ -261,7 +261,7 @@ app.post(
     const { employeeId, type, startDate, endDate } = req.body;
     try {
       const { rows } = await pool.query(
-        'INSERT INTO scheduled_absences (employee_id, type, start_date, end_date) VALUES ($1, $2, $3, $4) RETURNING id, employee_id as "employeeId", type, start_date as "startDate", end_date as "endDate"',
+        'INSERT INTO scheduled_absences (employeeid, type, start_date, end_date) VALUES ($1, $2, $3, $4) RETURNING id, employeeid as "employeeId", type, start_date as "startDate", end_date as "endDate"',
         [employeeId, type, startDate, endDate]
       );
       res.status(201).json(rows[0]);
@@ -300,7 +300,7 @@ app.post(
     try {
       // THE FIX IS HERE: We use parseInt() on the userId
       const result = await pool.query(
-        "UPDATE employees SET password = $1 WHERE _id = $2",
+        "UPDATE employees SET password = $1 WHERE id = $2",
         [newPassword, parseInt(userId, 10)]
       );
 

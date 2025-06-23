@@ -50,40 +50,7 @@ const apiFetch = async (endpoint, options = {}) => {
 };
 const AppContext = createContext();
 
-const initialData = {
-  employees: [
-    {
-      id: 1,
-      name: "עמי",
-      department: "הנהלה",
-      role: "manager",
-      hourlyRate: 150,
-      password: "123456",
-    },
-    {
-      id: 2,
-      name: "דנה כהן",
-      department: "תמיכה",
-      role: "employee",
-      hourlyRate: 60,
-      password: "123",
-    },
-    {
-      id: 3,
-      name: "אבי לוי",
-      department: "תמיכה",
-      role: "employee",
-      hourlyRate: 85,
-      password: "123",
-    },
-  ],
-  attendance: [],
-  absences: [],
-  settings: {
-    standardWorkDayHours: 8.5,
-    overtimeRatePercent: 150,
-  },
-};
+
 
 const calculateNetSeconds = (entry) => {
   if (!entry || !entry.clockIn) return 0;

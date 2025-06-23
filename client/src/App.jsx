@@ -412,7 +412,7 @@ function EmployeeListPage() {
         addToast("עובד חדש נוסף", "success");
       }
       setIsEditModalOpen(false);
-      fetchData(); 
+      fetchData();
     } catch (error) {
       addToast(error.message, "danger");
     }
@@ -423,7 +423,7 @@ function EmployeeListPage() {
       try {
         await apiFetch(`/employees/${employeeId}`, { method: "DELETE" });
         addToast("העובד נמחק", "danger");
-        fetchData(); 
+        fetchData();
       } catch (error) {
         addToast(error.message, "danger");
       }
@@ -1140,6 +1140,19 @@ function App() {
   }, []);
   const handleLogin = (user) => setCurrentUser(user);
   const handleLogout = () => setCurrentUser(null);
+  const fetchData = useCallback(async () => {
+    try {
+      // קריאה ל-Backend כדי לקבל את רשימת העובדים
+      const data = await apiFetch("/employees"); // מניח שיש לך GET /api/employees
+      setEmployees(data); // עדכן את הסטייט של העובדים
+    } catch (error) {
+      addToast(error.message || "שגיאה בטעינת נתוני עובדים.", "danger");
+      console.error("Failed to fetch employees:", error);
+    }
+  }, [addToast]); // תלוי ב-addToast
+
+  // Effect לטעינת נתונים בעת טעינת הקומפוננטה או שינוי משתמש
+  
   const contextValue = {
     employees,
     setEmployees,
@@ -1151,6 +1164,7 @@ function App() {
     addToast,
     settings,
     setSettings,
+    fetchData,
   };
   return (
     <AppContext.Provider value={contextValue}>

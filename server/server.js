@@ -88,11 +88,12 @@ app.post("/api/auth/login", async (req, res) => {
 app.get("/api/employees", authenticateToken, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      'SELECT id, name, department, role, "hourlyRate", status FROM employees ORDER BY name'
+      'SELECT id, name, department, "hourlyRate", role FROM employees'
     );
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ message: "שגיאה בטעינת עובדים" });
+    console.error("Error fetching employees:", err);
+    res.status(500).json({ message: "שגיאה בטעינת עובדים מהשרת." });
   }
 });
 
@@ -146,7 +147,7 @@ app.delete(
   authorizeManager,
   async (req, res) => {
     try {
-      await pool.query("DELETE FROM employees WHERE _id = $1", [req.params.id]);
+      await pool.query("DELETE FROM employees WHERE id = $1", [req.params.id]);
       res.status(204).send();
     } catch (err) {
       res.status(500).json({ message: "שגיאה במחיקת עובד" });

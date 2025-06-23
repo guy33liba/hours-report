@@ -46,14 +46,15 @@ const authorizeManager = (req, res, next) => {
 // Auth Routes
 app.post("/api/auth/login", async (req, res) => {
   const { name, password } = req.body; // --- הוסף את השורות הבאות לאבחון ---
+
   console.log("Backend received - Name:", name);
   console.log("Backend received - Password:", password); // --- סוף הדפסה לאבחון ---
+  
   try {
     const { rows } = await pool.query(
       "SELECT *, id FROM employees WHERE name = $1",
       [name]
     );
-
     if (rows.length === 0) {
       console.log("User not found in DB for name:", name); // הוסף לאבחון
       return res.status(401).json({ message: "שם משתמש או סיסמה שגויים" });
@@ -104,10 +105,11 @@ app.post(
   async (req, res) => {
     const { name, department, hourlyRate, role } = req.body;
     const password = "123"; // Default password
+    const trimmedPassword = password.trim();
     try {
       const { rows } = await pool.query(
         'INSERT INTO employees (name, department, "hourlyRate", role, password) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, department, role, "hourlyRate"',
-        [name, department, hourlyRate, role, password]
+        [name, department, hourlyRate, role, trimmedPassword]
       );
       res.status(201).json(rows[0]);
     } catch (err) {
@@ -296,13 +298,22 @@ app.post(
   async (req, res) => {
     const { userId, newPassword } = req.body;
 
-    // ... validation ...
+    if (!userId || !newPassword) {
+      return res
+        .status(400)
+        .json({ message: "נדרשים מזהה משתמש וסיסמה חדשה." });
+    }
+
+    let trimmedNewPassword = newPassword.trim();
+
+    if (trimmedNewPassword.length < 1) {
+      return res.status(400).json({ message: "הסיסמה לא יכולה להיות ריקה." });
+    }
 
     try {
-      // THE FIX IS HERE: We use parseInt() on the userId
       const result = await pool.query(
         "UPDATE employees SET password = $1 WHERE id = $2",
-        [newPassword, parseInt(userId, 10)]
+        [trimmedNewPassword, parseInt(userId, 10)]
       );
 
       if (result.rowCount === 0) {
@@ -311,7 +322,6 @@ app.post(
 
       res.json({ message: "הסיסמה עודכנה בהצלחה." });
     } catch (error) {
-      // This is the block that is likely running and causing the error
       console.error("!!! DATABASE ERROR while resetting password:", error);
       res.status(500).json({ message: "שגיאת שרת פנימית." });
     }

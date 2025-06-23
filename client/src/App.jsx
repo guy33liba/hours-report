@@ -1077,11 +1077,12 @@ function EmployeeFormModal({ show, onClose, onSave, employee }) {
 
 // החלף את כל הפונקציה LoginPage בזו:
 function LoginPage({ onLogin }) {
-  const [name, setName] = useState("");
-  const [password, setPassword] = useState("");
+  let [name, setName] = useState("");
+  let [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
+  name = name.trim();
+  password = password.trim();
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");

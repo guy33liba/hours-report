@@ -207,6 +207,7 @@ button.danger:hover:not(:disabled),
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   overflow: hidden;
+  margin-top: 20px;
 }
 table {
   width: 100%;

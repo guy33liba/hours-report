@@ -873,7 +873,7 @@ function PayrollPage() {
                   <th>שעות רגילות</th>
                   <th>שעות נוספות</th>
                   <th>שכר בסיס</th>
-                  <th>תוספת ש"נ</th>
+                  <th>תוספת שעות נוספות</th>
                   <th>סה"כ לתשלום</th>
                 </tr>
               </thead>
@@ -1017,6 +1017,7 @@ function LoginPage({ onLogin }) {
       // קריאה ל-API של השרת כדי לבצע לוגין
       const data = await apiFetch("/auth/login", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, password }),
       });
       localStorage.setItem("token", data.token);
@@ -1028,7 +1029,7 @@ function LoginPage({ onLogin }) {
       }
     } catch (err) {
       // הודעת השגיאה תגיע מהשרת (למשל, "שם משתמש או סיסמה שגויים")
-      setError(err.message || "אירעה שגיאה בהתחברות");
+      setError(err.message || "אירעה שגיאה בהתחברות"); 
     } finally {
       setIsLoading(false);
     }
@@ -1099,6 +1100,7 @@ function App() {
   const [currentUser, setCurrentUser] = useState(
     () => JSON.parse(localStorage.getItem("currentUser")) || null
   );
+
   const [toasts, setToasts] = useState([]);
   useEffect(() => {
     localStorage.setItem("currentUser", JSON.stringify(currentUser));
@@ -1138,7 +1140,12 @@ function App() {
     const id = Date.now();
     setToasts((prev) => [...prev, { id, message, type }]);
   }, []);
-  const handleLogin = (user) => setCurrentUser(user);
+  const handleLogin = (user, token) => {
+    setCurrentUser(user);
+    localStorage.setItem("token", token);
+    addToast("התחברת בהצלחה", "success");
+  };
+
   const handleLogout = () => setCurrentUser(null);
   const fetchData = useCallback(async () => {
     try {
@@ -1152,7 +1159,11 @@ function App() {
   }, [addToast]); // תלוי ב-addToast
 
   // Effect לטעינת נתונים בעת טעינת הקומפוננטה או שינוי משתמש
-  
+  useEffect(() => {
+    if (currentUser) {
+      fetchData(); // This calls fetchData
+    }
+  }, [currentUser, fetchData]);
   const contextValue = {
     employees,
     setEmployees,

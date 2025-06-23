@@ -131,11 +131,12 @@ app.put(
     const { name, department, hourlyRate, role } = req.body;
     try {
       const { rows } = await pool.query(
-        "UPDATE employees SET name = $1, department = $2, hourlyRate = $3, role = $4 WHERE id = $5 RETURNING id, name, department, role, hourlyRate, status",
+        'UPDATE employees SET name = $1, department = $2, "hourlyRate" = $3, role = $4 WHERE id = $5 RETURNING id, name, department, role, "hourlyRate"',
         [name, department, hourlyRate, role, id]
       );
       res.json(rows[0]);
     } catch (err) {
+      console.error("Database error updating employee:", err.message);
       res.status(500).json({ message: "שגיאה בעדכון עובד" });
     }
   }

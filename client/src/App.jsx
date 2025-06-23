@@ -351,6 +351,30 @@ function EmployeeListPage() {
     useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
 
+  // פונקציית השוואה למיון העובדים
+  const sortedEmployees = useMemo(() => {
+    // מפת תפקידים עם סדר עדיפות
+    const roleOrder = {
+      manager: 1,
+      support: 2,
+      // הוסף כאן תפקידים נוספים לפי הסדר הרצוי.
+      // תפקידים שלא מופיעים במפה יקבלו ערך גבוה יותר (לדוגמה, 99)
+      // ויופיעו בסוף, בסדר אלפביתי.
+    };
+
+    // יוצרים עותק של המערך וממיינים אותו
+    return [...employees].sort((a, b) => {
+      const orderA = roleOrder[a.role] || 99; // 99 למי שלא מוגדר
+      const orderB = roleOrder[b.role] || 99; // 99 למי שלא מוגדר
+
+      if (orderA !== orderB) {
+        return orderA - orderB; // ממיין לפי סדר התפקיד
+      }
+      // אם התפקידים זהים, ממיין לפי שם העובד (אלפביתי)
+      return a.name.localeCompare(b.name);
+    });
+  }, [employees]); // התלות היא רק במערך העובדים המקורי
+
   const handleOpenEditModal = (employee = null) => {
     setSelectedEmployee(employee);
     setIsEditModalOpen(true);
@@ -377,7 +401,7 @@ function EmployeeListPage() {
         addToast("עובד חדש נוסף", "success");
       }
       setIsEditModalOpen(false);
-      fetchData();
+      fetchData(); // רענן נתונים לאחר שמירה
     } catch (error) {
       addToast(error.message, "danger");
     }
@@ -388,7 +412,7 @@ function EmployeeListPage() {
       try {
         await apiFetch(`/employees/${employeeId}`, { method: "DELETE" });
         addToast("העובד נמחק", "danger");
-        fetchData();
+        fetchData(); // רענן נתונים לאחר מחיקה
       } catch (error) {
         addToast(error.message, "danger");
       }
@@ -413,11 +437,19 @@ function EmployeeListPage() {
               </tr>
             </thead>
             <tbody>
-              {employees.map((emp) => (
+              {/* השתמש במערך הממוין כאן */}
+              {sortedEmployees.map((emp) => (
                 <tr key={emp.id}>
                   <td>{emp.name}</td>
                   <td>{emp.department}</td>
-                  <td>{emp.role === "manager" ? "מנהל" : "עובד"}</td>
+                  {/* הצג את התפקיד בעברית */}
+                  <td>
+                    {emp.role === "manager"
+                      ? "מנהל"
+                      : emp.role === "support"
+                      ? "תמיכה"
+                      : "עובד"}
+                  </td>
                   <td className="actions-cell">
                     <button
                       onClick={() => handleOpenEditModal(emp)}
@@ -455,11 +487,9 @@ function EmployeeListPage() {
         onClose={() => setIsResetPasswordModalOpen(false)}
         employee={selectedEmployee}
       />
-      {/* Absence modal needs to be connected too if you use it */}
     </>
   );
 }
-
 function ReportsPage() {
   const { employees, attendance } = useContext(AppContext);
   const [range, setRange] = useState({ start: "", end: "" });

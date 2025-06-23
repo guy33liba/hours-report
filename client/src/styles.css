@@ -392,7 +392,7 @@ tbody tr:hover {
   color: var(--text-dark);
 }
 .employee-department {
-  font-size: 0.875rem;
+  font-size: 1rem;
   color: var(--text-light);
 }
 .employee-timer {

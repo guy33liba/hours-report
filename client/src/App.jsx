@@ -13,11 +13,10 @@ import {
   Route,
   NavLink,
   Navigate,
-  Link,
 } from "react-router-dom";
 import "./styles.css";
 // הוסף בראש קובץ App.js
-const API_BASE_URL = "/api"; // ודא שזה מוגדר כך, לשימוש ב-Proxy
+const API_BASE_URL = "http://localhost:5000/api";
 
 const apiFetch = async (endpoint, options = {}) => {
   // קורא את הטוקן האמיתי מהאחסון המקומי
@@ -146,21 +145,6 @@ const Modal = ({ show, onClose, children, title }) => {
     </div>
   );
 };
-const ToggleSwitch = ({ label, checked, onChange, name }) => (
-  <div className="toggle-switch">
-    <label htmlFor={name}>{label}</label>
-    <label className="switch">
-      <input
-        type="checkbox"
-        id={name}
-        name={name}
-        checked={checked}
-        onChange={onChange}
-      />
-      <span className="slider"></span>
-    </label>
-  </div>
-);
 
 function EmployeeTimer({ employeeId }) {
   const { attendance } = useContext(AppContext);

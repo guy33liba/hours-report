@@ -3,14 +3,14 @@ const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
 const jwt = require("jsonwebtoken");
-
+const bcrypt = require("bcryptjs");
 const JWT_SECRET = "my-ultra-secure-and-long-secret-key-for-jwt";
 const PORT = 5000;
 
 const pool = new Pool({
   user: "speakcom",
   host: "192.168.1.19",
-  database: "guylibaDatabase",
+  database: "guyliba",
   password: "051262677",
   port: 5432,
 });
@@ -41,22 +41,38 @@ const authorizeManager = (req, res, next) => {
 
 // Auth Routes
 app.post("/api/auth/login", async (req, res) => {
-  const { name, password } = req.body;
+  const { name, password } = req.body; // --- הוסף את השורות הבאות לאבחון ---
+  console.log("Backend received - Name:", name);
+  console.log("Backend received - Password:", password); // --- סוף הדפסה לאבחון ---
   try {
     const { rows } = await pool.query(
-      'SELECT *, _id as "id" FROM employees WHERE name = $1',
+      "SELECT *, id FROM employees WHERE name = $1",
       [name]
     );
-    if (rows.length === 0 || rows[0].password !== password) {
+
+    if (rows.length === 0) {
+      console.log("User not found in DB for name:", name); // הוסף לאבחון
       return res.status(401).json({ message: "שם משתמש או סיסמה שגויים" });
     }
     const user = rows[0];
+    // --- הוסף את השורות הבאות לאבחון ---
+    console.log("User found in DB - Name:", user.name);
+    console.log("User found in DB - Stored Password:", user.password);
+    console.log("Comparing:", password, "with", user.password);
+    // --- סוף הדפסה לאבחון ---
+
+    if (user.password !== password) {
+      // זה המקום שבו ההשוואה מתרחשת
+      console.log("Password mismatch!"); // הוסף לאבחון
+      return res.status(401).json({ message: "שם משתמש או סיסמה שגויים" });
+    }
+
     const token = jwt.sign(
       { userId: user.id, role: user.role, name: user.name },
       JWT_SECRET,
       { expiresIn: "8h" }
     );
-    delete user.password; // Don't send password to the client
+    delete user.password;
     res.json({ token, user });
   } catch (err) {
     console.error("Login Error:", err);
@@ -68,7 +84,7 @@ app.post("/api/auth/login", async (req, res) => {
 app.get("/api/employees", authenticateToken, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      'SELECT _id as "id", name, department, role, hourly_rate as "hourlyRate", status FROM employees ORDER BY name'
+      'SELECT id, name, department, role, hourly_rate as "hourlyRate", status FROM employees ORDER BY name'
     );
     res.json(rows);
   } catch (err) {

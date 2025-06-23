@@ -1051,17 +1051,17 @@ function Toast({ message, type, onDismiss }) {
 
 function App() {
   const [employees, setEmployees] = useState(
-    () => JSON.parse(localStorage.getItem("employees")) || initialData.employees
+    () => JSON.parse(localStorage.getItem("employees")) 
   );
   const [attendance, setAttendance] = useState(
     () =>
-      JSON.parse(localStorage.getItem("attendance")) || initialData.attendance
+      JSON.parse(localStorage.getItem("attendance")) 
   );
   const [absences, setAbsences] = useState(
-    () => JSON.parse(localStorage.getItem("absences")) || initialData.absences
+    () => JSON.parse(localStorage.getItem("absences")) 
   );
   const [settings, setSettings] = useState(
-    () => JSON.parse(localStorage.getItem("settings")) || initialData.settings
+    () => JSON.parse(localStorage.getItem("settings")) 
   );
   const [currentUser, setCurrentUser] = useState(
     () => JSON.parse(localStorage.getItem("currentUser")) || null

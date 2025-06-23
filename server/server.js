@@ -24,11 +24,15 @@ const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
   if (token == null) return res.sendStatus(401);
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ message: "Token is not valid" });
-    req.user = user;
-    next();
-  });
+  jwt.verify(
+    token,
+    "my-ultra-secure-and-long-secret-key-for-jwt",
+    (err, user) => {
+      if (err) return res.status(403).json({ message: "Token is not valid" });
+      req.user = user;
+      next();
+    }
+  );
 };
 
 const authorizeManager = (req, res, next) => {
@@ -69,7 +73,7 @@ app.post("/api/auth/login", async (req, res) => {
 
     const token = jwt.sign(
       { userId: user.id, role: user.role, name: user.name },
-      JWT_SECRET,
+      "my-ultra-secure-and-long-secret-key-for-jwt",
       { expiresIn: "8h" }
     );
     delete user.password;
@@ -84,7 +88,7 @@ app.post("/api/auth/login", async (req, res) => {
 app.get("/api/employees", authenticateToken, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      'SELECT id, name, department, role, hourly_rate as "hourlyRate", status FROM employees ORDER BY name'
+      'SELECT id, name, department, role, "hourlyRate", status FROM employees ORDER BY name'
     );
     res.json(rows);
   } catch (err) {
@@ -101,14 +105,18 @@ app.post(
     const password = "123"; // Default password
     try {
       const { rows } = await pool.query(
-        'INSERT INTO employees (name, department, hourly_rate, role, password, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING _id as "id", name, department, role, hourly_rate as "hourlyRate", status',
-        [name, department, hourlyRate, role, password, "absent"]
+        'INSERT INTO employees (name, department, "hourlyRate", role, password) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, department, role, "hourlyRate"',
+        [name, department, hourlyRate, role, password]
       );
       res.status(201).json(rows[0]);
     } catch (err) {
-      res
-        .status(500)
-        .json({ message: "שגיאה ביצירת עובד, ייתכן שהשם כבר קיים." });
+      console.error("Error creating employee:", err); // הדפסה של השגיאה המלאה ללוג השרת
+      // שגיאה 23505 היא שגיאה של unique constraint
+      if (err.code === "23505") {
+        res.status(409).json({ message: "שם עובד כבר קיים במערכת." });
+      } else {
+        res.status(500).json({ message: "שגיאה ביצירת עובד." });
+      }
     }
   }
 );
@@ -122,7 +130,7 @@ app.put(
     const { name, department, hourlyRate, role } = req.body;
     try {
       const { rows } = await pool.query(
-        'UPDATE employees SET name = $1, department = $2, hourly_rate = $3, role = $4 WHERE _id = $5 RETURNING _id as "id", name, department, role, hourly_rate as "hourlyRate", status',
+        "UPDATE employees SET name = $1, department = $2, hourlyRate = $3, role = $4 WHERE _id = $5 RETURNING id, name, department, role, hourlyRate, status",
         [name, department, hourlyRate, role, id]
       );
       res.json(rows[0]);

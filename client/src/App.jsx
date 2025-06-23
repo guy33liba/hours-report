@@ -21,7 +21,7 @@ const API_BASE_URL = "http://localhost:5000/api";
 const apiFetch = async (endpoint, options = {}) => {
   // קורא את הטוקן האמיתי מהאחסון המקומי
   const token = localStorage.getItem("token");
-  const headers = { ...options.headers };
+  const headers = { "Content-Type": "application/json", ...options.headers };
 
   if (!(options.body instanceof FormData)) {
     headers["Content-Type"] = "application/json";
@@ -331,6 +331,7 @@ function ResetPasswordModal({ show, onClose, employee }) {
         method: "POST",
         body: JSON.stringify({ userId: employee.id, newPassword }),
       });
+
       addToast(`הסיסמה של ${employee.name} אופסה בהצלחה!`, "success");
       fetchData(); // מרענן את המידע מהשרת
       onClose();
@@ -411,7 +412,7 @@ function EmployeeListPage() {
         addToast("עובד חדש נוסף", "success");
       }
       setIsEditModalOpen(false);
-      fetchData(); // <-- מרענן את הרשימה מהשרת
+      fetchData(); 
     } catch (error) {
       addToast(error.message, "danger");
     }
@@ -422,7 +423,7 @@ function EmployeeListPage() {
       try {
         await apiFetch(`/employees/${employeeId}`, { method: "DELETE" });
         addToast("העובד נמחק", "danger");
-        fetchData(); // <-- מרענן את הרשימה מהשרת
+        fetchData(); 
       } catch (error) {
         addToast(error.message, "danger");
       }
@@ -898,121 +899,40 @@ function PayrollPage() {
   );
 }
 
-function AbsenceManagementModal({ show, onClose, employee }) {
-  const { absences, setAbsences, addToast } = useContext(AppContext);
-  const [type, setType] = useState("vacation");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  if (!show || !employee) return null;
-  const employeeAbsences = absences.filter((a) => a.employeeId === employee.id);
-  const handleAddAbsence = (e) => {
-    e.preventDefault();
-    if (new Date(endDate) < new Date(startDate)) {
-      addToast("תאריך סיום לא יכול להיות לפני תאריך ההתחלה", "danger");
-      return;
-    }
-    setAbsences((prev) => [
-      ...prev,
-      { id: Date.now(), employeeId: employee.id, type, startDate, endDate },
-    ]);
-    addToast("היעדרות נוספה בהצלחה", "success");
-    setStartDate("");
-    setEndDate("");
-  };
-  const handleDeleteAbsence = (id) => {
-    setAbsences((prev) => prev.filter((a) => a.id !== id));
-    addToast("היעדרות נמחקה");
-  };
-  return (
-    <Modal
-      show={show}
-      onClose={onClose}
-      title={`ניהול היעדרויות: ${employee.name}`}
-    >
-      <form onSubmit={handleAddAbsence} className="absence-form">
-        <div className="form-group">
-          <label>סוג היעדרות</label>
-          <select value={type} onChange={(e) => setType(e.target.value)}>
-            <option value="vacation">חופשה</option>
-            <option value="sick">מחלה</option>
-          </select>
-        </div>
-        <div className="form-group">
-          <label>מתאריך</label>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            required
-          />
-        </div>
-        <div className="form-group">
-          <label>עד תאריך</label>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            required
-          />
-        </div>
-        <button type="submit">הוסף היעדרות</button>
-      </form>
-      <div className="absences-list">
-        <h4>היעדרויות קיימות</h4>
-        {employeeAbsences.length > 0 ? (
-          <table>
-            <tbody>
-              {employeeAbsences.map((abs) => (
-                <tr key={abs.id}>
-                  <td>
-                    <strong>{abs.type === "sick" ? "מחלה" : "חופשה"}</strong>
-                  </td>
-                  <td>{abs.startDate}</td>
-                  <td>{abs.endDate}</td>
-                  <td>
-                    <button
-                      onClick={() => handleDeleteAbsence(abs.id)}
-                      className="danger-text"
-                    >
-                      מחק
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p>אין היעדרויות רשומות.</p>
-        )}
-      </div>
-    </Modal>
-  );
-}
 function EmployeeFormModal({ show, onClose, onSave, employee }) {
   const [formData, setFormData] = useState({
     name: "",
     department: "תמיכה",
     hourlyRate: "",
     role: "employee",
+    // --- הוסף כאן שדה סיסמה, יהיה ריק כברירת מחדל ---
+    password: "",
   });
+
   useEffect(() => {
     setFormData(
-      employee || {
-        name: "",
-        department: "תמיכה",
-        hourlyRate: "",
-        role: "employee",
-      }
+      employee
+        ? { ...employee, password: "" } // בעת עריכה, אל תציג את הסיסמה הקיימת, הותיר אותה ריקה
+        : {
+            name: "",
+            department: "תמיכה",
+            hourlyRate: "",
+            role: "employee",
+            password: "", // וודא שריק עבור חדש
+          }
     );
   }, [employee]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     onSave(formData);
   };
+
   return (
     <Modal
       show={show}
@@ -1031,6 +951,7 @@ function EmployeeFormModal({ show, onClose, onSave, employee }) {
             required
           />
         </div>
+
         <div className="form-group">
           <label htmlFor="department">מחלקה</label>
           <select
@@ -1066,6 +987,10 @@ function EmployeeFormModal({ show, onClose, onSave, employee }) {
             <option value="manager">מנהל</option>
           </select>
         </div>
+
+        {/* --- הוסף את בלוק הסיסמה כאן --- */}
+        {/* --- סוף בלוק הסיסמה --- */}
+
         <div className="form-actions">
           <button type="button" className="secondary" onClick={onClose}>
             ביטול
@@ -1076,6 +1001,7 @@ function EmployeeFormModal({ show, onClose, onSave, employee }) {
     </Modal>
   );
 }
+
 // החלף את כל הפונקציה LoginPage בזו:
 function LoginPage({ onLogin }) {
   const [name, setName] = useState("");
@@ -1093,7 +1019,7 @@ function LoginPage({ onLogin }) {
         method: "POST",
         body: JSON.stringify({ name, password }),
       });
-
+      localStorage.setItem("token", data.token);
       // השרת יחזיר טוקן ופרטי משתמש אם ההתחברות הצליחה
       if (data.token && data.user) {
         onLogin(data.user, data.token); // קריאה לפונקציה הראשית עם המידע החדש

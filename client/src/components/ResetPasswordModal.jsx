@@ -1,8 +1,8 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import Modal from "./Modal";
 import AppContent from "./AppContent";
-import { AppContext } from "../App";
-
+import { AppContext } from "./AppContext";
+import "../styles.css";
 function ResetPasswordModal({ show, onClose, employee }) {
   const { addToast, fetchData } = useContext(AppContext);
   const [newPassword, setNewPassword] = useState("");

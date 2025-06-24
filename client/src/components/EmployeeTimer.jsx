@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useContext, useMemo } from "react";
-import { AppContext } from "../App";
 import { calculateNetSeconds } from "./utils";
+import { AppContext } from "./AppContext";
+import "../styles.css";
 function EmployeeTimer({ employeeId }) {
   const { attendance } = useContext(AppContext);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);

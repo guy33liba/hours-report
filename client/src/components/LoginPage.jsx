@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "./utils";
-
 function LoginPage({ onLogin }) {
   let [name, setName] = useState("");
   let [password, setPassword] = useState("");

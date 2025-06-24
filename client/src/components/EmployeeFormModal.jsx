@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import Modal from "./Modal";
-
+import "../styles.css";
 function EmployeeFormModal({ show, onClose, onSave, employee }) {
   const [formData, setFormData] = useState({
     name: "",

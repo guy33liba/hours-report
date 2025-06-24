@@ -1,7 +1,5 @@
 import { useEffect } from "react";
-
 export const API_BASE_URL = "http://localhost:5000/api";
-
 
 export const apiFetch = async (endpoint, options = {}) => {
   const token = localStorage.getItem("token");
@@ -39,18 +37,38 @@ export const apiFetch = async (endpoint, options = {}) => {
     throw error;
   }
 };
+
 export const calculateNetSeconds = (entry) => {
-  if (!entry || !entry.clockIn) return 0;
-  const clockOutTime = entry.clockOut ? new Date(entry.clockOut) : new Date();
-  let totalSeconds = (clockOutTime - new Date(entry.clockIn)) / 1000;
-  if (entry.breaks && entry.breaks.length > 0) {
-    const totalBreakSeconds = entry.breaks.reduce((acc, breakItem) => {
-      const breakEnd = breakItem.end ? new Date(breakItem.end) : new Date();
-      return acc + (breakEnd - new Date(breakItem.start)) / 1000;
-    }, 0);
-    totalSeconds -= totalBreakSeconds;
+  if (!entry || !entry.check_in) {
+    return 0;
   }
-  return Math.max(0, totalSeconds);
+
+  const checkInTime = new Date(entry.check_in).getTime();
+  const checkOutTime = entry.check_out
+    ? new Date(entry.check_out).getTime()
+    : Date.now();
+
+  if (checkOutTime < checkInTime) {
+    return 0;
+  }
+
+  let totalDurationMs = checkOutTime - checkInTime;
+  let totalBreakMs = 0;
+
+  if (entry.breaks && Array.isArray(entry.breaks)) {
+    entry.breaks.forEach((b) => {
+      const breakStart = new Date(b.start).getTime();
+      const breakEnd = b.end ? new Date(b.end).getTime() : Date.now();
+
+      if (breakEnd > breakStart) {
+        totalBreakMs += breakEnd - breakStart;
+      }
+    });
+  }
+
+  const netDurationMs = Math.max(0, totalDurationMs - totalBreakMs);
+
+  return Math.floor(netDurationMs / 1000);
 };
 
 export const Icon = ({ path, size = 18 }) => (

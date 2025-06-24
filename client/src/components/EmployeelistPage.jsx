@@ -2,9 +2,10 @@ import { useContext, useEffect, useMemo, useState } from "react";
 import EmployeeFormModal from "./EmployeeFormModal";
 import ResetPasswordModal from "./ResetPasswordModal";
 import AppContent from "./AppContent";
-import { AppContext } from "../App";
 import { apiFetch } from "./utils";
-
+import { AppContext } from "./AppContext";
+import "../styles.css";
+AppContext;
 function EmployeeListPage() {
   const { employees, addToast, fetchData } = useContext(AppContext);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);

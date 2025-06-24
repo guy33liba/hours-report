@@ -1,9 +1,9 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import DigitalClock from "./DigitalClock";
 import AppContent from "./AppContent";
-import { AppContext } from "../App";
+import { AppContext } from "./AppContext";
 import { calculateNetSeconds } from "./utils";
-
+import "../styles.css";
 function ReportsPage() {
   const { employees, attendance } = useContext(AppContext);
   const [range, setRange] = useState({ start: "", end: "" });

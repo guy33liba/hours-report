@@ -1,5 +1,6 @@
+import { AppContext } from "./AppContext";
 import DigitalClock from "./DigitalClock";
-
+import "../styles.css";
 function SettingsPage() {
   const { settings, setSettings, addToast } = useContext(AppContext);
   const [localSettings, setLocalSettings] = useState(settings);

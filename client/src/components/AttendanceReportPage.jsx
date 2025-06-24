@@ -1,3 +1,5 @@
+import { AppContext } from "./AppContext";
+import "../styles.css";
 function AttendanceReportPage() {
   const { addToast } = useContext(AppContext);
   const [attendanceRecords, setAttendanceRecords] = useState([]);

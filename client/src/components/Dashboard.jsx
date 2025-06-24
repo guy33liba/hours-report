@@ -1,10 +1,12 @@
 import { useContext, useMemo } from "react";
 import DigitalClock from "./DigitalClock";
 import EmployeeTimer from "./EmployeeTimer";
-import { AppContext } from "../App";
+import { AppContext } from "./AppContext";
+import "../styles.css";
 function Dashboard() {
   const { employees, attendance, setAttendance, addToast, currentUser } =
     useContext(AppContext);
+  console.log("Employees received from context:", employees); // <-- ADD THIS LINE
   const employeesToDisplay = useMemo(() => {
     if (currentUser.role === "manager") return employees;
     return employees.filter((emp) => emp.id === currentUser.id);

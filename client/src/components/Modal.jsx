@@ -1,3 +1,4 @@
+import "../styles.css";
 const Modal = ({ show, onClose, children, title }) => {
   if (!show) return null;
   return (

@@ -49,7 +49,7 @@ app.post("/api/auth/login", async (req, res) => {
 
   console.log("Backend received - Name:", name);
   console.log("Backend received - Password:", password); // --- סוף הדפסה לאבחון ---
-  
+
   try {
     const { rows } = await pool.query(
       "SELECT *, id FROM employees WHERE name = $1",
@@ -324,6 +324,91 @@ app.post(
     } catch (error) {
       console.error("!!! DATABASE ERROR while resetting password:", error);
       res.status(500).json({ message: "שגיאת שרת פנימית." });
+    }
+  }
+);
+
+app.post(
+  "/api/attendance/toggle",
+  authenticateToken, // וודא שהמשתמש מאומת
+  //authorizeEmployee, // אולי רק עובדים ספציפיים יכולים להחתים, או שכל המשתמשים יכולים
+  async (req, res) => {
+    const { employeeId } = req.body; // חשוב שה-employeeId הנכון יישלח מה-Frontend
+    const now = new Date(); // הזמן הנוכחי בשרת
+
+    try {
+      // חפש רשומת כניסה פתוחה (כלומר, העובד בפנים)
+      const { rows: activeAttendance } = await pool.query(
+        `SELECT * FROM attendance WHERE employee_id = $1 AND check_out_time IS NULL`,
+        [employeeId]
+      );
+
+      if (activeAttendance.length > 0) {
+        // העובד כרגע "בפנים" - נרשום יציאה
+        const recordToUpdate = activeAttendance[0];
+        await pool.query(
+          `UPDATE attendance SET check_out_time = $1 WHERE id = $2`,
+          [now, recordToUpdate.id]
+        );
+        res.json({
+          message: "יציאה נרשמה בהצלחה.",
+          status: "checked_out",
+        });
+      } else {
+        // העובד כרגע "בחוץ" - נרשום כניסה חדשה
+        await pool.query(
+          `INSERT INTO attendance (employee_id, check_in_time) VALUES ($1, $2)`,
+          [employeeId, now]
+        );
+        res.status(201).json({
+          message: "כניסה נרשמה בהצלחה.",
+          status: "checked_in",
+        });
+      }
+    } catch (error) {
+      console.error("Error toggling attendance:", error);
+      res.status(500).json({ message: "שגיאה בטיפול בהחתמת שעון." });
+    }
+  }
+);
+app.get(
+  "/api/attendance/:employeeId",
+  authenticateToken,
+  // אולי authorizeSelfOrManager כדי שעובד יוכל לראות את השעות שלו, ומנהל את של כולם
+  async (req, res) => {
+    const { employeeId } = req.params;
+    try {
+      const { rows } = await pool.query(
+        `SELECT * FROM attendance WHERE employee_id = $1 ORDER BY check_in_time DESC`,
+        [employeeId]
+      );
+      res.json(rows);
+    } catch (error) {
+      console.error("Error fetching attendance for employee:", error);
+      res.status(500).json({ message: "שגיאה בשליפת נתוני נוכחות." });
+    }
+  }
+);
+
+// דוגמה ל-API למנהל שישלוף את כל רשומות הנוכחות (או לפי טווח תאריכים)
+app.get(
+  "/api/attendance",
+  authenticateToken,
+  authorizeManager, // רק מנהלים
+  async (req, res) => {
+    // ניתן להוסיף כאן סינון לפי תאריכים, עובדים ספציפיים וכו'.
+    // לדוגמה: /api/attendance?startDate=...&endDate=...
+    try {
+      const { rows } = await pool.query(
+        `SELECT a.*, e.name as employee_name
+         FROM attendance a
+         JOIN employees e ON a.employee_id = e.id
+         ORDER BY a.check_in_time DESC`
+      );
+      res.json(rows);
+    } catch (error) {
+      console.error("Error fetching all attendance:", error);
+      res.status(500).json({ message: "שגיאה בשליפת כל נתוני הנוכחות." });
     }
   }
 );

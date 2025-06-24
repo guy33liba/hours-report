@@ -1,37 +1,60 @@
 import { AppContext } from "./AppContext";
+import { apiFetch } from "./utils"; // ודא ש-apiFetch מיובא
 import "../styles.css";
+import { useContext, useEffect, useState, useCallback } from "react"; // הוספנו useCallback
+
 function AttendanceReportPage() {
   const { addToast } = useContext(AppContext);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchAttendance = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        // קריאה ל-API לשליפת כל רשומות הנוכחות (למנהל)
-        const data = await apiFetch("/api/attendance");
-        setAttendanceRecords(data);
-      } catch (err) {
-        console.error("Failed to fetch attendance records:", err);
-        setError("שגיאה בטעינת נתוני נוכחות.");
-        addToast("שגיאה בטעינת נתוני נוכחות", "danger");
-      } finally {
-        setLoading(false);
-      }
-    };
+  // 1. הגדרת הפונקציה עם useCallback כדי שהיא תהיה יציבה
+  const fetchAttendance = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      // ה-API הנכון הוא /api/attendance, לא /api/api/attendance
+      const data = await apiFetch("/attendance");
+      setAttendanceRecords(data);
+    } catch (err) {
+      console.error("Failed to fetch attendance records:", err);
+      const errorMessage = err.message || "שגיאה בטעינת נתוני נוכחות.";
+      setError(errorMessage);
+      addToast(errorMessage, "danger");
+    } finally {
+      setLoading(false);
+    }
+  }, [addToast]); // 2. הפונקציה תלויה רק ב-addToast (שהוא יציב בזכות useCallback)
 
+  // 3. ה-useEffect קורא לפונקציה היציבה פעם אחת בלבד
+  useEffect(() => {
     fetchAttendance();
-  }, []); 
+  }, [fetchAttendance]); // ירוץ פעם אחת כשהרכיב נטען
+
+  // פונקציות עזר לחישוב ופרמוט
+  const formatDateTime = (dateString) => {
+    if (!dateString) return "בפנים";
+    return new Date(dateString).toLocaleString("he-IL");
+  };
+
+  const calculateHours = (start, end) => {
+    if (!start || !end) return "-";
+    const durationHours =
+      (new Date(end).getTime() - new Date(start).getTime()) / (1000 * 60 * 60);
+    return durationHours.toFixed(2) + " שעות";
+  };
 
   if (loading) return <div>טוען נתוני נוכחות...</div>;
   if (error) return <div style={{ color: "red" }}>{error}</div>;
 
   return (
-    <div className="page-header">
-      <h2>דוח נוכחות עובדים</h2>
+    <>
+      {" "}
+      {/* השתמש ב-Fragment כדי לעטוף את הרכיבים */}
+      <div className="page-header">
+        <h2>דוח נוכחות עובדים</h2>
+      </div>
       <div className="card">
         <div className="table-container">
           <table>
@@ -47,22 +70,19 @@ function AttendanceReportPage() {
               {attendanceRecords.length > 0 ? (
                 attendanceRecords.map((record) => (
                   <tr key={record.id}>
-                    <td>{record.employee_name}</td>
-                    <td>{new Date(record.check_in_time).toLocaleString()}</td>
+                    {/* ודא שהשדות תואמים למה שהשרת שולח */}
+                    <td>{record.employeeName || record.employee_name}</td>
                     <td>
-                      {record.check_out_time
-                        ? new Date(record.check_out_time).toLocaleString()
-                        : "בפנים"}
+                      {formatDateTime(record.clockIn || record.check_in_time)}
                     </td>
                     <td>
-                      {/* חישוב סה"כ שעות */}
-                      {record.check_in_time && record.check_out_time
-                        ? (
-                            (new Date(record.check_out_time).getTime() -
-                              new Date(record.check_in_time).getTime()) /
-                            (1000 * 60 * 60)
-                          ).toFixed(2) + " שעות"
-                        : "-"}
+                      {formatDateTime(record.clockOut || record.check_out_time)}
+                    </td>
+                    <td>
+                      {calculateHours(
+                        record.clockIn || record.check_in_time,
+                        record.clockOut || record.check_out_time
+                      )}
                     </td>
                   </tr>
                 ))
@@ -77,7 +97,7 @@ function AttendanceReportPage() {
           </table>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 export default AttendanceReportPage;

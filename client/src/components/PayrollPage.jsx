@@ -1,36 +1,21 @@
-  import { useContext, useState, useEffect, useCallback } from "react";
+import { useContext, useState } from "react";
 import DigitalClock from "./DigitalClock";
-import { calculateNetSeconds } from "./utils";
 import { AppContext } from "./AppContext";
+import { apiFetch } from "./utils";
 import "../styles.css";
+
 function PayrollPage() {
-  const { employees, attendance, settings, loading, error } =
-    useContext(AppContext);
+  const {
+    employees,
+    addToast,
+    loading: contextLoading,
+  } = useContext(AppContext);
+
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
   const [payrollResult, setPayrollResult] = useState(null);
+  const [isCalculating, setIsCalculating] = useState(false);
 
-  if (loading) {
-    return <div>טוען נתוני שכר...</div>;
-  }
-
-  if (error) {
-    return (
-      <div style={{ color: "red" }}>
-        שגיאה בטעינת נתוני שכר: {error.message}
-      </div>
-    );
-  }
-
-  // Ensure data exists before proceeding
-  if (
-    !employees ||
-    !attendance ||
-    !settings ||
-    Object.keys(settings).length === 0
-  ) {
-    return <div>אין מספיק נתונים לחישוב שכר.</div>;
-  }
   const handleEmployeeSelection = (e) => {
     const id = parseInt(e.target.value);
     setSelectedEmployeeIds((prev) =>
@@ -48,150 +33,38 @@ function PayrollPage() {
     );
   };
 
-  const calculatePayroll = useCallback(() => {
-    // Basic validation for initial data load
+  const handleCalculatePayroll = async () => {
     if (
-      !employees ||
-      employees.length === 0 ||
-      !attendance ||
-      attendance.length === 0 ||
-      !settings
+      selectedEmployeeIds.length === 0 ||
+      !dateRange.start ||
+      !dateRange.end
     ) {
-      setPayrollResult(null); // Clear previous results if data is missing
+      addToast("יש לבחור עובדים וטווח תאריכים.", "danger");
       return;
     }
 
-    const standardWorkDayHours = parseFloat(settings.standardWorkDayHours);
-    const overtimeRatePercent = parseFloat(settings.overtimeRatePercent);
-
-    // Validate settings values
-    if (
-      isNaN(standardWorkDayHours) ||
-      standardWorkDayHours <= 0 ||
-      isNaN(overtimeRatePercent) ||
-      overtimeRatePercent < 0
-    ) {
-      addToast(
-        "הגדרות שכר לא תקינות (שעות יום עבודה או אחוז שעות נוספות).",
-        "danger"
-      );
-      setPayrollResult({ details: [] });
-      return;
-    }
-
-    const startDate = new Date(dateRange.start);
-    const endDate = new Date(dateRange.end);
-    endDate.setHours(23, 59, 59, 999); // Set to end of the day
-
-    // Validate date range
-    if (
-      isNaN(startDate.getTime()) ||
-      isNaN(endDate.getTime()) ||
-      startDate > endDate
-    ) {
-      addToast("טווח תאריכים לא תקין.", "danger");
-      setPayrollResult(null);
-      return;
-    }
-
-    const employeesToCalculate =
-      selectedEmployeeIds.length > 0
-        ? employees.filter((emp) => selectedEmployeeIds.includes(emp.id))
-        : employees.filter((emp) => emp.role === "employee"); // Default to all employees if none selected
-
-    const details = employeesToCalculate.map((emp) => {
-      // Safely parse hourlyRate, default to 0 if invalid
-      const hourlyRate = parseFloat(emp.hourly_rate); // Use emp.hourly_rate (snake_case from DB)
-      if (isNaN(hourlyRate) || hourlyRate < 0) {
-        // Log a warning or add a toast if an employee has invalid hourly rate
-        console.warn(
-          `Employee ${emp.name} (ID: ${emp.id}) has an invalid hourly rate: '${emp.hourly_rate}'. Setting to 0.`
-        );
-        return {
-          id: emp.id,
-          name: emp.name,
-          department: emp.department,
-          totalRegularHours: 0,
-          totalOvertimeHours: 0,
-          basePay: 0,
-          overtimePay: 0,
-          totalPay: 0,
-        };
-      }
-
-      const empAttendance = attendance.filter(
-        (a) =>
-          a.employee_id === emp.id && // Use employee_id (snake_case)
-          a.check_out && // Only count completed entries
-          new Date(a.check_in) >= startDate &&
-          new Date(a.check_in) <= endDate
-      );
-
-      let totalRegularHours = 0;
-      let totalOvertimeHours = 0;
-
-      empAttendance.forEach((entry) => {
-        const totalSeconds = calculateNetSeconds(entry);
-        const totalHours = totalSeconds / 3600;
-
-        if (isNaN(totalHours) || totalHours < 0) {
-          console.warn(
-            `Calculated totalHours is NaN or negative for entry (skipping):`,
-            entry,
-            `Resulting totalSeconds:`,
-            totalSeconds
-          );
-          return;
-        }
-
-        const overtime = Math.max(0, totalHours - standardWorkDayHours);
-        const regular = totalHours - overtime;
-
-        totalRegularHours += regular;
-        totalOvertimeHours += overtime;
+    setIsCalculating(true);
+    setPayrollResult(null);
+    try {
+      const data = await apiFetch("/payroll", {
+        method: "POST",
+        body: JSON.stringify({
+          employeeIds: selectedEmployeeIds,
+          startDate: dateRange.start,
+          endDate: dateRange.end,
+        }),
       });
-
-      const basePay = totalRegularHours * hourlyRate;
-      const overtimePay =
-        totalOvertimeHours * hourlyRate * (overtimeRatePercent / 100);
-
-      return {
-        id: emp.id,
-        name: emp.name,
-        department: emp.department,
-        totalRegularHours: isNaN(totalRegularHours) ? 0 : totalRegularHours,
-        totalOvertimeHours: isNaN(totalOvertimeHours) ? 0 : totalOvertimeHours,
-        basePay: isNaN(basePay) ? 0 : basePay,
-        overtimePay: isNaN(overtimePay) ? 0 : overtimePay,
-        totalPay: isNaN(basePay + overtimePay) ? 0 : basePay + overtimePay,
-      };
-    });
-    setPayrollResult({ details });
-  }, [
-    employees,
-    attendance,
-    settings,
-    selectedEmployeeIds,
-    dateRange,
-    addToast,
-  ]);
-
-  // Effect to re-run calculation when relevant data changes
-  useEffect(() => {
-    // Only generate if settings and employees are loaded AND dates are selected
-    if (settings && employees.length > 0 && dateRange.start && dateRange.end) {
-      calculatePayroll();
-    } else {
-      setPayrollResult(null); // Clear results if conditions not met
+      setPayrollResult(data);
+    } catch (err) {
+      addToast(err.message || "שגיאה בחישוב השכר", "danger");
+    } finally {
+      setIsCalculating(false);
     }
-  }, [
-    employees,
-    attendance,
-    settings,
-    selectedEmployeeIds,
-    dateRange,
-    calculatePayroll,
-  ]);
+  };
+
+  if (contextLoading) {
+    return <div>טוען נתונים...</div>;
+  }
 
   return (
     <>
@@ -214,7 +87,7 @@ function PayrollPage() {
                       (employees || []).filter((e) => e.role === "employee")
                         .length &&
                     (employees || []).filter((e) => e.role === "employee")
-                      .length > 0 // Ensure "select all" is only checked if there are employees and all are selected
+                      .length > 0
                   }
                   disabled={
                     (employees || []).filter((e) => e.role === "employee")
@@ -264,20 +137,16 @@ function PayrollPage() {
           </div>
         </div>
         <div style={{ textAlign: "center", marginTop: "2rem" }}>
-          <button
-            onClick={calculatePayroll} // Call calculatePayroll directly
-            disabled={
-              !(
-                selectedEmployeeIds.length > 0 &&
-                dateRange.start &&
-                dateRange.end
-              )
-            }
-          >
-            הפק דוח שכר
+          <button onClick={handleCalculatePayroll} disabled={isCalculating}>
+            {isCalculating ? "מחשב..." : "הפק דוח שכר"}
           </button>
         </div>
       </div>
+      {isCalculating && (
+        <div className="card">
+          <p style={{ textAlign: "center" }}>מחשב דוח שכר, אנא המתן...</p>
+        </div>
+      )}
       {payrollResult && (
         <div className="card">
           <h3>תוצאות דוח שכר</h3>

@@ -10,6 +10,8 @@ import React, {
 // ייבוא apiFetch ו-Toast מהקובץ utils.js
 import { apiFetch, Toast } from "./utils"; // וודא שהנתיב נכון
 
+// --- מטפלי אימות (התחברות/התנתקות) ---
+
 // הגדרת AppContext: מכיל את כל הערכים שרכיבי הילד יכולים לצרוך.
 // חשוב לספק אובייקט ברירת מחדל עם כל המאפיינים כדי למנוע שגיאות destructuring
 export const AppContext = createContext({
@@ -52,6 +54,14 @@ const CustomToast = ({ message, type, onDismiss }) => {
 
 // AppProvider: רכיב ספק הקונטקסט האמיתי שיחזיק את המצב והלוגיקה
 export const AppProvider = ({ children }) => {
+  const addToast = useCallback((message, type = "info") => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((p) => p.filter((t) => t.id !== id));
+    }, 3000); // הסרה אוטומטית לאחר 3 שניות
+  }, []);
+
   // --- הגדרת המצבים הגלובליים של האפליקציה ---
   // FIX: Provide a default empty JSON string if localStorage.getItem returns null or undefined
   const [employees, setEmployees] = useState(() =>
@@ -132,15 +142,6 @@ export const AppProvider = ({ children }) => {
   }, [absences, employees]);
 
   // --- Toast Logic ---
-  const addToast = useCallback((message, type = "info") => {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((p) => p.filter((t) => t.id !== id));
-    }, 3000); // הסרה אוטומטית לאחר 3 שניות
-  }, []);
-
-  // --- מטפלי אימות (התחברות/התנתקות) ---
   const handleLogin = useCallback(
     (user, token) => {
       setCurrentUser(user);
@@ -149,7 +150,6 @@ export const AppProvider = ({ children }) => {
     },
     [addToast]
   );
-
   const handleLogout = useCallback(() => {
     setCurrentUser(null);
     localStorage.removeItem("token");

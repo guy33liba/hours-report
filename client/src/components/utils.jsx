@@ -38,39 +38,38 @@ export const apiFetch = async (endpoint, options = {}) => {
   }
 };
 
+
+
 export const calculateNetSeconds = (entry) => {
-  if (!entry || !entry.check_in) {
+  if (!entry || !entry.clockIn) {
     return 0;
   }
 
-  const checkInTime = new Date(entry.check_in).getTime();
-  const checkOutTime = entry.check_out
-    ? new Date(entry.check_out).getTime()
-    : Date.now();
+  const clockInTime = new Date(entry.clockIn).getTime();
+  const upToTime = entry.clockOut
+    ? new Date(entry.clockOut).getTime()
+    : Date.now(); 
 
-  if (checkOutTime < checkInTime) {
-    return 0;
-  }
+  const totalDurationMs = upToTime - clockInTime;
 
-  let totalDurationMs = checkOutTime - checkInTime;
   let totalBreakMs = 0;
-
-  if (entry.breaks && Array.isArray(entry.breaks)) {
+  if (Array.isArray(entry.breaks)) {
     entry.breaks.forEach((b) => {
-      const breakStart = new Date(b.start).getTime();
-      const breakEnd = b.end ? new Date(b.end).getTime() : Date.now();
+      if (b.start) {
+        const breakStartTime = new Date(b.start).getTime();
 
-      if (breakEnd > breakStart) {
-        totalBreakMs += breakEnd - breakStart;
+        const breakEndTime = b.end ? new Date(b.end).getTime() : Date.now();
+
+        totalBreakMs += breakEndTime - breakStartTime;
       }
     });
   }
 
-  const netDurationMs = Math.max(0, totalDurationMs - totalBreakMs);
+  const netDurationMs = totalDurationMs - totalBreakMs;
 
-  return Math.floor(netDurationMs / 1000);
+  // Return the result in seconds, ensuring it's not a negative number.
+  return Math.floor(Math.max(0, netDurationMs) / 1000);
 };
-
 export const Icon = ({ path, size = 18 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
     <path d={path}></path>

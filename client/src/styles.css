@@ -47,6 +47,7 @@ h4 {
   color: var(--text-dark);
   font-weight: 700;
   margin: 0;
+  margin-bottom: 10px;
 }
 
 /* --- 3. Layout --- */
@@ -378,7 +379,9 @@ tbody tr:hover {
   padding: 1.25rem;
   border: 1px solid transparent;
   border-radius: var(--border-radius);
+  border-bottom: 1px solid #6b728044;
   transition: all var(--transition-speed);
+  margin-top: 5px;
 }
 .employee-row:hover {
   background-color: var(--app-bg);

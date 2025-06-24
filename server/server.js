@@ -102,14 +102,14 @@ app.get("/api/settings", authenticateToken, (req, res) => {
 // --- Employee Routes ---
 app.get("/api/employees", authenticateToken, async (req, res) => {
   try {
-    // FIX: Standardized column name to hourly_rate
     const { rows } = await pool.query(
-      "SELECT id, name, department, hourly_rate, role, status FROM employees"
+      "SELECT id, name, role, department, hourly_rate, status FROM employees ORDER BY name"
     );
     res.json(rows);
   } catch (err) {
-    console.error("Error fetching employees:", err);
-    res.status(500).json({ message: "שגיאה בטעינת עובדים מהשרת." });
+    console.error("!!! FATAL ERROR fetching employees:", err);
+
+    res.status(500).json({ message: "שגיאה קריטית בטעינת עובדים מהשרת." });
   }
 });
 
@@ -203,43 +203,52 @@ app.delete(
 );
 
 // --- Attendance Routes (REFACTORED AND CLEANED) ---
-
 app.get("/api/attendance", authenticateToken, async (req, res) => {
   try {
-    let query;
-    const params = [];
-
-    // A manager gets all attendance, a regular user gets only their own.
-    if (req.user.role === "manager") {
-      query = `SELECT id, employee_id as "employeeId", clock_in as "clockIn", clock_out as "clockOut", breaks, on_break as "onBreak" FROM attendance ORDER BY clock_in DESC`;
-    } else {
-      query = `SELECT id, employee_id as "employeeId", clock_in as "clockIn", clock_out as "clockOut", breaks, on_break as "onBreak" FROM attendance WHERE employee_id = $1 ORDER BY clock_in DESC`;
-      params.push(req.user.userId);
-    }
-    const { rows } = await pool.query(query, params);
+    // --- שאילתה מתוקנת ומותאמת ---
+    // שימוש ב-AS כדי להמיר את שמות העמודות ל-camelCase שה-frontend מצפה לו
+    const { rows } = await pool.query(`
+        SELECT 
+            id, 
+            employee_id AS "employeeId", 
+            clock_in AS "clockIn", 
+            clock_out AS "clockOut", 
+            breaks, 
+            on_break AS "onBreak" 
+        FROM attendance 
+        ORDER BY clock_in DESC
+    `);
     res.json(rows);
   } catch (err) {
-    console.error("Error fetching attendance:", err);
+    // --- לוג שגיאות מפורט והודעה כללית ---
+    console.error("!!! FATAL ERROR fetching attendance:", err);
     res.status(500).json({ message: "שגיאה בטעינת נוכחות" });
   }
 });
 
 // --- Absences Routes ---
 
+// Absences Routes
 app.get("/api/absences", authenticateToken, async (req, res) => {
   try {
-    // FIX: Standardized column name to employee_id
-    const { rows } = await pool.query(
-      'SELECT id, employee_id as "employeeId", type, start_date as "startDate", end_date as "endDate" FROM scheduled_absences'
-    );
+    // --- שאילתה מתוקנת ומותאמת ---
+    const { rows } = await pool.query(`
+      SELECT 
+        id, 
+        employee_id AS "employeeId", 
+        type, 
+        start_date AS "startDate", 
+        end_date AS "endDate",
+        notes
+      FROM scheduled_absences
+    `);
     res.json(rows);
   } catch (err) {
-    // FIX: Added error logging
-    console.error("Error fetching absences:", err);
+    // --- לוג שגיאות מפורט והודעה כללית ---
+    console.error("!!! FATAL ERROR fetching absences:", err);
     res.status(500).json({ message: "שגיאה בטעינת היעדרויות" });
   }
 });
-
 app.post(
   "/api/absences",
   authenticateToken,
@@ -279,10 +288,175 @@ app.delete(
   }
 );
 
-// =================================================================
-// Server Start
-// =================================================================
+// ב-server.js
 
+app.get(
+  "/api/reports/hours",
+  authenticateToken,
+  authorizeManager,
+  async (req, res) => {
+    // <<< הוספה: קבלת employeeId (אופציונלי) מה-query
+    const { startDate, endDate, employeeId } = req.query;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({ message: "נדרשים תאריך התחלה וסיום." });
+    }
+
+    try {
+      // בניית השאילתה הבסיסית
+      let query = `
+        SELECT
+          e.id AS "employeeId", e.name AS "employeeName", e.department, e.hourly_rate AS "hourlyRate",
+          SUM(
+            EXTRACT(EPOCH FROM (a.clock_out - a.clock_in)) -
+            COALESCE((
+              SELECT SUM(EXTRACT(EPOCH FROM (b.end::TIMESTAMP - b.start::TIMESTAMP)))
+              FROM jsonb_to_recordset(a.breaks) AS b(start TEXT, "end" TEXT)
+              WHERE b.start IS NOT NULL AND b.end IS NOT NULL
+            ), 0)
+          ) AS "totalSeconds"
+        FROM attendance a
+        JOIN employees e ON a.employee_id = e.id
+        WHERE
+          a.clock_out IS NOT NULL AND
+          a.clock_in::date >= $1 AND
+          a.clock_in::date <= $2
+      `;
+
+      // בניית מערך הפרמטרים
+      const params = [startDate, endDate];
+
+      // <<< הוספה: הוספת סינון לפי עובד אם נשלח employeeId
+      if (employeeId) {
+        query += ` AND a.employee_id = $3`; // שימוש ב-$3 כפרמטר הבא
+        params.push(employeeId);
+      }
+
+      // הוספת סוף השאילתה
+      query += `
+        GROUP BY e.id, e.name, e.department, e.hourly_rate
+        ORDER BY e.name;
+      `;
+
+      const { rows } = await pool.query(query, params);
+      res.json(rows);
+    } catch (err) {
+      console.error("!!! FATAL ERROR generating hours report:", err);
+      res.status(500).json({ message: "שגיאה בהפקת הדוח." });
+    }
+  }
+);
+// In server.js, after your other routes
+
+app.post(
+  "/api/payroll",
+  authenticateToken,
+  authorizeManager,
+  async (req, res) => {
+    const { employeeIds, startDate, endDate } = req.body;
+
+    if (
+      !employeeIds ||
+      !Array.isArray(employeeIds) ||
+      employeeIds.length === 0 ||
+      !startDate ||
+      !endDate
+    ) {
+      return res.status(400).json({ message: "נדרשים עובדים וטווח תאריכים." });
+    }
+
+    try {
+      // --- שלב 1: הבאת פרטי כל העובדים הנבחרים ---
+      const { rows: employeesData } = await pool.query(
+        `SELECT id, name, department, hourly_rate FROM employees WHERE id = ANY($1::int[])`,
+        [employeeIds]
+      );
+
+      // אם לא נמצאו עובדים בכלל, החזר תשובה ריקה
+      if (employeesData.length === 0) {
+        return res.json({ details: [] });
+      }
+
+      // --- שלב 2: הבאת כל רשומות הנוכחות הרלוונטיות ---
+      const { rows: attendanceData } = await pool.query(
+        `SELECT employee_id, clock_in, clock_out, breaks FROM attendance 
+             WHERE employee_id = ANY($1::int[]) AND clock_out IS NOT NULL 
+             AND clock_in::date >= $2 AND clock_in::date <= $3`,
+        [employeeIds, startDate, endDate]
+      );
+
+      // --- שלב 3: חישוב השכר (אותה לוגיקה כמו קודם, אבל עכשיו תמיד יש לנו את פרטי העובד) ---
+      const settings = {
+        standardWorkDayHours: 8.5,
+        overtimeRatePercent: 125.0,
+      };
+
+      const payrollDetails = employeesData.map((employee) => {
+        const hourlyRate = parseFloat(employee.hourly_rate);
+
+        // סינון רשומות הנוכחות רק עבור העובד הנוכחי
+        const empAttendance = attendanceData.filter(
+          (a) => a.employee_id === employee.id
+        );
+
+        let totalRegularHours = 0;
+        let totalOvertimeHours = 0;
+
+        empAttendance.forEach((entry) => {
+          const clockInTime = new Date(entry.clock_in).getTime();
+          const clockOutTime = new Date(entry.clock_out).getTime();
+          let totalDurationMs = clockOutTime - clockInTime;
+
+          let totalBreakMs = 0;
+          if (Array.isArray(entry.breaks)) {
+            entry.breaks.forEach((b) => {
+              if (b.start && b.end) {
+                totalBreakMs +=
+                  new Date(b.end).getTime() - new Date(b.start).getTime();
+              }
+            });
+          }
+
+          const netWorkSeconds = Math.max(
+            0,
+            (totalDurationMs - totalBreakMs) / 1000
+          );
+          const totalHours = netWorkSeconds / 3600;
+          const overtime = Math.max(
+            0,
+            totalHours - settings.standardWorkDayHours
+          );
+          const regular = totalHours - overtime;
+
+          totalRegularHours += regular;
+          totalOvertimeHours += overtime;
+        });
+
+        const basePay = totalRegularHours * hourlyRate;
+        const overtimePay =
+          totalOvertimeHours *
+          hourlyRate *
+          (settings.overtimeRatePercent / 100);
+
+        return {
+          id: employee.id,
+          name: employee.name,
+          department: employee.department,
+          totalRegularHours,
+          totalOvertimeHours,
+          basePay,
+          overtimePay,
+          totalPay: basePay + overtimePay,
+        };
+      });
+
+      res.json({ details: payrollDetails });
+    } catch (err) {
+      console.error("!!! FATAL ERROR generating payroll:", err);
+      res.status(500).json({ message: "שגיאה בהפקת דוח שכר." });
+    }
+  }
+);
 app.listen(PORT, () => {
   console.log(`✅ Server is running on port ${PORT}`);
 });

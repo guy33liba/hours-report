@@ -1331,6 +1331,21 @@ function App() {
     setSettings,
     fetchData,
   };
+  const ProtectedRoute = ({ children, allowedRoles }) => {
+    const { currentUser } = useContext(AppContext);
+
+    if (!currentUser) {
+      // אם אין משתמש, הפנה לדף ההתחברות
+      return <Navigate to="/login" replace />;
+    }
+
+    if (allowedRoles && !allowedRoles.includes(currentUser.role)) {
+      // אם למשתמש אין את התפקיד המתאים, הפנה לדף לא מורשה או דשבורד
+      return <Navigate to="/dashboard" replace />; // או לדף שגיאה
+    }
+
+    return children;
+  };
   return (
     <AppContext.Provider value={contextValue}>
       <BrowserRouter>
@@ -1380,7 +1395,19 @@ function App() {
                 <Route path="/reports" element={<ReportsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/payroll" element={<PayrollPage />} />
-                <Route path="*" element={<Navigate to="/" />} />
+                <Route path="*" element={<Navigate to="/" />} />{" "}
+                <Route
+                  path="/attendance-report" // הנתיב שתוכלו לגשת אליו בדפדפן
+                  element={
+                    <ProtectedRoute allowedRoles={["manager"]}>
+                      <AttendanceReportPage /> {/* הצבת הקומפוננטה כאן */}
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/"
+                  element={<Navigate to="/dashboard" replace />}
+                />
               </Routes>
             </main>
           </div>

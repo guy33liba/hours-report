@@ -328,49 +328,61 @@ app.post(
   }
 );
 
-app.post(
-  "/api/attendance/toggle",
-  authenticateToken, // וודא שהמשתמש מאומת
-  //authorizeEmployee, // אולי רק עובדים ספציפיים יכולים להחתים, או שכל המשתמשים יכולים
-  async (req, res) => {
-    const { employeeId } = req.body; // חשוב שה-employeeId הנכון יישלח מה-Frontend
-    const now = new Date(); // הזמן הנוכחי בשרת
+app.post("/api/attendance/toggle", authenticateToken, async (req, res) => {
+  const { employeeId } = req.body;
+  const now = new Date(); // הזמן הנוכחי
 
-    try {
-      // חפש רשומת כניסה פתוחה (כלומר, העובד בפנים)
-      const { rows: activeAttendance } = await pool.query(
-        `SELECT * FROM attendance WHERE employee_id = $1 AND check_out_time IS NULL`,
-        [employeeId]
+  // --- הדפסה לבדיקה: קבלת הנתונים והזמן בשרת ---
+  console.log(
+    `[Backend - Attendance Toggle] Request received for employeeId: ${employeeId}`
+  );
+  console.log(
+    `[Backend - Attendance Toggle] Current server time: ${now.toISOString()}`
+  );
+  // --- סוף הדפסה ---
+
+  try {
+    const { rows: activeAttendance } = await pool.query(
+      `SELECT * FROM attendance WHERE employee_id = $1 AND check_out_time IS NULL`,
+      [employeeId]
+    );
+
+    if (activeAttendance.length > 0) {
+      const recordToUpdate = activeAttendance[0];
+      // --- הדפסה לבדיקה: רשומת יציאה ---
+      console.log(
+        `[Backend - Attendance Toggle] Employee ${employeeId} is checking OUT. Updating record ID: ${recordToUpdate.id}`
       );
-
-      if (activeAttendance.length > 0) {
-        // העובד כרגע "בפנים" - נרשום יציאה
-        const recordToUpdate = activeAttendance[0];
-        await pool.query(
-          `UPDATE attendance SET check_out_time = $1 WHERE id = $2`,
-          [now, recordToUpdate.id]
-        );
-        res.json({
-          message: "יציאה נרשמה בהצלחה.",
-          status: "checked_out",
-        });
-      } else {
-        // העובד כרגע "בחוץ" - נרשום כניסה חדשה
-        await pool.query(
-          `INSERT INTO attendance (employee_id, check_in_time) VALUES ($1, $2)`,
-          [employeeId, now]
-        );
-        res.status(201).json({
-          message: "כניסה נרשמה בהצלחה.",
-          status: "checked_in",
-        });
-      }
-    } catch (error) {
-      console.error("Error toggling attendance:", error);
-      res.status(500).json({ message: "שגיאה בטיפול בהחתמת שעון." });
+      // --- סוף הדפסה ---
+      await pool.query(
+        `UPDATE attendance SET check_out_time = $1 WHERE id = $2`,
+        [now, recordToUpdate.id]
+      );
+      res.json({
+        message: "יציאה נרשמה בהצלחה.",
+        status: "checked_out",
+      });
+    } else {
+      // --- הדפסה לבדיקה: רשומת כניסה ---
+      console.log(
+        `[Backend - Attendance Toggle] Employee ${employeeId} is checking IN. Creating new record.`
+      );
+      // --- סוף הדפסה ---
+      await pool.query(
+        `INSERT INTO attendance (employee_id, check_in_time) VALUES ($1, $2)`,
+        [employeeId, now]
+      );
+      res.status(201).json({
+        message: "כניסה נרשמה בהצלחה.",
+        status: "checked_in",
+      });
     }
+  } catch (error) {
+    console.error("Error toggling attendance:", error);
+    res.status(500).json({ message: "שגיאה בטיפול בהחתמת שעון." });
   }
-);
+});
+
 app.get(
   "/api/attendance/:employeeId",
   authenticateToken,

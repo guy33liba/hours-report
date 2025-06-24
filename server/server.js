@@ -3,7 +3,6 @@ const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
 const JWT_SECRET = "my-ultra-secure-and-long-secret-key-for-jwt";
 const PORT = 5000;
 
@@ -23,18 +22,24 @@ app.use(express.json());
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
-  if (token == null) return res.sendStatus(401);
+
+  if (token == null) {
+    return res.status(401).json({ message: "No token provided" });
+  }
+
   jwt.verify(
     token,
     "my-ultra-secure-and-long-secret-key-for-jwt",
     (err, user) => {
-      if (err) return res.status(403).json({ message: "Token is not valid" });
+      if (err) {
+        console.error("JWT Verification Error:", err); // <-- ADD THIS LINE! This is key!
+        return res.status(403).json({ message: "Token is not valid" }); // Or customize message: err.message
+      }
       req.user = user;
       next();
     }
   );
 };
-
 const authorizeManager = (req, res, next) => {
   if (req.user.role !== "manager")
     return res

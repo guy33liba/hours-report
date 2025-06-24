@@ -295,7 +295,6 @@ app.get(
   authenticateToken,
   authorizeManager,
   async (req, res) => {
-    // <<< הוספה: קבלת employeeId (אופציונלי) מה-query
     const { startDate, endDate, employeeId } = req.query;
 
     if (!startDate || !endDate) {
@@ -303,36 +302,39 @@ app.get(
     }
 
     try {
-      // בניית השאילתה הבסיסית
       let query = `
         SELECT
-          e.id AS "employeeId", e.name AS "employeeName", e.department, e.hourly_rate AS "hourlyRate",
-          SUM(
+          e.id AS "employeeId",
+          e.name AS "employeeName",
+          e.department,
+          e.hourly_rate AS "hourlyRate",
+          COALESCE(SUM(
             EXTRACT(EPOCH FROM (a.clock_out - a.clock_in)) -
             COALESCE((
               SELECT SUM(EXTRACT(EPOCH FROM (b.end::TIMESTAMP - b.start::TIMESTAMP)))
               FROM jsonb_to_recordset(a.breaks) AS b(start TEXT, "end" TEXT)
               WHERE b.start IS NOT NULL AND b.end IS NOT NULL
             ), 0)
-          ) AS "totalSeconds"
-        FROM attendance a
-        JOIN employees e ON a.employee_id = e.id
-        WHERE
-          a.clock_out IS NOT NULL AND
-          a.clock_in::date >= $1 AND
-          a.clock_in::date <= $2
+          ), 0) AS "totalSeconds"
+        FROM employees e
+        LEFT JOIN attendance a ON e.id = a.employee_id
+          AND a.clock_out IS NOT NULL
+          AND a.clock_in::date >= $1
+          AND a.clock_in::date <= $2
+        WHERE 1=1
       `;
 
-      // בניית מערך הפרמטרים
       const params = [startDate, endDate];
+      let paramIndex = 3;
 
-      // <<< הוספה: הוספת סינון לפי עובד אם נשלח employeeId
       if (employeeId) {
-        query += ` AND a.employee_id = $3`; // שימוש ב-$3 כפרמטר הבא
+        query += ` AND e.id = $${paramIndex++}`;
         params.push(employeeId);
+      } else {
+        // אם לא נבחר עובד, הצג רק עובדים רגילים (לא מנהלים)
+        query += ` AND e.role = 'employee'`;
       }
 
-      // הוספת סוף השאילתה
       query += `
         GROUP BY e.id, e.name, e.department, e.hourly_rate
         ORDER BY e.name;

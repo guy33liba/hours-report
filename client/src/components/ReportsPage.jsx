@@ -1,59 +1,45 @@
-import { useContext, useEffect, useState, useMemo } from "react";
+import { useContext, useState } from "react";
 import DigitalClock from "./DigitalClock";
 import { AppContext } from "./AppContext";
 import { apiFetch } from "./utils";
 import "../styles.css";
 
-// פונקציות עזר מחוץ לרכיב
-const formatHours = (hours) => {
-  return typeof hours === "number" ? hours.toFixed(2) : "0.00";
-};
-
-const formatCurrency = (amount) => {
-  if (typeof amount !== "number" || isNaN(amount)) return "₪0.00";
-  return new Intl.NumberFormat("he-IL", {
-    style: "currency",
-    currency: "ILS",
-  }).format(amount);
-};
-
+// פונקציות עזר קטנות ונקיות
+const formatHours = (hours) =>
+  typeof hours === "number" ? hours.toFixed(2) : "0.00";
+const formatCurrency = (amount) =>
+  new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS" }).format(
+    amount || 0
+  );
 const getYYYYMMDD = (date) => date.toISOString().split("T")[0];
 
 function ReportsPage() {
-  // <<< הוספה: החזרנו את 'employees' מהקונטקסט כדי לבנות את הפילטר
+  // 1. קבלת רשימת העובדים מהקונטקסט, רק כדי למלא את תיבת הבחירה
   const { employees } = useContext(AppContext);
 
+  // 2. הגדרת כל המצבים (States) שהקומפוננטה צריכה
   const [range, setRange] = useState({
     start: getYYYYMMDD(
       new Date(new Date().getFullYear(), new Date().getMonth(), 1)
     ),
     end: getYYYYMMDD(new Date()),
   });
-
-  // <<< הוספה: State חדש לשמירת העובד שנבחר
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(""); // "" = כל העובדים
-
-  const [reportData, setReportData] = useState([]);
+  const [reportData, setReportData] = useState(null); // null = דוח עוד לא הופק
   const [loading, setLoading] = useState(false);
-  const [dateError, setDateError] = useState("");
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (
-      range.start &&
-      range.end &&
-      new Date(range.start) > new Date(range.end)
-    ) {
-      setDateError('תאריך "מתאריך" אינו יכול להיות מאוחר מתאריך "עד תאריך".');
-    } else {
-      setDateError("");
-    }
-  }, [range.start, range.end]);
-
+  // 3. הפונקציה המרכזית: שולחת בקשה לשרת ומקבלת תוצאה מוכנה
   const handleGenerateReport = async () => {
-    if (dateError) return;
+    setError("");
+    if (new Date(range.start) > new Date(range.end)) {
+      setError('תאריך "מתאריך" אינו יכול להיות מאוחר מתאריך "עד תאריך".');
+      return;
+    }
+
     setLoading(true);
-    setReportData([]);
-    setDateError("");
+    setReportData(null); // איפוס תוצאות קודמות
+
     try {
       const params = new URLSearchParams({
         startDate: range.start,
@@ -63,53 +49,48 @@ function ReportsPage() {
         params.append("employeeId", selectedEmployeeId);
       }
 
-      // --- הוסף את השורה הבאה לבדיקה ---
-      console.log("Requesting URL:", `/reports/hours?${params.toString()}`);
-      // ------------------------------------
+      const dataFromServer = await apiFetch(
+        `/reports/hours?${params.toString()}`
+      );
 
-      const data = await apiFetch(`/reports/hours?${params.toString()}`);
+      // חישובים פשוטים בצד הלקוח על התוצאה הסופית שהגיעה מהשרת
+      const finalData = {
+        details: dataFromServer.map((row) => {
+          const totalHours = row.totalSeconds / 3600;
+          const totalPay = totalHours * parseFloat(row.hourlyRate || 0);
+          return { ...row, totalHours, totalPay };
+        }),
+      };
 
-      const dataWithHours = data.map((row) => ({
-        ...row,
-        totalHours: row.totalSeconds / 3600,
-        totalPay: (row.totalSeconds / 3600) * parseFloat(row.hourlyRate || 0),
-      }));
-      setReportData(dataWithHours);
-    } catch (error) {
-      let errorMessage = "שגיאה לא צפויה בהפקת הדוח.";
-      if (error instanceof Error && error.message) errorMessage = error.message;
-      else if (typeof error === "string") errorMessage = error;
-      setDateError(errorMessage);
+      // חישוב הסיכום הכללי
+      finalData.summary = finalData.details.reduce(
+        (acc, row) => {
+          acc.totalHours += row.totalHours;
+          acc.totalPay += row.totalPay;
+          return acc;
+        },
+        { totalHours: 0, totalPay: 0, totalEmployees: finalData.details.length }
+      );
+
+      setReportData(finalData);
+    } catch (err) {
+      setError(err.message || "שגיאה לא צפויה בהפקת הדוח.");
     } finally {
       setLoading(false);
     }
   };
 
-  const summary = useMemo(() => {
-    return reportData.reduce(
-      (acc, curr) => {
-        acc.totalEmployees = reportData.length; // נספר לפי התוצאות
-        acc.totalHours += curr.totalHours;
-        acc.totalPay += curr.totalPay;
-        return acc;
-      },
-      { totalEmployees: 0, totalHours: 0, totalPay: 0 }
-    );
-  }, [reportData]);
-
-  // ... פונקציית handleExport נשארת זהה
-
   return (
     <>
       <div className="page-header">
         <h2>דוחות נוכחות</h2>
-        {/* ... */}
+        <DigitalClock />
       </div>
 
+      {/* --- אזור הסינון --- */}
       <div className="card">
-        <h3>בחר טווח תאריכים לדוח</h3>
+        <h3>בחר פרמטרים לדוח</h3>
         <div className="report-controls">
-          {/* ... שדות התאריכים נשארים זהים ... */}
           <div className="form-group">
             <label>מתאריך</label>
             <input
@@ -118,7 +99,6 @@ function ReportsPage() {
               onChange={(e) =>
                 setRange((p) => ({ ...p, start: e.target.value }))
               }
-              className={dateError ? "input-error" : ""}
             />
           </div>
           <div className="form-group">
@@ -127,11 +107,8 @@ function ReportsPage() {
               type="date"
               value={range.end}
               onChange={(e) => setRange((p) => ({ ...p, end: e.target.value }))}
-              className={dateError ? "input-error" : ""}
             />
           </div>
-
-          {/* <<< הוספה: תיבת הבחירה של העובדים >>> */}
           <div className="form-group">
             <label>עובד/ת</label>
             <select
@@ -139,33 +116,103 @@ function ReportsPage() {
               onChange={(e) => setSelectedEmployeeId(e.target.value)}
             >
               <option value="">כל העובדים</option>
-              {employees?.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.name}
-                </option>
-              ))}
+              {employees
+                ?.filter((e) => e.role === "employee")
+                .map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.name}
+                  </option>
+                ))}
             </select>
           </div>
-
-          <button
-            onClick={handleGenerateReport}
-            disabled={loading || !!dateError}
-          >
+          <button onClick={handleGenerateReport} disabled={loading}>
             {loading ? "מפיק..." : "הפק דוח"}
           </button>
         </div>
-        {dateError && (
+        {error && (
           <p
             className="error-message"
             style={{ color: "red", textAlign: "center", marginTop: "10px" }}
           >
-            {dateError}
+            {error}
           </p>
         )}
       </div>
 
-      {!loading && reportData.length > 0 && (
-        <div className="report-results"></div>
+      {/* --- הצגת התוצאות --- */}
+      {loading && (
+        <div className="card">
+          <p style={{ textAlign: "center" }}>טוען דוח, אנא המתן...</p>
+        </div>
+      )}
+
+      {/* הצג תוצאות רק אם reportData אינו null */}
+      {reportData && (
+        <>
+          {/* אזור הסיכום (KPI) */}
+          <div className="kpi-grid">
+            <div className="card kpi-card">
+              <h4>עובדים בדוח</h4>
+              <p className="kpi-value">{reportData.summary.totalEmployees}</p>
+            </div>
+            <div className="card kpi-card">
+              <h4>סה"כ שעות</h4>
+              <p className="kpi-value">
+                {formatHours(reportData.summary.totalHours)}
+              </p>
+            </div>
+            <div className="card kpi-card">
+              <h4>עלות שכר כוללת</h4>
+              <p className="kpi-value">
+                {formatCurrency(reportData.summary.totalPay)}
+              </p>
+            </div>
+          </div>
+
+          {/* טבלת הפירוט */}
+          <div className="card">
+            <h3>פירוט לפי עובד</h3>
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>שם העובד</th>
+                    <th>מחלקה</th>
+                    <th>סה"כ שעות</th>
+                    <th>עלות שכר משוערת</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reportData.details.length > 0 ? (
+                    reportData.details.map((row) => (
+                      <tr key={row.employeeId}>
+                        <td>{row.employeeName}</td>
+                        <td>{row.department}</td>
+                        <td>{formatHours(row.totalHours)}</td>
+                        <td style={{ fontWeight: "bold" }}>
+                          {formatCurrency(row.totalPay)}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="4" style={{ textAlign: "center" }}>
+                        לא נמצאו נתונים עבור הבחירה הנוכחית.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* הודעה ראשונית לפני הפקת הדוח */}
+      {!loading && !reportData && !error && (
+        <div className="card">
+          <p style={{ textAlign: "center" }}>נא לבחור פרמטרים ולהפיק דוח.</p>
+        </div>
       )}
     </>
   );

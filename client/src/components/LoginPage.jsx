@@ -1,12 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { apiFetch } from "./utils";
 function LoginPage({ onLogin }) {
-  let [name, setName] = useState("");
-  let [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  name = name.trim();
-  password = password.trim();
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -36,7 +34,7 @@ function LoginPage({ onLogin }) {
   return (
     <div className="login-page-wrapper">
       <div className="login-container">
-        <h1>Attend.ly</h1>
+        <h1>התחברות</h1>
         <p className="subtitle">מערכת ניהול נוכחות עובדים</p>
         <form onSubmit={handleSubmit}>
           {error && <div className="login-error-message">{error}</div>}

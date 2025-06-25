@@ -9,12 +9,10 @@ function AttendanceReportPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // 1. הגדרת הפונקציה עם useCallback כדי שהיא תהיה יציבה
   const fetchAttendance = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      // ה-API הנכון הוא /api/attendance, לא /api/api/attendance
       const data = await apiFetch("/attendance");
       setAttendanceRecords(data);
     } catch (err) {
@@ -25,14 +23,12 @@ function AttendanceReportPage() {
     } finally {
       setLoading(false);
     }
-  }, [addToast]); // 2. הפונקציה תלויה רק ב-addToast (שהוא יציב בזכות useCallback)
+  }, [addToast]);
 
-  // 3. ה-useEffect קורא לפונקציה היציבה פעם אחת בלבד
   useEffect(() => {
     fetchAttendance();
   }, [fetchAttendance]); // ירוץ פעם אחת כשהרכיב נטען
 
-  // פונקציות עזר לחישוב ופרמוט
   const formatDateTime = (dateString) => {
     if (!dateString) return "בפנים";
     return new Date(dateString).toLocaleString("he-IL");
@@ -50,8 +46,6 @@ function AttendanceReportPage() {
 
   return (
     <>
-      {" "}
-      {/* השתמש ב-Fragment כדי לעטוף את הרכיבים */}
       <div className="page-header">
         <h2>דוח נוכחות עובדים</h2>
       </div>
@@ -70,7 +64,6 @@ function AttendanceReportPage() {
               {attendanceRecords.length > 0 ? (
                 attendanceRecords.map((record) => (
                   <tr key={record.id}>
-                    {/* ודא שהשדות תואמים למה שהשרת שולח */}
                     <td>{record.employeeName || record.employee_name}</td>
                     <td>
                       {formatDateTime(record.clockIn || record.check_in_time)}

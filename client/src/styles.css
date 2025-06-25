@@ -334,8 +334,6 @@ tbody tr:hover {
 .login-container {
   width: 100%;
   max-width: 420px;
-  position: relative;
-  right: 35rem;
   padding: 3rem;
   background: var(--card-bg);
   border-radius: 1rem;

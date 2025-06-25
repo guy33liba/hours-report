@@ -1,7 +1,6 @@
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import EmployeeFormModal from "./EmployeeFormModal";
 import ResetPasswordModal from "./ResetPasswordModal";
-import AppContent from "./AppContent";
 import { apiFetch } from "./utils";
 import { AppContext } from "./AppContext";
 import "../styles.css";
@@ -93,6 +92,7 @@ function EmployeeListPage() {
               <tr>
                 <th>שם</th>
                 <th>מחלקה</th>
+                <th>שכר שעתי</th>
                 <th>תפקיד</th>
                 <th>פעולות</th>
               </tr>
@@ -102,8 +102,10 @@ function EmployeeListPage() {
               {sortedEmployees.length > 0 ? (
                 sortedEmployees.map((emp) => (
                   <tr key={emp.id}>
+                    {console.log(`emp ${ emp.hourly_rate }`)}
                     <td>{emp.name}</td>
                     <td>{emp.department}</td>
+                    <td>{emp.hourly_rate} ₪</td>
                     <td>
                       {/* Display role in Hebrew */}
                       {emp.role === "manager"

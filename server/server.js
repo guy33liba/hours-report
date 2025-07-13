@@ -56,7 +56,7 @@ const authorizeManager = (req, res, next) => {
 // =================================================================
 
 // --- Auth Routes ---
-app.post("/api/auth/login", async (req, res) => {
+app.post("/auth/login", async (req, res) => {
   const { name, password } = req.body;
   try {
     // FIX: Standardized query to use snake_case for hourly_rate
@@ -88,8 +88,6 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
-// --- Settings Route ---
-// NEW: Added the missing route to prevent 404 errors
 app.get("/api/settings", authenticateToken, (req, res) => {
   // Return any relevant application settings here
   // For now, returning a dummy object is fine

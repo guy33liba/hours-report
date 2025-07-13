@@ -54,7 +54,7 @@ function PayrollPage() {
           endDate: dateRange.end,
         }),
       });
-      setPayrollResult(data);
+      setPayrollResult(data.details);
     } catch (err) {
       addToast(err.message || "שגיאה בחישוב השכר", "danger");
     } finally {

@@ -130,7 +130,6 @@ const MainAppLayout = () => {
 // --- הקומפוננטה הראשית App - "השומר בכניסה" ---
 function App() {
   const { currentUser, handleLogin } = useContext(AppContext);
-  console.log("App is rendering, user is:", currentUser);
 
   return (
     <Routes>

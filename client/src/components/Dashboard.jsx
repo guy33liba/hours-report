@@ -55,51 +55,76 @@ function Dashboard() {
   };
 
   // כל פונקציות ה-handle... נשארות כפי שהן, הן תקינות.
-  const handleClockIn = (employeeId) => {
-    setAttendance((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        employeeId,
-        clockIn: new Date().toISOString(),
-        clockOut: null,
-        breaks: [],
-        onBreak: false,
-      },
-    ]);
-    addToast("כניסה הוחתמה בהצלחה", "success");
+  const handleClockIn = async (employeeId) => {
+    try {
+      await apiFetch("/api/attendance/clock-in", {
+        method: "POST",
+        body: JSON.stringify({ employeeId }),
+      });
+      setAttendance((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          employeeId,
+          clockIn: new Date().toISOString(),
+          clockOut: null,
+          breaks: [],
+          onBreak: false,
+        },
+      ]);
+      addToast("כניסה הוחתמה בהצלחה", "success");
+    } catch (error) {
+      addToast(`שגיאה בהחתמת כניסה: ${err.message}`, "danger");
+    }
   };
-  const handleClockOut = (employeeId) => {
-    setAttendance((prev) =>
-      prev.map((a) =>
-        !a.clockOut && a.employeeId === employeeId
-          ? { ...a, clockOut: new Date().toISOString() }
-          : a
-      )
-    );
-    addToast("יציאה הוחתמה בהצלחה");
+  const handleClockOut = async (employeeId) => {
+    try {
+      await apiFetch("/api/attendance/clock-out", {
+        method: "POST",
+        body: JSON.stringify({ employeeId }),
+      });
+      addToast("יציאה הוחתמה בהצלחה");
+      setAttendance((prev) =>
+        prev.map((a) =>
+          !a.clockOut && a.employeeId === employeeId
+            ? { ...a, clockOut: new Date().toISOString() }
+            : a
+        )
+      );
+      addToast("יציאה הוחתמה בהצלחה");
+    } catch (err) {
+      addToast(`שגיאה בהחתמת יציאה: ${err.message}`, "danger");
+    }
   };
-  const handleBreakToggle = (employeeId) => {
-    let isOnBreak = false;
-    setAttendance((prev) =>
-      prev.map((a) => {
-        if (!a.clockOut && a.employeeId === employeeId) {
-          const newBreakState = !a.onBreak;
-          const now = new Date().toISOString();
-          let newBreaks = [...(a.breaks || [])];
-          if (newBreakState) {
-            newBreaks.push({ start: now, end: null });
-            isOnBreak = true;
-          } else {
-            const last = newBreaks.findLastIndex((b) => !b.end);
-            if (last !== -1) newBreaks[last].end = now;
+  const handleBreakToggle = async (employeeId) => {
+    try {
+      await apiFetch("/api/attendance/toggle-break", {
+        method: "POST",
+        body: JSON.stringify({ employeeId }),
+      });
+      let isOnBreak = false;
+      setAttendance((prev) =>
+        prev.map((a) => {
+          if (!a.clockOut && a.employeeId === employeeId) {
+            const newBreakState = !a.onBreak;
+            const now = new Date().toISOString();
+            let newBreaks = [...(a.breaks || [])];
+            if (newBreakState) {
+              newBreaks.push({ start: now, end: null });
+              isOnBreak = true;
+            } else {
+              const last = newBreaks.findLastIndex((b) => !b.end);
+              if (last !== -1) newBreaks[last].end = now;
+            }
+            return { ...a, breaks: newBreaks, onBreak: newBreakState };
           }
-          return { ...a, breaks: newBreaks, onBreak: newBreakState };
-        }
-        return a;
-      })
-    );
-    addToast(isOnBreak ? "יציאה להפסקה" : "חזרה מהפסקה");
+          return a;
+        })
+      );
+      addToast(isOnBreak ? "יציאה להפסקה" : "חזרה מהפסקה");
+    } catch (error) {
+      addToast(`שגיאה בעדכון הפסקה: ${err.message}`, "danger");
+    }
   };
 
   // FIX 5: הצגת הודעת טעינה בזמן שהנתונים מהשרת בדרך.

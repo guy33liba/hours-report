@@ -102,7 +102,6 @@ function EmployeeListPage() {
               {sortedEmployees.length > 0 ? (
                 sortedEmployees.map((emp) => (
                   <tr key={emp.id}>
-                    {console.log(`emp ${ emp.hourly_rate }`)}
                     <td>{emp.name}</td>
                     <td>{emp.department}</td>
                     <td>{emp.hourly_rate} ₪</td>

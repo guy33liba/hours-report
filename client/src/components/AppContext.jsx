@@ -1,12 +1,13 @@
 // src/AppContext.jsx - הספק הראשי של הקונטקסט באפליקציה
 
-import React, {
+import {
   createContext,
   useState,
   useEffect,
   useCallback,
   useMemo,
 } from "react";
+import io from 'socket.io-client';
 // ייבוא apiFetch ו-Toast מהקובץ utils.js
 import { apiFetch, Toast } from "./utils"; // וודא שהנתיב נכון
 
@@ -51,6 +52,7 @@ const CustomToast = ({ message, type, onDismiss }) => {
     </div>
   );
 };
+const socket = io("http://192.168.1.19:8989");
 
 // AppProvider: רכיב ספק הקונטקסט האמיתי שיחזיק את המצב והלוגיקה
 export const AppProvider = ({ children }) => {
@@ -171,7 +173,7 @@ export const AppProvider = ({ children }) => {
       const [employeesData, attendanceData, absencesData, settingsData] =
         await Promise.all([
           apiFetch("/employees"),
-          apiFetch("/attendance"),
+          apiFetch("/attendance"),  
           apiFetch("/absences"), // וודא שנקודת קצה זו קיימת בבקאנד שלך
           apiFetch("/settings"), // וודא שנקודת קצה זו קיימת בבקאנד שלך
         ]);

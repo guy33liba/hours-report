@@ -3,7 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
 const jwt = require("jsonwebtoken");
-
+const { Server } = require("socket.io");
 const JWT_SECRET = "my-ultra-secure-and-long-secret-key-for-jwt";
 const PORT = 5000;
 
@@ -18,6 +18,23 @@ const pool = new Pool({
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+const server = http.createServer(app);
+
+// עכשיו, נאתחל את Socket.IO ונחבר אותו לשרת שיצרנו.
+const io = new Server(server, {
+  cors: {
+    origin: "*", // מאפשר לכל כתובת להתחבר. לפרודקשן כדאי להגביל לכתובת הדומיין שלך.
+    methods: ["GET", "POST"],
+  },
+});
+io.on("connection", (socket) => {
+  console.log("✅ משתמש התחבר עם WebSocket! ID:", socket.id);
+
+  socket.on("disconnect", () => {
+    console.log("❌ משתמש התנתק. ID:", socket.id);
+  });
+});
 
 // =================================================================
 // Middleware

@@ -27,6 +27,13 @@ function AttendanceReportPage() {
 
   useEffect(() => {
     fetchAttendance();
+    
+    const intervalId = setInterval(() => {
+      console.log("מבצע קריאה חוזרת לשרת..."); // תוכל לראות את זה בקונסול של הדפדפן
+      fetchAttendance(); // קורא שוב ושוב לפונקציה שמביאה את הנתונים
+    }, 5000);
+
+    return () => clearInterval(intervalId);
   }, [fetchAttendance]); // ירוץ פעם אחת כשהרכיב נטען
 
   const formatDateTime = (dateString) => {

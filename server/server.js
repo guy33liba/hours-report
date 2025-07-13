@@ -71,7 +71,23 @@ const authorizeManager = (req, res, next) => {
 // =================================================================
 // Routes
 // =================================================================
+const broadcastAttendanceUpdate = () => {
+  console.log("Broadcasting attendance update to all clients...");
+  io.emit("attendance_updated");
+};
 
+const broadcastEmployeesUpdate = () => {
+  console.log("Broadcasting employees update to all clients...");
+  io.emit("employees_updated");
+};
+
+io.on("connection", (socket) => {
+  console.log("✅ משתמש התחבר עם WebSocket! ID:", socket.id);
+
+  socket.on("disconnect", () => {
+    console.log("❌ משתמש התנתק. ID:", socket.id);
+  });
+});
 // --- Auth Routes ---
 app.post("/auth/login", async (req, res) => {
   const { name, password } = req.body;
@@ -106,8 +122,6 @@ app.post("/auth/login", async (req, res) => {
 });
 
 app.get("/api/settings", authenticateToken, (req, res) => {
-  // Return any relevant application settings here
-  // For now, returning a dummy object is fine
   res.json({
     companyName: "SpeakCom",
     allowBreaks: true,
@@ -141,6 +155,7 @@ app.post(
         "INSERT INTO employees (name, department, hourly_rate, role, password) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, department, role, hourly_rate",
         [name, department, hourlyRate, role, password]
       );
+      broadcastEmployeesUpdate();
       res.status(201).json(rows[0]);
     } catch (err) {
       console.error("Error creating employee:", err);
@@ -233,6 +248,7 @@ app.get("/api/attendance", authenticateToken, async (req, res) => {
         FROM attendance 
         ORDER BY clock_in DESC
     `);
+    console.log("==> GET /api/attendance: Query returned rows:", rows);
     res.json(rows);
   } catch (err) {
     // --- לוג שגיאות מפורט והודעה כללית ---
@@ -240,7 +256,45 @@ app.get("/api/attendance", authenticateToken, async (req, res) => {
     res.status(500).json({ message: "שגיאה בטעינת נוכחות" });
   }
 });
+// server.js
 
+app.post("/api/attendance/clock-in", authenticateToken, async (req, res) => {
+  // LOG 1: קיבלנו בקשה
+  console.log("==> CLOCK-IN: Received request.");
+
+  const { employeeId } = req.body;
+  if (!employeeId) {
+    console.error("==> CLOCK-IN ERROR: Request is missing employeeId.");
+    return res.status(400).json({ message: "Employee ID is required" });
+  }
+
+  // LOG 2: קיבלנו employeeId תקין
+  console.log(
+    `==> CLOCK-IN: Attempting to clock in employee with ID: ${employeeId}`
+  );
+
+  try {
+    // LOG 3: מנסים להכניס מידע לבסיס הנתונים
+    console.log("==> CLOCK-IN: Executing INSERT query...");
+    const { rows } = await pool.query(
+      `INSERT INTO attendance (employee_id, clock_in) VALUES ($1, NOW()) RETURNING *`,
+      [employeeId]
+    );
+
+    // LOG 4: ההכנסה הצליחה!
+    console.log("==> CLOCK-IN: INSERT successful. Rows returned:", rows);
+
+    broadcastAttendanceUpdate();
+    res.status(201).json({ message: "Clock-in successful", entry: rows[0] });
+  } catch (err) {
+    // LOG 5: תפסנו שגיאה! זה החלק הכי חשוב
+    console.error(
+      "==> CLOCK-IN FATAL ERROR: The query failed. Error details:",
+      err
+    );
+    res.status(500).json({ message: "Server error during clock-in" });
+  }
+});
 // --- Absences Routes ---
 
 // Absences Routes

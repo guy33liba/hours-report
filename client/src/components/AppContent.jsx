@@ -35,8 +35,6 @@ function AppContent() {
                     <Icon path={ICONS.PAYROLL} /> חישוב שכר
                   </NavLink>
                   <NavLink to="/attendance-report">
-                    {" "}
-                    {/* New NavLink for AttendanceReportPage */}
                     <Icon path={ICONS.ATTENDANCE_REPORT} /> דוח נוכחות
                   </NavLink>
                   <NavLink to="/settings">

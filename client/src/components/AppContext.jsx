@@ -7,7 +7,7 @@ import {
   useCallback,
   useMemo,
 } from "react";
-import io from 'socket.io-client';
+import io from "socket.io-client";
 // ייבוא apiFetch ו-Toast מהקובץ utils.js
 import { apiFetch, Toast } from "./utils"; // וודא שהנתיב נכון
 
@@ -52,7 +52,7 @@ const CustomToast = ({ message, type, onDismiss }) => {
     </div>
   );
 };
-const socket = io("http://192.168.1.19:8989");
+const socket = io("http://192.168.1.19:5000");
 
 // AppProvider: רכיב ספק הקונטקסט האמיתי שיחזיק את המצב והלוגיקה
 export const AppProvider = ({ children }) => {
@@ -173,7 +173,7 @@ export const AppProvider = ({ children }) => {
       const [employeesData, attendanceData, absencesData, settingsData] =
         await Promise.all([
           apiFetch("/employees"),
-          apiFetch("/attendance"),  
+          apiFetch("/attendance"),
           apiFetch("/absences"), // וודא שנקודת קצה זו קיימת בבקאנד שלך
           apiFetch("/settings"), // וודא שנקודת קצה זו קיימת בבקאנד שלך
         ]);
@@ -198,6 +198,26 @@ export const AppProvider = ({ children }) => {
     if (currentUser) {
       fetchData();
     }
+    socket.on("attendance_updated", () => {
+      console.log("AppContext: עדכון נוכחות התקבל מהשרת!");
+      addToast("נתוני הנוכחות התעדכנו", "info");
+
+      // 2. כשיש עדכון, פשוט נביא מחדש את כל נתוני הנוכחות
+      apiFetch("/attendance").then(setAttendance);
+    });
+
+    // 3. האזן לעדכון של רשימת העובדים (למשל אם מנהל הוסיף/ערך עובד)
+    socket.on("employees_updated", () => {
+      console.log("AppContext: עדכון עובדים התקבל מהשרת!");
+      addToast("רשימת העובדים התעדכנה", "info");
+      apiFetch("/employees").then(setEmployees);
+    });
+
+    // 4. חשוב מאוד: ניקוי המאזינים כשהרכיב יורד מהמסך או כשהמשתמש מתנתק
+    return () => {
+      socket.off("attendance_updated");
+      socket.off("employees_updated");
+    };
   }, [currentUser, fetchData]);
 
   // --- שיחות API הקשורות לנוכחות (כניסה, יציאה, הפסקה) ---

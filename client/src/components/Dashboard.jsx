@@ -14,7 +14,6 @@ function Dashboard() {
     addToast,
     currentUser,
     loading,
-    fetchData,
   } = useContext(AppContext);
 
   // FIX 2: הוספת בדיקות בטיחות ל-useMemo. הוא לא ירוץ עד שכל הנתונים קיימים.
@@ -119,7 +118,7 @@ function Dashboard() {
             }
             return { ...a, breaks: newBreaks, onBreak: newBreakState };
           }
-          return a; 
+          return a;
         })
       );
       addToast(isOnBreak ? "יציאה להפסקה" : "חזרה מהפסקה");

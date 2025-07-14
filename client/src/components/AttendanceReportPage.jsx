@@ -11,14 +11,6 @@ function AttendanceReportPage() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const filterRecords = () => {
-    if (!searchTerm) {
-      return attendanceRecords;
-    }
-    return attendanceRecords.filter((record) =>
-      record.employeeName?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  };
   const fetchAttendance = useCallback(async () => {
     try {
       setLoading(true);
@@ -46,14 +38,7 @@ function AttendanceReportPage() {
 
   useEffect(() => {
     fetchAttendance();
-
-    const intervalId = setInterval(() => {
-      console.log("מבצע קריאה חוזרת לשרת..."); // תוכל לראות את זה בקונסול של הדפדפן
-      fetchAttendance(); // קורא שוב ושוב לפונקציה שמביאה את הנתונים
-    }, 5000);
-
-    return () => clearInterval(intervalId);
-  }, [fetchAttendance]); // ירוץ פעם אחת כשהרכיב נטען
+  }, []); // ירוץ פעם אחת כשהרכיב נטען
 
   const formatDateTime = (dateString) => {
     if (!dateString) return "בפנים";
@@ -76,7 +61,10 @@ function AttendanceReportPage() {
         <h2>דוח נוכחות עובדים</h2>
       </div>
       <div className="card">
-        <div className="card" style={{ marginBottom: "20px" }}>
+        <div
+          className="card"
+          style={{ marginBottom: "20px", border: "1px solid black" }}
+        >
           <div
             className="search-bar"
             style={{ maxWidth: "400px", margin: "0 auto" }}
@@ -96,10 +84,10 @@ function AttendanceReportPage() {
           <table>
             <thead>
               <tr>
-                <th>שם עובד</th>
-                <th>כניסה</th>
-                <th>יציאה</th>
-                <th>סה"כ שעות</th>
+                <th style={{ width: "300px" }}>שם עובד</th>
+                <th style={{ width: "300px" }}>כניסה</th>
+                <th style={{ width: "300px" }}>יציאה</th>
+                <th style={{ width: "300px" }}>סה"כ שעות</th>
               </tr>
             </thead>
             <tbody>
@@ -115,10 +103,24 @@ function AttendanceReportPage() {
                     >
                       {record.employeeName || record.employee_name}
                     </td>
-                    <td>
+                    <td
+                      style={{
+                        width: "200px",
+                        fontSize: "1.6rem",
+                        color: "blue",
+                        textDecoration: "underline",
+                      }}
+                    >
                       {formatDateTime(record.clockIn || record.check_in_time)}
                     </td>
-                    <td>
+                    <td
+                      style={{
+                        width: "200px",
+                        fontSize: "1.6rem",
+                        color: "blue",
+                        textDecoration: "underline",
+                      }}
+                    >
                       {formatDateTime(record.clockOut || record.check_out_time)}
                     </td>
                     <td>

@@ -119,7 +119,7 @@ function Dashboard() {
             }
             return { ...a, breaks: newBreaks, onBreak: newBreakState };
           }
-          return a;
+          return a; 
         })
       );
       addToast(isOnBreak ? "יציאה להפסקה" : "חזרה מהפסקה");

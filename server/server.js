@@ -17,9 +17,9 @@ const pool = new Pool({
 });
 
 const broadcastAttendanceUpdate = () => {
-    console.log('Broadcasting attendance update...');
-    io.emit('attendance_updated');
-};  
+  console.log("Broadcasting attendance update...");
+  io.emit("attendance_updated");
+};
 
 const app = express();
 app.use(cors());
@@ -227,24 +227,29 @@ app.delete(
 // --- Attendance Routes (REFACTORED AND CLEANED) ---
 app.get("/api/attendance", authenticateToken, async (req, res) => {
   try {
-    // --- שאילתה מתוקנת ומותאמת ---
-    // שימוש ב-AS כדי להמיר את שמות העמודות ל-camelCase שה-frontend מצפה לו
     const { rows } = await pool.query(`
         SELECT 
-            id, 
-            employee_id AS "employeeId", 
-            clock_in AS "clockIn", 
-            clock_out AS "clockOut", 
-            breaks, 
-            on_break AS "onBreak" 
-        FROM attendance 
-        ORDER BY clock_in DESC
+            att.id,                         -- חד משמעי: קח את ה-id מטבלת הנוכחות
+            att.employee_id AS "employeeId",
+            emp.name AS "employeeName",
+            att.clock_in AS "clockIn", 
+            att.clock_out AS "clockOut", 
+            att.breaks, 
+            att.on_break AS "onBreak" 
+        FROM 
+            attendance AS att               -- תן לטבלה את הכינוי "att"
+        JOIN 
+            employees AS emp ON att.employee_id = emp.id -- תן לטבלה את הכינוי "emp"
+        ORDER BY 
+            att.clock_in DESC
     `);
     res.json(rows);
   } catch (err) {
-    // --- לוג שגיאות מפורט והודעה כללית ---
-    console.error("!!! FATAL ERROR fetching attendance:", err);
-    res.status(500).json({ message: "שגיאה בטעינת נוכחות" });
+    console.error(
+      "!!! FATAL ERROR fetching attendance with employee names:",
+      err
+    );
+    res.status(500).json({ message: "שגיאה בטעינת דוח נוכחות" });
   }
 });
 
@@ -280,9 +285,56 @@ app.post("/api/attendance/clock-out", authenticateToken, async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
-// --- Absences Routes ---
+app.post(
+  "/api/attendance/toggle-break",
+  authenticateToken,
+  async (req, res) => {
+    const { employeeId } = req.body;
+    if (!employeeId) {
+      return res.status(400).json({ message: "Employee ID is required" });
+    }
 
-// Absences Routes
+    try {
+      const lastEntryResult = await pool.query(
+        `SELECT * FROM attendance WHERE employee_id = $1 AND clock_out IS NULL ORDER BY clock_in DESC LIMIT 1`,
+        [employeeId]
+      );
+
+      if (lastEntryResult.rows.length === 0) {
+        return res.status(404).json({ message: "No active clock-in found." });
+      }
+
+      const entry = lastEntryResult.rows[0];
+      const newBreakState = !entry.on_break;
+      const now = new Date();
+      let breaks = entry.breaks || [];
+
+      if (newBreakState) {
+        breaks.push({ start: now, end: null });
+      } else {
+        const lastBreakIndex = breaks.findLastIndex((b) => b.end === null);
+        if (lastBreakIndex !== -1) {
+          breaks[lastBreakIndex].end = now;
+        }
+      }
+
+      await pool.query(
+        `UPDATE attendance SET on_break = $1, breaks = $2 WHERE id = $3`,
+        [newBreakState, JSON.stringify(breaks), entry.id]
+      );
+
+      broadcastAttendanceUpdate();
+
+      res.status(200).json({ message: "Break status toggled." });
+    } catch (err) {
+      console.error("ERROR during break toggle:", err);
+      res.status(500).json({ message: "Server error." });
+    }
+  }
+);
+
+// Absences Routes/////////////////////////
+
 app.get("/api/absences", authenticateToken, async (req, res) => {
   try {
     // --- שאילתה מתוקנת ומותאמת ---

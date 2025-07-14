@@ -47,7 +47,7 @@ function LoginPage({ onLogin }) {
               id="username"
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => setName(e.target.value.trimEnd())}
               required
               autoFocus
             />
@@ -58,7 +58,7 @@ function LoginPage({ onLogin }) {
               id="password"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => setPassword(e.target.value.trimEnd())}
               required
             />
           </div>

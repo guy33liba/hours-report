@@ -19,7 +19,7 @@ const pool = new Pool({
 const broadcastAttendanceUpdate = () => {
     console.log('Broadcasting attendance update...');
     io.emit('attendance_updated');
-};
+};  
 
 const app = express();
 app.use(cors());

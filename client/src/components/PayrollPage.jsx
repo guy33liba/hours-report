@@ -27,7 +27,7 @@ function PayrollPage() {
     setSelectedEmployeeIds(
       e.target.checked
         ? (employees || [])
-            .filter((emp) => emp.role === "employee")
+            .filter((emp) => emp.role === "employee" || emp.role === "manager")
             .map((emp) => emp.id)
         : []
     );

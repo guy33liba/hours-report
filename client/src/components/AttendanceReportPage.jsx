@@ -94,9 +94,9 @@ function AttendanceReportPage() {
           </div>
         </div>
         <div className="table-container">
-          <table style={{ width: "100vw" }}>
-            <thead style={{ width: "100vw" }}>
-              <tr style={{ width: "100vw" }}>
+          <table>
+            <thead>
+              <tr>
                 <th>שם עובד</th>
                 <th>כניסה</th>
                 <th>יציאה</th>

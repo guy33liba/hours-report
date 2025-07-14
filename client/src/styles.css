@@ -267,13 +267,7 @@ tbody tr:hover {
   background-color: var(--app-bg);
   transition: all var(--transition-speed);
 }
-.form-group input:focus,
-.form-group select:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  background-color: var(--card-bg);
-  box-shadow: 0 0 2px 13px rgba(79, 70, 229, 0.2);
-}
+
 .form-actions {
   display: flex;
   justify-content: flex-end;
@@ -759,31 +753,42 @@ input:checked + .slider:before {
 .search-bar input::placeholder {
   color: var(--text-light);
 }
-
 .table-container {
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  width: 100%;
   overflow: hidden;
-  background-color: var(--card-bg);
+  background-color: #ffffff;
+}
+
+.table-container table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 1rem;
+  direction: rtl;
+}
+
+.table-container th,
+.table-container td {
+  text-align: center;
+  padding: 1rem;
+  border-bottom: 1px solid #e0e0e0;
 }
 
 .table-container th {
-  background-color: #f9fafb;
-  color: var(--text-light);
-  font-weight: 600;
-  text-align: right;
-  padding: 0.75rem 1.5rem;
-  border-bottom: 1px solid var(--border-color);
-  font-size: 0.875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  background-color: #f0f4f8;
+  font-weight: bold;
+  font-size: 1rem;
+  color: #333;
+}
+
+.table-container tbody tr:hover {
+  background-color: #f5faff;
 }
 
 .table-container td {
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--border-color);
-  color: var(--text-main);
-  transition: background-color 0.15s ease-in-out;
+  font-size: 1.1rem;
+  color: #1e3a8a; /* כחול כהה */
 }
 
 .table-container tbody tr:last-child td {
@@ -793,7 +798,6 @@ input:checked + .slider:before {
 .table-container tbody tr:hover {
   background-color: var(--primary-light);
 }
-
 .employee-cell {
   font-weight: 600;
   color: var(--text-dark);

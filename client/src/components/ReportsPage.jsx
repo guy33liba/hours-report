@@ -94,6 +94,7 @@ function ReportsPage() {
           <div className="form-group">
             <label>מתאריך</label>
             <input
+              style={{ fontSize: "20px" }}
               type="date"
               value={range.start}
               onChange={(e) =>
@@ -104,6 +105,7 @@ function ReportsPage() {
           <div className="form-group">
             <label>עד תאריך</label>
             <input
+              style={{ fontSize: "20px" }}
               type="date"
               value={range.end}
               onChange={(e) => setRange((p) => ({ ...p, end: e.target.value }))}
@@ -112,6 +114,7 @@ function ReportsPage() {
           <div className="form-group">
             <label>עובד/ת</label>
             <select
+              style={{ fontSize: "20px" }}
               value={selectedEmployeeId}
               onChange={(e) => setSelectedEmployeeId(e.target.value)}
             >

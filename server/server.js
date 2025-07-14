@@ -16,6 +16,11 @@ const pool = new Pool({
   port: 5432,
 });
 
+const broadcastAttendanceUpdate = () => {
+    console.log('Broadcasting attendance update...');
+    io.emit('attendance_updated');
+};
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -260,6 +265,10 @@ app.post("/api/attendance/clock-in", authenticateToken, async (req, res) => {
 app.post("/api/attendance/clock-out", authenticateToken, async (req, res) => {
   const { employeeId } = req.body;
   try {
+    console.log("employeeId:", employeeId);
+    if (!employeeId) {
+      return res.status(400).json({ message: "Missing employeeId" });
+    }
     await pool.query(
       `UPDATE attendance SET clock_out = NOW() WHERE employee_id = $1 AND clock_out IS NULL`,
       [employeeId]
@@ -267,6 +276,7 @@ app.post("/api/attendance/clock-out", authenticateToken, async (req, res) => {
     broadcastAttendanceUpdate();
     res.status(200).send();
   } catch (err) {
+    console.error("Error during clock-out:", err);
     res.status(500).json({ message: "Server error" });
   }
 });

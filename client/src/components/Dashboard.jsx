@@ -81,7 +81,7 @@ function Dashboard() {
   };
   const handleClockOut = async (employeeId) => {
     try {
-      await apiFetch("/api/attendance/clock-out", {
+      await apiFetch("/attendance/clock-out", {
         method: "POST",
         body: JSON.stringify({ employeeId }),
       });

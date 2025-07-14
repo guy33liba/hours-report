@@ -2,6 +2,7 @@ import { useContext, useMemo } from "react";
 import DigitalClock from "./DigitalClock";
 import EmployeeTimer from "./EmployeeTimer";
 import { AppContext } from "./AppContext";
+import { apiFetch } from "./utils";
 import "../styles.css";
 
 function Dashboard() {
@@ -58,24 +59,24 @@ function Dashboard() {
   // כל פונקציות ה-handle... נשארות כפי שהן, הן תקינות.
   const handleClockIn = async (employeeId) => {
     try {
-      await apiFetch("/api/attendance/clock-in", {
+      await apiFetch("/attendance/clock-in", {
         method: "POST",
         body: JSON.stringify({ employeeId }),
       });
-      // setAttendance((prev) => [
-      //   ...prev,
-      //   {
-      //     id: Date.now(),
-      //     employeeId,
-      //     clockIn: new Date().toISOString(),
-      //     clockOut: null,
-      //     breaks: [],
-      //     onBreak: false,
-      //   },
-      // ]);
+      setAttendance((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          employeeId,
+          clockIn: new Date().toISOString(),
+          clockOut: null,
+          breaks: [],
+          onBreak: false,
+        },
+      ]);
       addToast("כניסה הוחתמה בהצלחה", "success");
     } catch (error) {
-      addToast(`שגיאה בהחתמת כניסה: ${err.message}`, "danger");
+      addToast(`שגיאה בהחתמת כניסה: ${error.message}`, "danger");
     }
   };
   const handleClockOut = async (employeeId) => {
@@ -85,45 +86,45 @@ function Dashboard() {
         body: JSON.stringify({ employeeId }),
       });
       addToast("יציאה הוחתמה בהצלחה");
-      // setAttendance((prev) =>
-      //   prev.map((a) =>
-      //     !a.clockOut && a.employeeId === employeeId
-      //       ? { ...a, clockOut: new Date().toISOString() }
-      //       : a
-      //   )
-      // );
-    } catch (err) {
-      addToast(`שגיאה בהחתמת יציאה: ${err.message}`, "danger");
+      setAttendance((prev) =>
+        prev.map((a) =>
+          !a.clockOut && a.employeeId === employeeId
+            ? { ...a, clockOut: new Date().toISOString() }
+            : a
+        )
+      );
+    } catch (error) {
+      addToast(`שגיאה בהחתמת יציאה: ${error.message}`, "danger");
     }
   };
   const handleBreakToggle = async (employeeId) => {
     try {
-      await apiFetch("/api/attendance/toggle-break", {
+      await apiFetch("/attendance/toggle-break", {
         method: "POST",
         body: JSON.stringify({ employeeId }),
       });
       let isOnBreak = false;
-      // setAttendance((prev) =>
-      //   prev.map((a) => {
-      //     if (!a.clockOut && a.employeeId === employeeId) {
-      //       const newBreakState = !a.onBreak;
-      //       const now = new Date().toISOString();
-      //       let newBreaks = [...(a.breaks || [])];
-      //       if (newBreakState) {
-      //         newBreaks.push({ start: now, end: null });
-      //         isOnBreak = true;
-      //       } else {
-      //         const last = newBreaks.findLastIndex((b) => !b.end);
-      //         if (last !== -1) newBreaks[last].end = now;
-      //       }
-      //       return { ...a, breaks: newBreaks, onBreak: newBreakState };
-      //     }
-      //     return a;
-      //   })
-      // );
+      setAttendance((prev) =>
+        prev.map((a) => {
+          if (!a.clockOut && a.employeeId === employeeId) {
+            const newBreakState = !a.onBreak;
+            const now = new Date().toISOString();
+            let newBreaks = [...(a.breaks || [])];
+            if (newBreakState) {
+              newBreaks.push({ start: now, end: null });
+              isOnBreak = true;
+            } else {
+              const last = newBreaks.findLastIndex((b) => !b.end);
+              if (last !== -1) newBreaks[last].end = now;
+            }
+            return { ...a, breaks: newBreaks, onBreak: newBreakState };
+          }
+          return a;
+        })
+      );
       addToast(isOnBreak ? "יציאה להפסקה" : "חזרה מהפסקה");
     } catch (error) {
-      addToast(`שגיאה בעדכון הפסקה: ${err.message}`, "danger");
+      addToast(`שגיאה בעדכון הפסקה: ${error.message}`, "danger");
     }
   };
 

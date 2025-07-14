@@ -31,7 +31,7 @@ export const apiFetch = async (endpoint, options = {}) => {
       const errorMessage =
         data.message || `An API error occurred (Status: ${response.status})`;
       throw new Error(errorMessage);
-    }z
+    }
 
     return data;
   } catch (error) {

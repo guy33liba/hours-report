@@ -9,12 +9,15 @@ function LoginPage({ onLogin }) {
     e.preventDefault();
     setError("");
     setIsLoading(true);
+
+    const trimmedName = name.trim();
+    const trimmedPassword = password.trim();
     try {
       // קריאה ל-API של השרת כדי לבצע לוגין
       const data = await apiFetch("/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, password }),
+        body: JSON.stringify({ name: trimmedName, password: trimmedPassword }),
       });
       localStorage.setItem("token", data.token);
       // השרת יחזיר טוקן ופרטי משתמש אם ההתחברות הצליחה

@@ -2,7 +2,7 @@
 const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
-const http = require("http")
+const http = require("http");
 const jwt = require("jsonwebtoken");
 const { Server } = require("socket.io");
 const JWT_SECRET = "my-ultra-secure-and-long-secret-key-for-jwt";
@@ -24,6 +24,7 @@ const server = http.createServer(app);
 
 // עכשיו, נאתחל את Socket.IO ונחבר אותו לשרת שיצרנו.
 const io = new Server(server, {
+  path: "/socket.io/",
   cors: {
     origin: "*", // מאפשר לכל כתובת להתחבר. לפרודקשן כדאי להגביל לכתובת הדומיין שלך.
     methods: ["GET", "POST"],
@@ -242,6 +243,33 @@ app.get("/api/attendance", authenticateToken, async (req, res) => {
   }
 });
 
+app.post("/api/attendance/clock-in", authenticateToken, async (req, res) => {
+  const { employeeId } = req.body;
+  try {
+    await pool.query(
+      `INSERT INTO attendance (employee_id, clock_in) VALUES ($1, NOW())`,
+      [employeeId]
+    );
+    broadcastAttendanceUpdate();
+    res.status(201).send();
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.post("/api/attendance/clock-out", authenticateToken, async (req, res) => {
+  const { employeeId } = req.body;
+  try {
+    await pool.query(
+      `UPDATE attendance SET clock_out = NOW() WHERE employee_id = $1 AND clock_out IS NULL`,
+      [employeeId]
+    );
+    broadcastAttendanceUpdate();
+    res.status(200).send();
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
 // --- Absences Routes ---
 
 // Absences Routes
@@ -475,6 +503,6 @@ app.post(
     }
   }
 );
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`✅ Server is running on port ${PORT}`);
 });

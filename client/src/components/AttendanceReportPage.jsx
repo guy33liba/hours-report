@@ -27,7 +27,7 @@ function AttendanceReportPage() {
 
   useEffect(() => {
     fetchAttendance();
-    
+
     const intervalId = setInterval(() => {
       console.log("מבצע קריאה חוזרת לשרת..."); // תוכל לראות את זה בקונסול של הדפדפן
       fetchAttendance(); // קורא שוב ושוב לפונקציה שמביאה את הנתונים
@@ -71,7 +71,15 @@ function AttendanceReportPage() {
               {attendanceRecords.length > 0 ? (
                 attendanceRecords.map((record) => (
                   <tr key={record.id}>
-                    <td>{record.employeeName || record.employee_name}</td>
+                    <td
+                      style={{
+                        color: "blue",
+                        fontSize: "25px",
+                        fontWeight: "bolder",
+                      }}
+                    >
+                      {record.employeeName || record.employee_name}
+                    </td>
                     <td>
                       {formatDateTime(record.clockIn || record.check_in_time)}
                     </td>

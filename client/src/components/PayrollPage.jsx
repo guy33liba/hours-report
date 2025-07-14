@@ -1,4 +1,4 @@
-import { useContext, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import DigitalClock from "./DigitalClock";
 import { AppContext } from "./AppContext";
 import { apiFetch } from "./utils";
@@ -16,6 +16,15 @@ function PayrollPage() {
   const [payrollResult, setPayrollResult] = useState(null);
   const [isCalculating, setIsCalculating] = useState(false);
 
+  // רשימה של כל העובדים והמנהלים שניתן לבחור
+  const selectableEmployees = useMemo(
+    () =>
+      (employees || []).filter(
+        (emp) => emp.role === "employee" || emp.role === "manager"
+      ),
+    [employees]
+  );
+
   const handleEmployeeSelection = (e) => {
     const id = parseInt(e.target.value);
     setSelectedEmployeeIds((prev) =>
@@ -23,13 +32,10 @@ function PayrollPage() {
     );
   };
 
+  // פונקציה פשוטה ונכונה לבחירת כולם
   const handleSelectAll = (e) => {
     setSelectedEmployeeIds(
-      e.target.checked
-        ? (employees || [])
-            .filter((emp) => emp.role === "employee" || emp.role === "manager")
-            .map((emp) => emp.id)
-        : []
+      e.target.checked ? selectableEmployees.map((emp) => emp.id) : []
     );
   };
 
@@ -54,7 +60,12 @@ function PayrollPage() {
           endDate: dateRange.end,
         }),
       });
-      setPayrollResult(data.details);
+      // בדיקה בטיחותית לפני שמירת התוצאה
+      if (data && data.details) {
+        setPayrollResult(data.details);
+      } else {
+        setPayrollResult([]); // הצג הודעת "אין נתונים" במקום קריסה
+      }
     } catch (err) {
       addToast(err.message || "שגיאה בחישוב השכר", "danger");
     } finally {
@@ -78,38 +89,32 @@ function PayrollPage() {
             <h3>1. בחר עובדים</h3>
             <div className="employee-select-list">
               <div className="select-all-item">
+                {/* --- התיקון כאן: שימוש בלוגיקה הפשוטה והנכונה --- */}
                 <input
                   type="checkbox"
                   id="select-all"
                   onChange={handleSelectAll}
                   checked={
-                    selectedEmployeeIds.length ===
-                      (employees || []).filter((e) => e.role === "employee")
-                        .length &&
-                    (employees || []).filter((e) => e.role === "employee")
-                      .length > 0
+                    selectableEmployees.length > 0 &&
+                    selectedEmployeeIds.length === selectableEmployees.length
                   }
-                  disabled={
-                    (employees || []).filter((e) => e.role === "employee")
-                      .length === 0
-                  }
+                  disabled={selectableEmployees.length === 0}
                 />
-                <label htmlFor="select-all">בחר את כל העובדים</label>
+                <label htmlFor="select-all">בחר את כולם</label>
               </div>
-              {(employees || [])
-                .filter((emp) => emp.role === "employee")
-                .map((emp) => (
-                  <div key={emp.id} className="employee-select-item">
-                    <input
-                      type="checkbox"
-                      id={`emp-${emp.id}`}
-                      value={emp.id}
-                      checked={selectedEmployeeIds.includes(emp.id)}
-                      onChange={handleEmployeeSelection}
-                    />
-                    <label htmlFor={`emp-${emp.id}`}>{emp.name}</label>
-                  </div>
-                ))}
+              {/* --- התיקון כאן: שימוש ברשימה שהכנו מראש --- */}
+              {selectableEmployees.map((emp) => (
+                <div key={emp.id} className="employee-select-item">
+                  <input
+                    type="checkbox"
+                    id={`emp-${emp.id}`}
+                    value={emp.id}
+                    checked={selectedEmployeeIds.includes(emp.id)}
+                    onChange={handleEmployeeSelection}
+                  />
+                  <label htmlFor={`emp-${emp.id}`}>{emp.name}</label>
+                </div>
+              ))}
             </div>
           </div>
           <div className="control-section">
@@ -147,6 +152,7 @@ function PayrollPage() {
           <p style={{ textAlign: "center" }}>מחשב דוח שכר, אנא המתן...</p>
         </div>
       )}
+      {/* --- התיקון כאן: בדיקה בטוחה יותר של התוצאות --- */}
       {payrollResult && (
         <div className="card">
           <h3>תוצאות דוח שכר</h3>
@@ -163,8 +169,8 @@ function PayrollPage() {
                 </tr>
               </thead>
               <tbody>
-                {payrollResult.details.length > 0 ? (
-                  payrollResult.details.map((item) => (
+                {payrollResult.length > 0 ? (
+                  payrollResult.map((item) => (
                     <tr key={item.id}>
                       <td>{item.name}</td>
                       <td>{item.totalRegularHours.toFixed(2)}</td>

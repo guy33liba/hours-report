@@ -40,10 +40,10 @@ function AttendanceReportPage() {
     fetchAttendance();
   }, []); // ירוץ פעם אחת כשהרכיב נטען
 
-  const formatDateTime = (dateString) => {
-    if (!dateString) return "בפנים";
-    return new Date(dateString).toLocaleString("he-IL");
-  };
+  // const formatDateTime = (dateString) => {
+  //   if (!dateString) return "בפנים";
+  //   return new Date(dateString).toLocaleString("he-IL");
+  // };
   const formatDate = (dateString) => {
     if (!dateString) return "-";
     return new Date(dateString).toLocaleDateString("he-IL");

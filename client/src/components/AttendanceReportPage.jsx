@@ -44,6 +44,19 @@ function AttendanceReportPage() {
     if (!dateString) return "בפנים";
     return new Date(dateString).toLocaleString("he-IL");
   };
+  const formatDate = (dateString) => {
+    if (!dateString) return "-";
+    return new Date(dateString).toLocaleDateString("he-IL");
+  };
+
+  // Formats only the time (e.g., "09:30")
+  const formatTime = (dateString) => {
+    if (!dateString) return "בפנים"; // "Still In"
+    return new Date(dateString).toLocaleTimeString("he-IL", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   const calculateHours = (start, end) => {
     if (!start || !end) return "-";
@@ -81,13 +94,13 @@ function AttendanceReportPage() {
           </div>
         </div>
         <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th style={{ width: "300px" }}>שם עובד</th>
-                <th style={{ width: "300px" }}>כניסה</th>
-                <th style={{ width: "300px" }}>יציאה</th>
-                <th style={{ width: "300px" }}>סה"כ שעות</th>
+          <table style={{ width: "100vw" }}>
+            <thead style={{ width: "100vw" }}>
+              <tr style={{ width: "100vw" }}>
+                <th>שם עובד</th>
+                <th>כניסה</th>
+                <th>יציאה</th>
+                <th>סה"כ שעות</th>
               </tr>
             </thead>
             <tbody>
@@ -102,8 +115,48 @@ function AttendanceReportPage() {
                       }}
                     >
                       {record.employeeName || record.employee_name}
+                    </td>{" "}
+                    <td
+                      style={{
+                        width: "200px",
+                        fontSize: "1.6rem",
+                        color: "blue",
+                        textDecoration: "underline",
+                      }}
+                    >
+                      {formatDate(record.clockIn || record.check_in_time)}
                     </td>
                     <td
+                      style={{
+                        width: "200px",
+                        fontSize: "1.6rem",
+                        color: "blue",
+                        textDecoration: "underline",
+                      }}
+                    >
+                      {formatTime(record.clockIn || record.check_in_time)}
+                    </td>
+                    <td
+                      style={{
+                        width: "200px",
+                        fontSize: "1.6rem",
+                        color: "blue",
+                        textDecoration: "underline",
+                      }}
+                    >
+                      {formatDate(record.clockOut || record.check_out_time)}
+                    </td>
+                    <td
+                      style={{
+                        width: "200px",
+                        fontSize: "1.6rem",
+                        color: "blue",
+                        textDecoration: "underline",
+                      }}
+                    >
+                      {formatTime(record.clockOut || record.check_out_time)}
+                    </td>
+                    {/* <td
                       style={{
                         width: "200px",
                         fontSize: "1.6rem",
@@ -122,7 +175,7 @@ function AttendanceReportPage() {
                       }}
                     >
                       {formatDateTime(record.clockOut || record.check_out_time)}
-                    </td>
+                    </td> */}
                     <td>
                       {calculateHours(
                         record.clockIn || record.check_in_time,

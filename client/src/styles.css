@@ -225,12 +225,15 @@ td {
 tbody tr:last-child td {
   border-bottom: none;
 }
+.table-container thead {
+  background-color: #f8f9fa; /* רקע אפור בהיר לכותרות */
+}
 thead th {
   background-color: #f8f9fa; /* רקע אפור בהיר לכותרות */
   font-weight: 700;
   color: var(--text-dark);
   text-transform: uppercase;
-  font-size: 0.875rem;
+  font-size: 1rem;
   letter-spacing: 0.5px;
   border-bottom: 2px solid #343a40; /* קו תחתון עבה וכהה */
 }
@@ -706,7 +709,7 @@ input:checked + .slider:before {
   min-width: 280px; /* Gives the buttons enough space to breathe */
 }
 /* --- Attendance/Employee Report Page Enhancements --- */
-.page-header h2 .icon {
+.page-header h2 .search-icon {
   vertical-align: -4px;
   margin-inline-end: 12px;
   color: var(--primary-color);
@@ -726,15 +729,16 @@ input:checked + .slider:before {
   background-color: var(--app-bg);
   border-radius: 8px;
   padding: 0.5rem 0.75rem;
-  border: 1px solid var(--border-color);
+  border: 1px solid black;
   transition: all 0.2s ease-in-out;
   max-width: 450px;
+  box-shadow: 0 0 2px 5px rgba(113, 110, 167, 0.2);
 }
 
 .search-bar:focus-within {
   border-color: var(--primary-color);
   background-color: #fff;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  box-shadow: 0 0 2px 10px rgba(113, 110, 167, 0.2);
 }
 
 .search-bar .icon {
@@ -761,11 +765,6 @@ input:checked + .slider:before {
   border-radius: var(--border-radius);
   overflow: hidden;
   background-color: var(--card-bg);
-}
-
-.table-container table {
-  width: 100%;
-  border-collapse: collapse;
 }
 
 .table-container th {

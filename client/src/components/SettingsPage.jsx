@@ -5,7 +5,16 @@ import { useContext, useEffect, useState } from "react";
 import { apiFetch } from "./utils";
 function SettingsPage() {
   const { settings, setSettings, addToast } = useContext(AppContext);
-  const [localSettings, setLocalSettings] = useState(settings);
+  const [localSettings, setLocalSettings] = useState({
+    standardWorkDayHours: 8.5,
+    overtimeRatePercent: 125,
+    ...settings,
+  });
+  //////////////////////////////
+
+  useEffect(() => {
+    setLocalSettings((prev) => ({ ...prev, settings }));
+  }, [settings]);
 
   ///////////////////
 
@@ -25,11 +34,8 @@ function SettingsPage() {
     }
   };
 
-  //////////////////////////////
+  ///////////////////
 
-  useEffect(() => {
-    setLocalSettings(settings);
-  }, [settings]);
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     const val =
@@ -40,6 +46,8 @@ function SettingsPage() {
         : value;
     setLocalSettings((prev) => ({ ...prev, [name]: val }));
   };
+
+  ///////////////////
 
   return (
     <>

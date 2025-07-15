@@ -447,15 +447,6 @@ app.get(
 
 //SETTINGS////////////////////////
 
-app.get("/api/settings", authenticateToken, (req, res) => {
-  // Return any relevant application settings here
-  // For now, returning a dummy object is fine
-  res.json({
-    companyName: "SpeakCom",
-    allowBreaks: true,
-  });
-});
-
 app.post(
   "/api/payroll",
   authenticateToken,
@@ -571,6 +562,15 @@ app.post(
     }
   }
 );
+app.get("/api/settings", authenticateToken, (req, res) => {
+  // Return any relevant application settings here
+  // For now, returning a dummy object is fine
+  res.json({
+    companyName: "SpeakCom",
+    allowBreaks: true,
+  });
+});
+
 app.put(
   "/api/settings",
   authenticateToken,
@@ -578,12 +578,12 @@ app.put(
   async (req, res) => {
     const { standardWorkDayHours, overtimeRatePercent } = req.body;
     console.log("Received settings update request with body:", req.body);
-    if (
-      standardWorkDayHours === undefined ||
-      overtimeRatePercent === undefined
-    ) {
-      return res.status(400).json({ message: "נדרש לספק את כל ערכי ההגדרות." });
-    }
+    // if (
+    //   standardWorkDayHours === undefined ||
+    //   overtimeRatePercent === undefined
+    // ) {
+    //   return res.status(400).json({ message: "נדרש לספק את כל ערכי ההגדרות." });
+    // }
 
     try {
       await pool.query(

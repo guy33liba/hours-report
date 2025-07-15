@@ -494,15 +494,16 @@ app.post(
       );
 
       // --- שלב 3: חישוב השכר (אותה לוגיקה כמו קודם, אבל עכשיו תמיד יש לנו את פרטי העובד) ---
-      const { rows: settingRows } = await pool.query(
+      const { rows: settingsRows } = await pool.query(
         "SELECT standard_work_day_hours,overtime_rate_percent FROM application_settings WHERE id = 1"
       );
-      const settings =
-        settingRows[0] |
-        {
-          standardWorkDayHours: 8.5,
-          overtimeRatePercent: 125.0,
-        };
+      const settings = settingsRows[0] || {
+        standard_work_day_hours: 8.5,
+        overtime_rate_percent: 125.0,
+      };
+
+      settings.standardWorkDayHours = settings.standard_work_day_hours;
+      settings.overtimeRatePercent = settings.overtime_rate_percent;
 
       const payrollDetails = employeesData.map((employee) => {
         const hourlyRate = parseFloat(employee.hourly_rate);
@@ -567,6 +568,32 @@ app.post(
     } catch (err) {
       console.error(" ERROR Generating Payroll Report:", err);
       res.status(500).json({ message: "שגיאה בהפקת דוח שכר." });
+    }
+  }
+);
+app.put(
+  "/api/settings",
+  authenticateToken,
+  authorizeManager,
+  async (req, res) => {
+    const { standardWorkDayHours, overtimeRatePercent } = req.body;
+
+    if (
+      standardWorkDayHours === undefined ||
+      overtimeRatePercent === undefined
+    ) {
+      return res.status(400).json({ message: "נדרש לספק את כל ערכי ההגדרות." });
+    }
+
+    try {
+      await pool.query(
+        "UPDATE application_settings SET standard_work_day_hours = $1, overtime_rate_percent = $2 WHERE id = 1",
+        [standardWorkDayHours, overtimeRatePercent]
+      );
+      res.json({ message: "ההגדרות עודכנו בהצלחה." });
+    } catch (err) {
+      console.error("Error updating settings:", err);
+      res.status(500).json({ message: "שגיאה בעדכון ההגדרות." });
     }
   }
 );

@@ -102,7 +102,7 @@ app.post("/api/auth/login", async (req, res) => {
     const token = jwt.sign(
       { userId: user.id, role: user.role, name: user.name },
       JWT_SECRET, // FIX: Used constant
-      { expiresIn: "30d" }
+      { expiresIn: "20d" }
     );
     delete user.password;
     res.json({ token, user });

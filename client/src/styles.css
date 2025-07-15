@@ -819,7 +819,8 @@ input:checked + .slider:before {
 
 /* "זברה" - צביעת כל שורה שנייה בגוף הטבלה לרקע שונה לקריאות משופרת */
 .attendance-table-container tbody tr:nth-child(even) {
-  background-color: #ffffff93;
+  background-color: #e9e7e793;
+  
 }
 
 /* סגנונות מיוחדים שהיו לך בקוד, עכשיו בתור קלאסים לשימוש רב פעמי */

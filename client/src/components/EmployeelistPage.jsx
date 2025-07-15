@@ -83,7 +83,9 @@ function EmployeeListPage() {
     <>
       <div className="page-header">
         <h2>ניהול עובדים</h2>
-        <button onClick={() => handleOpenEditModal()}>הוסף עובד חדש</button>
+        {user && user.role === "manager" && (
+          <button onClick={() => handleOpenEditModal()}>הוסף עובד חדש</button>
+        )}
       </div>
       <div className="card">
         <div className="table-container">

@@ -130,7 +130,6 @@ app.get("/api/employees", authenticateToken, async (req, res) => {
     res.json(rows);
   } catch (err) {
     console.error("!!! FATAL ERROR fetching employees:", err);
-
     res.status(500).json({ message: "שגיאה קריטית בטעינת עובדים מהשרת." });
   }
 });

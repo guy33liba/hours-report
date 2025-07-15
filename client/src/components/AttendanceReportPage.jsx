@@ -93,6 +93,7 @@ function AttendanceReportPage() {
             />
           </div>
         </div>
+
         <div className="table-container">
           <table>
             <thead>

@@ -781,14 +781,30 @@ input:checked + .slider:before {
   font-size: 1rem;
   color: #333;
 }
-
-.table-container tbody tr:hover {
-  background-color: #f5faff;
+.table-container table {
+  width: 100%;
+  border-collapse: collapse; /* מונע רווחים כפולים בין הגבולות */
+  table-layout: fixed; /* זה החלק החשוב: מאלץ עמודות להיות ברוחב שווה */
 }
 
+.table-container th,
 .table-container td {
+  padding: 12px 15px; /* מוסיף ריווח פנימי יפה */
+  border: 1px solid #a3a2a2;
+  text-align: center; /* ממקם את הטקסט במרכז */
+  font-size: 1rem;
+  background-color: #f0f4f8;
   font-size: 1.1rem;
   color: #1e3a8a; /* כחול כהה */
+  /* הסרנו את ה-width: 100% הבעייתי */
+}
+
+.table-container th {
+  font-weight: bold;
+  color: #333;
+}
+.table-container tbody tr:hover {
+  background-color: #f5faff;
 }
 
 .table-container tbody tr:last-child td {

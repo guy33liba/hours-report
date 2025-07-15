@@ -781,25 +781,59 @@ input:checked + .slider:before {
   width: 100%;
   color: #333;
 }
+* --- AttendanceReportPage.css --- */
+
+/* הגדרות כלליות לקונטיינר של הטבלה */
 .attendance-table-container {
-  background-color: #f0f4f8;
-  font-weight: bold;
-  font-size: 1rem;
   width: 100%;
-  border: 1px solid blue;
-  color: #333;
+  overflow-x: auto; /* מאפשר גלילה אופקית על מסכים קטנים מאוד */
+  margin-top: 20px;
 }
-.attendance-table-container-header th {
-  background-color: #e2e2e2c4;
-  position: relative;
+
+/* הגדרות בסיס לטבלה עצמה */
+.attendance-table-container table {
+  width: 100%;
+  border-collapse: collapse; /* מונע גבולות כפולים ונראה נקי יותר */
+  table-layout: fixed; /* כלל הקסם: מאלץ עמודות להיות ברוחב שווה */
 }
-.attendance-table-container-div {
-  background-color: #e2e2e2c4;
-  width: 565px;
-  border-bottom: 2px solid;
-  height: 55px;
-  position: absolute;
-  left: 89px;
+
+/* סגנון אחיד לכל התאים (כותרות ונתונים) */
+.attendance-table-container th,
+.attendance-table-container td {
+  padding: 12px 15px; /* ריווח פנימי לנוחות קריאה */
+  border: 1px solid #e0e0e0;
+  text-align: center; /* ממקם את הטקסט במרכז */
+  vertical-align: middle; /* ממקם את הטקסט במרכז אנכית */
+  word-wrap: break-word; /* מבטיח שטקסט ארוך לא "ישבור" את העיצוב */
+}
+
+/* סגנון מיוחד לתאי הכותרת */
+.attendance-table-container th {
+  background-color: #ffefef;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #334155;
+  text-transform: uppercase; /* הופך את הכותרות לאותיות גדולות למראה מקצועי */
+  font-weight: bolder ;
+  letter-spacing: 0.5px;
+}
+
+/* "זברה" - צביעת כל שורה שנייה בגוף הטבלה לרקע שונה לקריאות משופרת */
+.attendance-table-container tbody tr:nth-child(even) {
+  background-color: #ffffff93;
+}
+
+/* סגנונות מיוחדים שהיו לך בקוד, עכשיו בתור קלאסים לשימוש רב פעמי */
+.cell-employee-name {
+  font-weight: bold;
+  font-size: 1.1rem;
+  color: #0056b3; /* כחול כהה יותר וקריא */
+}
+
+.cell-time-data {
+  font-family: "Courier New", Courier, monospace; /* פונט מתאים למספרים */
+  font-size: 1.1rem;
+  color: #1e3a8a;font-weight: bolder;
 }
 .table-container tbody tr:hover {
   background-color: #f5faff;

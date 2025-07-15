@@ -73,7 +73,7 @@ function AttendanceReportPage() {
         <h2>דוח נוכחות עובדים</h2>
       </div>
       <div className="card">
-        <div className="card" style={{ marginBottom: "20px", border: "1px solid black" }}>
+        <div className="card-header" style={{ marginBottom: "20px" }}>
           <div className="search-bar" style={{ maxWidth: "400px", margin: "0 auto" }}>
             <span className="search-icon">
               <Icon path="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
@@ -86,88 +86,39 @@ function AttendanceReportPage() {
             />
           </div>
         </div>
+
+        {/* שלב 2: החלפת מבנה הטבלה כולו */}
         <div className="attendance-table-container">
-          <div className="attendance-table-container-div"></div>
           <table>
-            <thead className="attendance-table-container-header">
-              <th>שם עובד</th>
-              <th>כניסה</th>
-              <th>יציאה</th>
-              <th>סה"כ שעות</th>
+            <thead>
+              <tr>
+                <th>שם עובד</th>
+                <th>תאריך כניסה</th>
+                <th>שעת כניסה</th>
+                <th>תאריך יציאה</th>
+                <th>שעת יציאה</th>
+                <th>סה"כ שעות</th>
+              </tr>
             </thead>
             <tbody>
               {filteredRecords.length > 0 ? (
                 filteredRecords.map((record) => (
                   <tr key={record.id}>
-                    <td
-                      style={{
-                        color: "blue",
-                        fontSize: "25px",
-                        fontWeight: "bolder",
-                      }}
-                    >
+                    <td className="cell-employee-name">
                       {record.employeeName || record.employee_name}
                     </td>
-                    <td
-                      style={{
-                        width: "200px",
-                        fontSize: "1.6rem",
-                        color: "blue",
-                        textDecoration: "underline",
-                      }}
-                    >
+                    <td className="cell-time-data">
                       {formatDate(record.clockIn || record.check_in_time)}
                     </td>
-                    <td
-                      style={{
-                        width: "200px",
-                        fontSize: "1.6rem",
-                        color: "blue",
-                        textDecoration: "underline",
-                      }}
-                    >
+                    <td className="cell-time-data">
                       {formatTime(record.clockIn || record.check_in_time)}
                     </td>
-                    <td
-                      style={{
-                        width: "200px",
-                        fontSize: "1.6rem",
-                        color: "blue",
-                        textDecoration: "underline",
-                      }}
-                    >
+                    <td className="cell-time-data">
                       {formatDate(record.clockOut || record.check_out_time)}
                     </td>
-                    <td
-                      style={{
-                        width: "200px",
-                        fontSize: "1.6rem",
-                        color: "blue",
-                        textDecoration: "underline",
-                      }}
-                    >
+                    <td className="cell-time-data">
                       {formatTime(record.clockOut || record.check_out_time)}
                     </td>
-                    {/* <td
-                      style={{
-                        width: "200px",
-                        fontSize: "1.6rem",
-                        color: "blue",
-                        textDecoration: "underline",
-                      }}
-                    >
-                      {formatDateTime(record.clockIn || record.check_in_time)}
-                    </td>
-                    <td
-                      style={{
-                        width: "200px",
-                        fontSize: "1.6rem",
-                        color: "blue",
-                        textDecoration: "underline",
-                      }}
-                    >
-                      {formatDateTime(record.clockOut || record.check_out_time)}
-                    </td> */}
                     <td>
                       {calculateHours(
                         record.clockIn || record.check_in_time,
@@ -178,7 +129,7 @@ function AttendanceReportPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="4" style={{ textAlign: "center" }}>
+                  <td colSpan="6" style={{ textAlign: "center" }}>
                     אין נתוני נוכחות להצגה.
                   </td>
                 </tr>

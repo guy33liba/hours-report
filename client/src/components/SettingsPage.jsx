@@ -2,9 +2,31 @@ import { AppContext } from "./AppContext";
 import DigitalClock from "./DigitalClock";
 import "../styles.css";
 import { useContext, useEffect, useState } from "react";
+import { apiFetch } from "./utils";
 function SettingsPage() {
   const { settings, setSettings, addToast } = useContext(AppContext);
   const [localSettings, setLocalSettings] = useState(settings);
+
+  ///////////////////
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+
+    try {
+      await apiFetch("/settings", {
+        method: "PUT",
+        body: JSON.stringify(localSettings),
+      });
+
+      setSettings(localSettings);
+      addToast("ההגדרות נשמרו בהצלחה!", "success");
+    } catch (error) {
+      addToast(err.message || "שגיאה בשמירת הגדרות", danger);
+    }
+  };
+
+  //////////////////////////////
+
   useEffect(() => {
     setLocalSettings(settings);
   }, [settings]);
@@ -18,11 +40,7 @@ function SettingsPage() {
         : value;
     setLocalSettings((prev) => ({ ...prev, [name]: val }));
   };
-  const handleSave = (e) => {
-    e.preventDefault();
-    setSettings(localSettings);
-    addToast("ההגדרות נשמרו בהצלחה!", "success");
-  };
+
   return (
     <>
       <div className="page-header">

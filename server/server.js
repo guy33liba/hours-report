@@ -112,15 +112,6 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
-app.get("/api/settings", authenticateToken, (req, res) => {
-  // Return any relevant application settings here
-  // For now, returning a dummy object is fine
-  res.json({
-    companyName: "SpeakCom",
-    allowBreaks: true,
-  });
-});
-
 // --- Employee Routes ---
 app.get("/api/employees", authenticateToken, async (req, res) => {
   try {
@@ -453,7 +444,17 @@ app.get(
     }
   }
 );
-// In server.js, after your other routes
+
+//SETTINGS////////////////////////
+
+app.get("/api/settings", authenticateToken, (req, res) => {
+  // Return any relevant application settings here
+  // For now, returning a dummy object is fine
+  res.json({
+    companyName: "SpeakCom",
+    allowBreaks: true,
+  });
+});
 
 app.post(
   "/api/payroll",
@@ -493,10 +494,15 @@ app.post(
       );
 
       // --- שלב 3: חישוב השכר (אותה לוגיקה כמו קודם, אבל עכשיו תמיד יש לנו את פרטי העובד) ---
-      const settings = {
-        standardWorkDayHours: 8.5,
-        overtimeRatePercent: 125.0,
-      };
+      const { rows: settingRows } = await pool.query(
+        "SELECT * FROM application_settings LIMIT 1"
+      );
+      const settings =
+        settingRows[0] |
+        {
+          standardWorkDayHours: 8.5,
+          overtimeRatePercent: 125.0,
+        };
 
       const payrollDetails = employeesData.map((employee) => {
         const hourlyRate = parseFloat(employee.hourly_rate);
@@ -559,7 +565,7 @@ app.post(
 
       res.json({ details: payrollDetails });
     } catch (err) {
-      console.error("!!! FATAL ERROR generating payroll:", err);
+      console.error(" ERROR Generating Payroll Report:", err);
       res.status(500).json({ message: "שגיאה בהפקת דוח שכר." });
     }
   }

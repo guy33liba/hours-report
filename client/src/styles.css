@@ -240,7 +240,7 @@ tbody tr {
   transition: background-color var(--transition-speed);
 }
 tbody tr:hover {
-  background-color: var(--primary-light);
+  background-color: #fff7f7;cursor: pointer;
 }
 .actions-cell {
   display: flex;
@@ -809,12 +809,11 @@ input:checked + .slider:before {
 
 /* סגנון מיוחד לתאי הכותרת */
 .attendance-table-container th {
-  background-color: #ffefef;
   font-weight: 600;
   font-size: 1rem;
   color: #334155;
   text-transform: uppercase; /* הופך את הכותרות לאותיות גדולות למראה מקצועי */
-  font-weight: bolder ;
+  font-weight: bolder;
   letter-spacing: 0.5px;
 }
 
@@ -833,10 +832,11 @@ input:checked + .slider:before {
 .cell-time-data {
   font-family: "Courier New", Courier, monospace; /* פונט מתאים למספרים */
   font-size: 1.1rem;
-  color: #1e3a8a;font-weight: bolder;
+  color: #1e3a8a;
+  font-weight: bolder;
 }
 .table-container tbody tr:hover {
-  background-color: #f5faff;
+  background-color: #ff8686;
 }
 
 .table-container td {

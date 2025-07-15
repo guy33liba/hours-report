@@ -42,7 +42,7 @@ function SettingsPage() {
       type === "checkbox"
         ? checked
         : type === "number"
-        ? parseFloat(value)
+        ? parseFloat(value) || 0
         : value;
     setLocalSettings((prev) => ({ ...prev, [name]: val }));
   };

@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 export const API_BASE_URL = "http://192.168.1.19:8989/api";
 
-
 export const apiFetch = async (endpoint, options = {}) => {
   const token = localStorage.getItem("token");
 
@@ -23,7 +22,11 @@ export const apiFetch = async (endpoint, options = {}) => {
       ...options,
       headers,
     });
-
+    if (response.status === 401) {
+      localStorage.removeItem("token");
+      window.location.href = "/login";
+      throw new Error("החיבור פג תוקף, יש להתחבר מחדש.");
+    }
     const responseText = await response.text();
     const data = responseText ? JSON.parse(responseText) : {};
 

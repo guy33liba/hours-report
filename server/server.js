@@ -275,6 +275,7 @@ app.post("/api/attendance/clock-out", authenticateToken, async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
 app.post(
   "/api/attendance/toggle-break",
   authenticateToken,

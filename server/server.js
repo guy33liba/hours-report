@@ -222,10 +222,9 @@ app.post("/api/attendance/clock-in", authenticateToken, async (req, res) => {
     await pool.query(`INSERT INTO attendance (employee_id, clock_in) VALUES ($1, NOW())`, [
       employeeId,
     ]);
+    await pool.query("UPDATE employees SET status = 'נוכח' WHERE id = $1", [employeeId]);
 
-    await pool.query("UPDATE employees SET is_absent = false WHERE id = $1", [employeeId]);
     broadcastAttendanceUpdate();
-
     res.status(201).send();
   } catch (err) {
     res.status(500).json({ message: "Server error" });
@@ -243,7 +242,7 @@ app.post("/api/attendance/clock-out", authenticateToken, async (req, res) => {
       `UPDATE attendance SET clock_out = NOW() WHERE employee_id = $1 AND clock_out IS NULL`,
       [employeeId]
     );
-    await pool.query("UPDATE employees SET is_absent = true WHERE id = $1", [employeeId]);
+    await pool.query("UPDATE employees SET status = 'לא בעבודה' WHERE id = $1", [employeeId]);
     broadcastAttendanceUpdate();
     res.status(200).send();
   } catch (err) {
@@ -436,7 +435,14 @@ app.post("/api/payroll", authenticateToken, authorizeManager, async (req, res) =
              AND clock_in::date >= $2 AND clock_in::date <= $3`,
       [employeeIds, startDate, endDate]
     );
-
+    const attendanceByEmployee = attendanceData.reduce((acc, entry) => {
+      const empId = entry.employee_id;
+      if (!acc[empId]) {
+        acc[empId] = [];
+      }
+      acc[empId].push(entry);
+      return acc;
+    }, {});
     // --- שלב 3: חישוב השכר (אותה לוגיקה כמו קודם, אבל עכשיו תמיד יש לנו את פרטי העובד) ---
     const { rows: settingsRows } = await pool.query(
       "SELECT standard_work_day_hours,overtime_rate_percent FROM application_settings WHERE id = 1"

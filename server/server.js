@@ -577,7 +577,7 @@ app.put(
   authorizeManager,
   async (req, res) => {
     const { standardWorkDayHours, overtimeRatePercent } = req.body;
-
+    console.log("Received settings update request with body:", req.body);
     if (
       standardWorkDayHours === undefined ||
       overtimeRatePercent === undefined
@@ -600,4 +600,3 @@ app.put(
 server.listen(PORT, () => {
   console.log(`✅ Server is running on port ${PORT}`);
 });
-  

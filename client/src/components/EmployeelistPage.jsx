@@ -8,8 +8,7 @@ AppContext;
 function EmployeeListPage() {
   const { employees, addToast, fetchData } = useContext(AppContext);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] =
-    useState(false);
+  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
 
   const sortedEmployees = useMemo(() => {
@@ -86,7 +85,7 @@ function EmployeeListPage() {
         <button onClick={() => handleOpenEditModal()}>הוסף עובד חדש</button>
       </div>
       <div className="card">
-        <div className="table-container">
+        <div className="employeeList-table-container">
           <table>
             <thead>
               <tr>
@@ -102,32 +101,31 @@ function EmployeeListPage() {
               {sortedEmployees.length > 0 ? (
                 sortedEmployees.map((emp) => (
                   <tr key={emp.id}>
-                    {console.log(`emp ${ emp.hourly_rate }`)}
+                    {console.log(`emp ${emp.hourly_rate}`)}
                     <td>{emp.name}</td>
                     <td>{emp.department}</td>
                     <td>{emp.hourly_rate} ₪</td>
                     <td>
                       {/* Display role in Hebrew */}
-                      {emp.role === "manager"
-                        ? "מנהל"
-                        : emp.role === "support"
-                        ? "תמיכה"
-                        : "עובד"}
+                      {emp.role === "manager" ? "מנהל" : emp.role === "support" ? "תמיכה" : "עובד"}
                     </td>
                     <td className="actions-cell">
                       <button
                         onClick={() => handleOpenEditModal(emp)}
                         className="secondary"
+                        style={{ fontSize: "16px" }}
                       >
                         ערוך
                       </button>
                       <button
+                        style={{ fontSize: "16px" }}
                         onClick={() => handleOpenResetPasswordModal(emp)}
                         className="secondary warning"
                       >
                         אפס סיסמה
                       </button>
                       <button
+                        style={{ fontSize: "16px" }}
                         onClick={() => handleDeleteEmployee(emp.id)}
                         className="danger secondary"
                       >

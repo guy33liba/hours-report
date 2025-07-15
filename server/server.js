@@ -56,9 +56,9 @@ const authenticateToken = (req, res, next) => {
   }
 
   // FIX: Using the JWT_SECRET constant for consistency.
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      console.error("JWT Verification Error:", err);
+  jwt.verify(token, JWT_SECRET, (error, user) => {
+    if (error) {
+      console.error("JWT Verification Error:", error);
       return res.status(403).json({ message: "Token is not valid" });
     }
     req.user = user;
@@ -106,8 +106,8 @@ app.post("/api/auth/login", async (req, res) => {
     );
     delete user.password;
     res.json({ token, user });
-  } catch (err) {
-    console.error("Login Error:", err);
+  } catch (error) {
+    console.error("Login Error:", error);
     res.status(500).json({ message: "שגיאת שרת פנימית" });
   }
 });
@@ -119,8 +119,8 @@ app.get("/api/employees", authenticateToken, async (req, res) => {
       "SELECT id, name, role, department, hourly_rate, status FROM employees ORDER BY name"
     );
     res.json(rows);
-  } catch (err) {
-    console.error("!!! FATAL ERROR fetching employees:", err);
+  } catch (error) {
+    console.error("!!! FATAL ERROR fetching employees:", error);
     res.status(500).json({ message: "שגיאה קריטית בטעינת עובדים מהשרת." });
   }
 });
@@ -600,3 +600,4 @@ app.put(
 server.listen(PORT, () => {
   console.log(`✅ Server is running on port ${PORT}`);
 });
+  

@@ -21,7 +21,7 @@ function SettingsPage() {
       setSettings(localSettings);
       addToast("ההגדרות נשמרו בהצלחה!", "success");
     } catch (error) {
-      addToast(err.message || "שגיאה בשמירת הגדרות", danger);
+      addToast(error.message || "שגיאה בשמירת הגדרות", "danger");
     }
   };
 

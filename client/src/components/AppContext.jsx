@@ -331,14 +331,12 @@ export const AppProvider = ({ children }) => {
   );
 
   return (
-    // ספק את ערך הקונטקסט לכל רכיבי הילד
     <AppContext.Provider value={contextValue}>
-      {children} {/* זה ירינדר את רכיב ה-App הראשי שלך */}
-      {/* קונטיינר ה-Toast מוצג כאן, בתוך הספק, אך מחוץ לרכיבי הילד המרונדרים */}
+      {children}
       <div className="toast-container">
-        {toasts.map((toastItem) => (
-          <Toast // השתמש ברכיב Toast המיובא מ-utils
-            key={toastItem.id}
+        {toasts.map((toastItem, index) => (
+          <Toast
+            key={index}
             message={toastItem.message}
             type={toastItem.type}
             onDismiss={() =>

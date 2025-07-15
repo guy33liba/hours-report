@@ -495,7 +495,7 @@ app.post(
 
       // --- שלב 3: חישוב השכר (אותה לוגיקה כמו קודם, אבל עכשיו תמיד יש לנו את פרטי העובד) ---
       const { rows: settingRows } = await pool.query(
-        "SELECT * FROM application_settings LIMIT 1"
+        "SELECT standard_work_day_hours,overtime_rate_percent FROM application_settings WHERE id = 1"
       );
       const settings =
         settingRows[0] |
@@ -508,10 +508,10 @@ app.post(
         const hourlyRate = parseFloat(employee.hourly_rate);
 
         // סינון רשומות הנוכחות רק עבור העובד הנוכחי
-        const empAttendance = attendanceData.filter(
-          (a) => a.employee_id === employee.id
-        );
-
+        // const empAttendance = attendanceData.filter(
+        //   (a) => a.employee_id === employee.id
+        // );
+        const empAttendance = attendanceByEmployee[employee.id] || [];
         let totalRegularHours = 0;
         let totalOvertimeHours = 0;
 

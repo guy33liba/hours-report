@@ -102,7 +102,7 @@ app.post("/api/auth/login", async (req, res) => {
     const token = jwt.sign(
       { userId: user.id, role: user.role, name: user.name },
       JWT_SECRET, // FIX: Used constant
-      { expiresIn: "8h" }
+      { expiresIn: "30d" }
     );
     delete user.password;
     res.json({ token, user });
@@ -578,12 +578,12 @@ app.put(
   async (req, res) => {
     const { standardWorkDayHours, overtimeRatePercent } = req.body;
     console.log("Received settings update request with body:", req.body);
-    // if (
-    //   standardWorkDayHours === undefined ||
-    //   overtimeRatePercent === undefined
-    // ) {
-    //   return res.status(400).json({ message: "נדרש לספק את כל ערכי ההגדרות." });
-    // }
+    if (
+      standardWorkDayHours === undefined ||
+      overtimeRatePercent === undefined
+    ) {
+      return res.status(400).json({ message: "נדרש לספק את כל ערכי ההגדרות." });
+    }
 
     try {
       await pool.query(

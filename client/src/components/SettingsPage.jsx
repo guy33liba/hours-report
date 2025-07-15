@@ -12,10 +12,6 @@ function SettingsPage() {
   });
   //////////////////////////////
 
-  useEffect(() => {
-    setLocalSettings((prev) => ({ ...prev, settings }));
-  }, [settings]);
-
   ///////////////////
 
   const handleSave = async (e) => {
@@ -47,6 +43,19 @@ function SettingsPage() {
     setLocalSettings((prev) => ({ ...prev, [name]: val }));
   };
 
+  /////////////////////
+
+  useEffect(() => {
+    setLocalSettings((prev) => ({ ...prev, settings }));
+  }, [settings]);
+
+  useEffect(() => {
+    // רק אם settings הוא אובייקט תקין, נעדכן את הערכים
+    if (settings && typeof settings === "object") {
+      setLocalSettings((prev) => ({ ...prev, ...settings }));
+    }
+  }, [settings]);
+  
   ///////////////////
 
   return (

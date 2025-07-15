@@ -6,21 +6,11 @@ import { AppContext } from "./AppContext";
 import "../styles.css";
 AppContext;
 function EmployeeListPage() {
-  const { user, employees, addToast, fetchData, loading } = useContext(AppContext);
-
+  const { employees, addToast, fetchData } = useContext(AppContext);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
+  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] =
+    useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
-
-  if (loading) {
-    return (
-      <div className="page-header">
-        <h2>טוען נתונים...</h2>
-      </div>
-    );
-  }
-
-  if (!user) return null;
 
   const sortedEmployees = useMemo(() => {
     // Crucial: Default employees to an empty array if it's null or undefined.
@@ -93,9 +83,7 @@ function EmployeeListPage() {
     <>
       <div className="page-header">
         <h2>ניהול עובדים</h2>
-        {user && user.role === "manager" && (
-          <button onClick={() => handleOpenEditModal()}>הוסף עובד חדש</button>
-        )}
+        <button onClick={() => handleOpenEditModal()}>הוסף עובד חדש</button>
       </div>
       <div className="card">
         <div className="table-container">
@@ -114,15 +102,23 @@ function EmployeeListPage() {
               {sortedEmployees.length > 0 ? (
                 sortedEmployees.map((emp) => (
                   <tr key={emp.id}>
+                    {console.log(`emp ${ emp.hourly_rate }`)}
                     <td>{emp.name}</td>
                     <td>{emp.department}</td>
                     <td>{emp.hourly_rate} ₪</td>
                     <td>
                       {/* Display role in Hebrew */}
-                      {emp.role === "manager" ? "מנהל" : emp.role === "support" ? "תמיכה" : "עובד"}
+                      {emp.role === "manager"
+                        ? "מנהל"
+                        : emp.role === "support"
+                        ? "תמיכה"
+                        : "עובד"}
                     </td>
                     <td className="actions-cell">
-                      <button onClick={() => handleOpenEditModal(emp)} className="secondary">
+                      <button
+                        onClick={() => handleOpenEditModal(emp)}
+                        className="secondary"
+                      >
                         ערוך
                       </button>
                       <button

@@ -60,8 +60,7 @@ function AttendanceReportPage() {
 
   const calculateHours = (start, end) => {
     if (!start || !end) return "-";
-    const durationHours =
-      (new Date(end).getTime() - new Date(start).getTime()) / (1000 * 60 * 60);
+    const durationHours = (new Date(end).getTime() - new Date(start).getTime()) / (1000 * 60 * 60);
     return durationHours.toFixed(2) + " שעות";
   };
 
@@ -74,14 +73,8 @@ function AttendanceReportPage() {
         <h2>דוח נוכחות עובדים</h2>
       </div>
       <div className="card">
-        <div
-          className="card"
-          style={{ marginBottom: "20px", border: "1px solid black" }}
-        >
-          <div
-            className="search-bar"
-            style={{ maxWidth: "400px", margin: "0 auto" }}
-          >
+        <div className="card" style={{ marginBottom: "20px", border: "1px solid black" }}>
+          <div className="search-bar" style={{ maxWidth: "400px", margin: "0 auto" }}>
             <span className="search-icon">
               <Icon path="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
             </span>
@@ -93,16 +86,14 @@ function AttendanceReportPage() {
             />
           </div>
         </div>
-
-        <div className="table-container">
+        <div className="attendance-table-container">
+          <div className="attendance-table-container-div"></div>
           <table>
-            <thead>
-              <tr>
-                <th>שם עובד</th>
-                <th>כניסה</th>
-                <th>יציאה</th>
-                <th>סה"כ שעות</th>
-              </tr>
+            <thead className="attendance-table-container-header">
+              <th>שם עובד</th>
+              <th>כניסה</th>
+              <th>יציאה</th>
+              <th>סה"כ שעות</th>
             </thead>
             <tbody>
               {filteredRecords.length > 0 ? (
@@ -116,7 +107,7 @@ function AttendanceReportPage() {
                       }}
                     >
                       {record.employeeName || record.employee_name}
-                    </td>{" "}
+                    </td>
                     <td
                       style={{
                         width: "200px",

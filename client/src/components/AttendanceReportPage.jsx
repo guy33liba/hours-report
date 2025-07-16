@@ -51,8 +51,8 @@ function AttendanceReportPage() {
       const nameMatch = record.employeeName?.toLowerCase().includes(lowerCaseSearchTerm);
 
       const clockInMatch = formatDate(record.clockIn).includes(searchTerm);
-
-      return nameMatch || clockInMatch;
+      const clockOutMatch = formatDate(record.clockOut).includes(searchTerm);
+      return nameMatch || clockInMatch || clockOutMatch;
     });
   }, [attendanceRecords, searchTerm]);
   useEffect(() => {
@@ -97,7 +97,7 @@ function AttendanceReportPage() {
               textDecoration: "underline",
             }}
           >
-            חיפוש לפי או תאריך כניסה{" "}
+            חיפוש לפי שם או תאריך{" "}
           </span>
           <div className="search-bar" style={{ maxWidth: "400px", margin: "0 auto" }}>
             <span className="search-icon">

@@ -190,12 +190,40 @@ app.delete("/api/employees/:id", authenticateToken, authorizeManager, async (req
   }
 });
 
-// --- Attendance Routes (REFACTORED AND CLEANED) ---
+// // --- Attendance Routes (REFACTORED AND CLEANED) ---
+// app.get("/api/attendance", authenticateToken, async (req, res) => {
+//   try {
+//     const { rows } = await pool.query(`
+//         SELECT
+//             att.id,                         -- חד משמעי: קח את ה-id מטבלת הנוכחות
+//             att.employee_id AS "employeeId",
+//             emp.name AS "employeeName",
+//             att.clock_in AS "clockIn",
+//             att.clock_out AS "clockOut",
+//             att.breaks,
+//             att.on_break AS "onBreak"
+//         FROM
+//             attendance AS att               -- תן לטבלה את הכינוי "att"
+//         JOIN
+//             employees AS emp ON att.employee_id = emp.id -- תן לטבלה את הכינוי "emp"
+//         ORDER BY
+//             att.clock_in DESC
+//     `);
+//     res.json(rows);
+//   } catch (err) {
+//     console.error("!!! FATAL ERROR fetching attendance with employee names:", err);
+//     res.status(500).json({ message: "שגיאה בטעינת דוח נוכחות" });
+//   }
+// });
 app.get("/api/attendance", authenticateToken, async (req, res) => {
+  // קבלת פרמטרים של תאריך מהבקשה
+  const { startDate, endDate } = req.query;
+
   try {
-    const { rows } = await pool.query(`
+    // בניית שאילתה דינמית ובטוחה
+    let query = `
         SELECT 
-            att.id,                         -- חד משמעי: קח את ה-id מטבלת הנוכחות
+            att.id,
             att.employee_id AS "employeeId",
             emp.name AS "employeeName",
             att.clock_in AS "clockIn", 
@@ -203,19 +231,37 @@ app.get("/api/attendance", authenticateToken, async (req, res) => {
             att.breaks, 
             att.on_break AS "onBreak" 
         FROM 
-            attendance AS att               -- תן לטבלה את הכינוי "att"
+            attendance AS att
         JOIN 
-            employees AS emp ON att.employee_id = emp.id -- תן לטבלה את הכינוי "emp"
-        ORDER BY 
-            att.clock_in DESC
-    `);
+            employees AS emp ON att.employee_id = emp.id
+    `;
+
+    const params = [];
+    let whereClauses = [];
+    let paramIndex = 1;
+
+    if (startDate) {
+      whereClauses.push(`att.clock_in::date >= $${paramIndex++}`);
+      params.push(startDate);
+    }
+    if (endDate) {
+      whereClauses.push(`att.clock_in::date <= $${paramIndex++}`);
+      params.push(endDate);
+    }
+
+    if (whereClauses.length > 0) {
+      query += ` WHERE ${whereClauses.join(" AND ")}`;
+    }
+
+    query += ` ORDER BY att.clock_in DESC`;
+
+    const { rows } = await pool.query(query, params);
     res.json(rows);
   } catch (err) {
-    console.error("!!! FATAL ERROR fetching attendance with employee names:", err);
+    console.error("Error fetching attendance with date filter:", err);
     res.status(500).json({ message: "שגיאה בטעינת דוח נוכחות" });
   }
 });
-
 app.post("/api/attendance/clock-in", authenticateToken, async (req, res) => {
   const { employeeId } = req.body;
   try {
@@ -463,7 +509,7 @@ app.post("/api/payroll", authenticateToken, authorizeManager, async (req, res) =
         // ----------------------------------------------------
 
         const hourlyRate = parseFloat(employee.hourly_rate) || 0;
-        
+
         let grandTotalHours = 0;
         empAttendance.forEach((entry) => {
           if (!entry.clock_in || !entry.clock_out) return; // דלג על רשומות פגומות
@@ -473,7 +519,7 @@ app.post("/api/payroll", authenticateToken, authorizeManager, async (req, res) =
 
           // בדיקה אם התאריכים תקינים
           if (isNaN(clockInTime) || isNaN(clockOutTime)) return;
-          
+
           let totalDurationMs = clockOutTime - clockInTime;
           let totalBreakMs = 0;
           if (Array.isArray(entry.breaks)) {
@@ -489,35 +535,44 @@ app.post("/api/payroll", authenticateToken, authorizeManager, async (req, res) =
 
         const uniqueWorkDays = new Set(
           empAttendance
-            .filter(entry => entry && entry.clock_in)
-            .map(entry => new Date(entry.clock_in).toISOString().split('T')[0])
+            .filter((entry) => entry && entry.clock_in)
+            .map((entry) => new Date(entry.clock_in).toISOString().split("T")[0])
         );
         const numberOfUniqueDays = uniqueWorkDays.size;
 
         const standardHoursForPeriod = numberOfUniqueDays * settings.standardWorkDayHours;
         const totalOvertimeHours = Math.max(0, grandTotalHours - standardHoursForPeriod);
         const totalRegularHours = grandTotalHours - totalOvertimeHours;
-        
+
         const basePay = totalRegularHours * hourlyRate;
         const overtimePay = totalOvertimeHours * hourlyRate * (settings.overtimeRatePercent / 100);
 
         return {
-          id: employee.id, name: employee.name, department: employee.department,
+          id: employee.id,
+          name: employee.name,
+          department: employee.department,
           totalRegularHours: totalRegularHours || 0,
           totalOvertimeHours: totalOvertimeHours || 0,
           basePay: basePay || 0,
           overtimePay: overtimePay || 0,
-          totalPay: (basePay + overtimePay) || 0,
+          totalPay: basePay + overtimePay || 0,
         };
-
       } catch (innerErr) {
         // אם החישוב עבור עובד ספציפי נכשל, נדפיס שגיאה ונמשיך הלאה
-        console.error(`!!! FAILED TO PROCESS PAYROLL FOR EMPLOYEE: ${employee.name} (ID: ${employee.id}) !!!`);
-        console.error('THE ERROR WAS:', innerErr);
+        console.error(
+          `!!! FAILED TO PROCESS PAYROLL FOR EMPLOYEE: ${employee.name} (ID: ${employee.id}) !!!`
+        );
+        console.error("THE ERROR WAS:", innerErr);
         // החזר אובייקט בטוח כדי שהפרונטאנד לא יקרוס
         return {
-          id: employee.id, name: employee.name, department: employee.department,
-          totalRegularHours: 0, totalOvertimeHours: 0, basePay: 0, overtimePay: 0, totalPay: 0,
+          id: employee.id,
+          name: employee.name,
+          department: employee.department,
+          totalRegularHours: 0,
+          totalOvertimeHours: 0,
+          basePay: 0,
+          overtimePay: 0,
+          totalPay: 0,
         };
       }
     });

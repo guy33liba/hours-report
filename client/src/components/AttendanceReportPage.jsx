@@ -4,12 +4,20 @@ import "../styles.css";
 import { useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { Icon } from "./utils";
 
+const getYYYYMMDD = (date) => date.toISOString().split("T")[0];
+
 function AttendanceReportPage() {
   const { addToast } = useContext(AppContext);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // שונה לברירת מחדל false
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // הוספנו state לניהול טווח התאריכים
+  const [dateRange, setDateRange] = useState({
+    start: getYYYYMMDD(new Date(new Date().getFullYear(), new Date().getMonth(), 1)),
+    end: getYYYYMMDD(new Date()),
+  });
 
   const fetchAttendance = useCallback(async () => {
     try {
@@ -27,15 +35,26 @@ function AttendanceReportPage() {
     }
   }, [addToast]);
 
+  const formatDate = (dateString) => {
+    if (!dateString) return "-";
+    return new Date(dateString).toLocaleDateString("he-IL");
+  };
+
   const filteredRecords = useMemo(() => {
     if (!searchTerm) {
-      return attendanceRecords; // אם אין חיפוש, החזר את כל הרשומות
+      return attendanceRecords;
     }
-    return attendanceRecords.filter((record) =>
-      record.employeeName?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [attendanceRecords, searchTerm]);
 
+    const lowerCaseSearchTerm = searchTerm.toLowerCase();
+
+    return attendanceRecords.filter((record) => {
+      const nameMatch = record.employeeName?.toLowerCase().includes(lowerCaseSearchTerm);
+
+      const clockInMatch = formatDate(record.clockIn).includes(searchTerm);
+
+      return nameMatch || clockInMatch;
+    });
+  }, [attendanceRecords, searchTerm]);
   useEffect(() => {
     fetchAttendance();
   }, []); // ירוץ פעם אחת כשהרכיב נטען
@@ -44,10 +63,6 @@ function AttendanceReportPage() {
   //   if (!dateString) return "בפנים";
   //   return new Date(dateString).toLocaleString("he-IL");
   // };
-  const formatDate = (dateString) => {
-    if (!dateString) return "-";
-    return new Date(dateString).toLocaleDateString("he-IL");
-  };
 
   // Formats only the time (e.g., "09:30")
   const formatTime = (dateString) => {
@@ -74,6 +89,16 @@ function AttendanceReportPage() {
       </div>
       <div className="card">
         <div className="card-header" style={{ marginBottom: "20px" }}>
+          <span
+            style={{
+              position: "relative",
+              bottom: "10px",
+              right: "39rem",
+              textDecoration: "underline",
+            }}
+          >
+            חיפוש לפי או תאריך כניסה{" "}
+          </span>
           <div className="search-bar" style={{ maxWidth: "400px", margin: "0 auto" }}>
             <span className="search-icon">
               <Icon path="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />

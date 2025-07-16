@@ -447,63 +447,80 @@ app.post("/api/payroll", authenticateToken, authorizeManager, async (req, res) =
     const { rows: settingsRows } = await pool.query(
       "SELECT standard_work_day_hours,overtime_rate_percent FROM application_settings WHERE id = 1"
     );
-    const settings = settingsRows[0] || {
-      standard_work_day_hours: 8.5,
-      overtime_rate_percent: 125.0,
+    const dbSettings = settingsRows[0] || {};
+
+    const settings = {
+      standardWorkDayHours: parseFloat(dbSettings.standard_work_day_hours || 8.5),
+      overtimeRatePercent: parseFloat(dbSettings.overtime_rate_percent || 125.0),
     };
-
-    settings.standardWorkDayHours = settings.standard_work_day_hours;
-    settings.overtimeRatePercent = settings.overtime_rate_percent;
-
     const payrollDetails = employeesData.map((employee) => {
-      const hourlyRate = parseFloat(employee.hourly_rate);
+      try {
+        // --- הדפסת הנתונים הגולמיים לפני כל חישוב ---
+        const empAttendance = attendanceByEmployee[employee.id] || [];
+        console.log(`\n--- RAW DATA FOR EMPLOYEE: ${employee.name} ---`);
+        console.log(JSON.stringify(empAttendance, null, 2));
+        console.log("------------------------------------------");
+        // ----------------------------------------------------
 
-      // סינון רשומות הנוכחות רק עבור העובד הנוכחי
-      // const empAttendance = attendanceData.filter(
-      //   (a) => a.employee_id === employee.id
-      // );
-      const empAttendance = attendanceByEmployee[employee.id] || [];
-      let totalRegularHours = 0;
-      let totalOvertimeHours = 0;
+        const hourlyRate = parseFloat(employee.hourly_rate) || 0;
+        
+        let grandTotalHours = 0;
+        empAttendance.forEach((entry) => {
+          if (!entry.clock_in || !entry.clock_out) return; // דלג על רשומות פגומות
 
-      empAttendance.forEach((entry) => {
-        const clockInTime = new Date(entry.clock_in).getTime();
-        const clockOutTime = new Date(entry.clock_out).getTime();
-        let totalDurationMs = clockOutTime - clockInTime;
+          const clockInTime = new Date(entry.clock_in).getTime();
+          const clockOutTime = new Date(entry.clock_out).getTime();
 
-        let totalBreakMs = 0;
-        if (Array.isArray(entry.breaks)) {
-          entry.breaks.forEach((b) => {
-            if (b.start && b.end) {
-              totalBreakMs += new Date(b.end).getTime() - new Date(b.start).getTime();
-            }
-          });
-        }
+          // בדיקה אם התאריכים תקינים
+          if (isNaN(clockInTime) || isNaN(clockOutTime)) return;
+          
+          let totalDurationMs = clockOutTime - clockInTime;
+          let totalBreakMs = 0;
+          if (Array.isArray(entry.breaks)) {
+            entry.breaks.forEach((b) => {
+              if (b.start && b.end) {
+                totalBreakMs += new Date(b.end).getTime() - new Date(b.start).getTime();
+              }
+            });
+          }
+          const netWorkSeconds = Math.max(0, (totalDurationMs - totalBreakMs) / 1000);
+          grandTotalHours += netWorkSeconds / 3600;
+        });
 
-        const netWorkSeconds = Math.max(0, (totalDurationMs - totalBreakMs) / 1000);
-        const totalHours = netWorkSeconds / 3600;
-        const overtime = Math.max(0, totalHours - settings.standardWorkDayHours);
-        const regular = totalHours - overtime;
+        const uniqueWorkDays = new Set(
+          empAttendance
+            .filter(entry => entry && entry.clock_in)
+            .map(entry => new Date(entry.clock_in).toISOString().split('T')[0])
+        );
+        const numberOfUniqueDays = uniqueWorkDays.size;
 
-        totalRegularHours += regular;
-        totalOvertimeHours += overtime;
-      });
+        const standardHoursForPeriod = numberOfUniqueDays * settings.standardWorkDayHours;
+        const totalOvertimeHours = Math.max(0, grandTotalHours - standardHoursForPeriod);
+        const totalRegularHours = grandTotalHours - totalOvertimeHours;
+        
+        const basePay = totalRegularHours * hourlyRate;
+        const overtimePay = totalOvertimeHours * hourlyRate * (settings.overtimeRatePercent / 100);
 
-      const basePay = totalRegularHours * hourlyRate;
-      const overtimePay = totalOvertimeHours * hourlyRate * (settings.overtimeRatePercent / 100);
+        return {
+          id: employee.id, name: employee.name, department: employee.department,
+          totalRegularHours: totalRegularHours || 0,
+          totalOvertimeHours: totalOvertimeHours || 0,
+          basePay: basePay || 0,
+          overtimePay: overtimePay || 0,
+          totalPay: (basePay + overtimePay) || 0,
+        };
 
-      return {
-        id: employee.id,
-        name: employee.name,
-        department: employee.department,
-        totalRegularHours,
-        totalOvertimeHours,
-        basePay,
-        overtimePay,
-        totalPay: basePay + overtimePay,
-      };
+      } catch (innerErr) {
+        // אם החישוב עבור עובד ספציפי נכשל, נדפיס שגיאה ונמשיך הלאה
+        console.error(`!!! FAILED TO PROCESS PAYROLL FOR EMPLOYEE: ${employee.name} (ID: ${employee.id}) !!!`);
+        console.error('THE ERROR WAS:', innerErr);
+        // החזר אובייקט בטוח כדי שהפרונטאנד לא יקרוס
+        return {
+          id: employee.id, name: employee.name, department: employee.department,
+          totalRegularHours: 0, totalOvertimeHours: 0, basePay: 0, overtimePay: 0, totalPay: 0,
+        };
+      }
     });
-
     res.json({ details: payrollDetails });
   } catch (err) {
     console.error(" ERROR Generating Payroll Report:", err);

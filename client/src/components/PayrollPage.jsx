@@ -4,24 +4,21 @@ import { AppContext } from "./AppContext";
 import { apiFetch } from "./utils";
 import "../styles.css";
 
-function PayrollPage() {
-  const {
-    employees,
-    addToast,
-    loading: contextLoading,
-  } = useContext(AppContext);
+const getYYYYMMDD = (date) => date.toISOString().split("T")[0];
 
+function PayrollPage() {
+  const { employees, addToast, loading: contextLoading } = useContext(AppContext);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
-  const [dateRange, setDateRange] = useState({ start: "", end: "" });
+  const [dateRange, setDateRange] = useState({
+    start: getYYYYMMDD(new Date(new Date().getFullYear(), new Date().getMonth(), 2)),
+    end: getYYYYMMDD(new Date()),
+  });
   const [payrollResult, setPayrollResult] = useState(null);
   const [isCalculating, setIsCalculating] = useState(false);
 
   // רשימה של כל העובדים והמנהלים שניתן לבחור
   const selectableEmployees = useMemo(
-    () =>
-      (employees || []).filter(
-        (emp) => emp.role === "employee" || emp.role === "manager"
-      ),
+    () => (employees || []).filter((emp) => emp.role === "employee" || emp.role === "manager"),
     [employees]
   );
 
@@ -34,17 +31,11 @@ function PayrollPage() {
 
   // פונקציה פשוטה ונכונה לבחירת כולם
   const handleSelectAll = (e) => {
-    setSelectedEmployeeIds(
-      e.target.checked ? selectableEmployees.map((emp) => emp.id) : []
-    );
+    setSelectedEmployeeIds(e.target.checked ? selectableEmployees.map((emp) => emp.id) : []);
   };
 
   const handleCalculatePayroll = async () => {
-    if (
-      selectedEmployeeIds.length === 0 ||
-      !dateRange.start ||
-      !dateRange.end
-    ) {
+    if (selectedEmployeeIds.length === 0 || !dateRange.start || !dateRange.end) {
       addToast("יש לבחור עובדים וטווח תאריכים.", "danger");
       return;
     }
@@ -124,9 +115,7 @@ function PayrollPage() {
               <input
                 type="date"
                 value={dateRange.start}
-                onChange={(e) =>
-                  setDateRange((p) => ({ ...p, start: e.target.value }))
-                }
+                onChange={(e) => setDateRange((p) => ({ ...p, start: e.target.value }))}
               />
             </div>
             <div className="form-group">
@@ -134,9 +123,7 @@ function PayrollPage() {
               <input
                 type="date"
                 value={dateRange.end}
-                onChange={(e) =>
-                  setDateRange((p) => ({ ...p, end: e.target.value }))
-                }
+                onChange={(e) => setDateRange((p) => ({ ...p, end: e.target.value }))}
               />
             </div>
           </div>
@@ -173,13 +160,11 @@ function PayrollPage() {
                   payrollResult.map((item) => (
                     <tr key={item.id}>
                       <td>{item.name}</td>
-                      <td>{item.totalRegularHours.toFixed(2)}</td>
-                      <td>{item.totalOvertimeHours.toFixed(2)}</td>
-                      <td>₪{item.basePay.toFixed(2)}</td>
-                      <td>₪{item.overtimePay.toFixed(2)}</td>
-                      <td style={{ fontWeight: "bold" }}>
-                        ₪{item.totalPay.toFixed(2)}
-                      </td>
+                      <td>{(item.totalRegularHours || 0).toFixed(2)}</td>
+                      <td>{(item.totalOvertimeHours || 0).toFixed(2)}</td>
+                      <td>₪{(item.basePay || 0).toFixed(2)}</td>
+                      <td>₪{(item.overtimePay || 0).toFixed(2)}</td>
+                      <td style={{ fontWeight: "bold" }}>₪{(item.totalPay || 0).toFixed(2)}</td>
                     </tr>
                   ))
                 ) : (

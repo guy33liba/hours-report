@@ -49,12 +49,19 @@ function ReportsPage() {
       // חישובים פשוטים בצד הלקוח על התוצאה הסופית שהגיעה מהשרת
       const finalData = {
         details: dataFromServer.map((row) => {
-          const totalHours = row.totalSeconds / 3600;
-          const totalPay = totalHours * parseFloat(row.hourlyRate || 0);
-          return { ...row, totalHours, totalPay };
+          const regularHours = Number(row.totalRegularHours) || 0;
+          const overtimeHours = Number(row.totalOvertimeHours) || 0;
+          const hourlyRate = Number(row.hourlyRate) || 0;
+          // השרת ישלח לנו את האחוז, נשתמש בו
+          const overtimeRate = (Number(row.overtimeRatePercent) || 125) / 100.0;
+
+          const regularPay = regularHours * hourlyRate;
+          const overtimePay = overtimeHours * hourlyRate * overtimeRate;
+          const totalPay = regularPay + overtimePay;
+
+          return { ...row, regularHours, overtimeHours, totalPay };
         }),
       };
-
       // חישוב הסיכום הכללי
       finalData.summary = finalData.details.reduce(
         (acc, row) => {
@@ -81,9 +88,10 @@ function ReportsPage() {
     // הכנת הנתונים לפורמט יפה באקסל, עם כותרות בעברית
     const dataToExport = reportData.details.map((row) => ({
       "שם עובד": row.employeeName,
-      'מחלקה': row.department,
-      'סה"כ שעות': formatHours(row.totalHours),
-      "עלות שכר משוערת (₪)": row.totalPay.toFixed(2), // ייצוא כמספר נקי
+      מחלקה: row.department,
+      "שעות רגילות": formatHours(row.regularHours),
+      "שעות נוספות": formatHours(row.overtimeHours),
+      "עלות שכר משוערת (₪)": row.totalPay.toFixed(2),
     }));
 
     exportToExcel(dataToExport, "Report_Attendance_Hours");
@@ -188,7 +196,8 @@ function ReportsPage() {
                   <tr>
                     <th>שם העובד</th>
                     <th>מחלקה</th>
-                    <th>סה"כ שעות</th>
+                    <th>שעות רגילות</th>
+                    <th>שעות נוספות</th>
                     <th>עלות שכר משוערת</th>
                   </tr>
                 </thead>
@@ -198,7 +207,8 @@ function ReportsPage() {
                       <tr key={row.employeeId}>
                         <td>{row.employeeName}</td>
                         <td>{row.department}</td>
-                        <td>{formatHours(row.totalHours)}</td>
+                        <td>{formatHours(row.regularHours)}</td>
+                        <td>{formatHours(row.overtimeHours)}</td>
                         <td style={{ fontWeight: "bold" }}>{formatCurrency(row.totalPay)}</td>
                       </tr>
                     ))

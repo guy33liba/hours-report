@@ -56,10 +56,11 @@ function ReportsPage() {
           const overtimeRate = (Number(row.overtimeRatePercent) || 125) / 100.0;
 
           const regularPay = regularHours * hourlyRate;
+          const totalHours = regularHours + overtimeHours;
           const overtimePay = overtimeHours * hourlyRate * overtimeRate;
           const totalPay = regularPay + overtimePay;
 
-          return { ...row, regularHours, overtimeHours, totalPay };
+          return { ...row, regularHours, overtimeHours, totalPay, totalHours };
         }),
       };
       // חישוב הסיכום הכללי
@@ -91,6 +92,7 @@ function ReportsPage() {
       מחלקה: row.department,
       "שעות רגילות": formatHours(row.regularHours),
       "שעות נוספות": formatHours(row.overtimeHours),
+      'סה"כ שעות': formatHours(row.totalHours),
       "עלות שכר משוערת (₪)": row.totalPay.toFixed(2),
     }));
 
@@ -198,6 +200,7 @@ function ReportsPage() {
                     <th>מחלקה</th>
                     <th>שעות רגילות</th>
                     <th>שעות נוספות</th>
+                    <th>סה"כ שעות</th>
                     <th>עלות שכר משוערת</th>
                   </tr>
                 </thead>
@@ -209,6 +212,7 @@ function ReportsPage() {
                         <td>{row.department}</td>
                         <td>{formatHours(row.regularHours)}</td>
                         <td>{formatHours(row.overtimeHours)}</td>
+                        <td style={{ fontWeight: "bold" }}>{formatHours(row.totalHours)}</td>
                         <td style={{ fontWeight: "bold" }}>{formatCurrency(row.totalPay)}</td>
                       </tr>
                     ))

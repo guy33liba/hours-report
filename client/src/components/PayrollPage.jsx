@@ -152,6 +152,7 @@ function PayrollPage() {
                   <th>שעות נוספות</th>
                   <th>שכר בסיס</th>
                   <th>תוספת שעות נוספות</th>
+                  <th>סה"כ שעות</th>
                   <th>סה"כ לתשלום</th>
                 </tr>
               </thead>
@@ -164,6 +165,7 @@ function PayrollPage() {
                       <td>{(item.totalOvertimeHours || 0).toFixed(2)}</td>
                       <td>₪{(item.basePay || 0).toFixed(2)}</td>
                       <td>₪{(item.overtimePay || 0).toFixed(2)}</td>
+                      <td>{(item.totalHours || 0).toFixed(2)}</td>
                       <td style={{ fontWeight: "bold" }}>₪{(item.totalPay || 0).toFixed(2)}</td>
                     </tr>
                   ))

@@ -491,6 +491,7 @@ app.post("/api/payroll", authenticateToken, authorizeManager, async (req, res) =
         // חישוב התשלום הסופי
         const basePay = totalRegularHours * hourlyRate;
         const overtimePay = totalOvertimeHours * hourlyRate * (settings.overtimeRatePercent / 100);
+        const totalHours = totalOvertimeHours + totalRegularHours;
         const totalPay = basePay + overtimePay;
 
         return {
@@ -501,6 +502,7 @@ app.post("/api/payroll", authenticateToken, authorizeManager, async (req, res) =
           totalOvertimeHours,
           basePay,
           overtimePay,
+          totalHours,
           totalPay,
         };
       } catch (innerErr) {

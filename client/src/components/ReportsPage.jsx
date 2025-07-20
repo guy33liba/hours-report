@@ -1,6 +1,7 @@
 import { useContext, useState } from "react";
 import DigitalClock from "./DigitalClock";
 import { AppContext } from "./AppContext";
+<<<<<<< HEAD
 import { apiFetch } from "./utils";
 import "../styles.css";
 
@@ -30,6 +31,32 @@ function ReportsPage() {
   const [error, setError] = useState("");
 
   // 3. הפונקציה המרכזית: שולחת בקשה לשרת ומקבלת תוצאה מוכנה
+=======
+import { apiFetch, exportToExcel } from "./utils";
+import "../styles.css";
+
+// פונקציות עזר קטנות ונקיות
+const formatHours = (hours) => {
+  const num = parseFloat(hours);
+  return !isNaN(num) ? num.toFixed(2) : "0.00";
+};
+const formatCurrency = (amount) =>
+  new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS" }).format(amount || 0);
+const getYYYYMMDD = (date) => date.toISOString().split("T")[0];
+
+function ReportsPage() {
+  const { employees } = useContext(AppContext);
+
+  const [range, setRange] = useState({
+    start: getYYYYMMDD(new Date(new Date().getFullYear(), new Date().getMonth(), 1)),
+    end: getYYYYMMDD(new Date()),
+  });
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
+  const [reportData, setReportData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+>>>>>>> last
   const handleGenerateReport = async () => {
     setError("");
     if (new Date(range.start) > new Date(range.end)) {
@@ -38,7 +65,11 @@ function ReportsPage() {
     }
 
     setLoading(true);
+<<<<<<< HEAD
     setReportData(null); // איפוס תוצאות קודמות
+=======
+    setReportData(null);
+>>>>>>> last
 
     try {
       const params = new URLSearchParams({
@@ -49,6 +80,7 @@ function ReportsPage() {
         params.append("employeeId", selectedEmployeeId);
       }
 
+<<<<<<< HEAD
       const dataFromServer = await apiFetch(
         `/reports/hours?${params.toString()}`
       );
@@ -67,6 +99,18 @@ function ReportsPage() {
         (acc, row) => {
           acc.totalHours += row.totalHours;
           acc.totalPay += row.totalPay;
+=======
+      const dataFromServer = await apiFetch(`/reports/hours?${params.toString()}`);
+
+      const finalData = {
+        details: dataFromServer,
+      };
+
+      finalData.summary = finalData.details.reduce(
+        (acc, row) => {
+          acc.totalHours += parseFloat(row.totalHours) || 0;
+          acc.totalPay += parseFloat(row.totalPay) || 0;
+>>>>>>> last
           return acc;
         },
         { totalHours: 0, totalPay: 0, totalEmployees: finalData.details.length }
@@ -80,6 +124,28 @@ function ReportsPage() {
     }
   };
 
+<<<<<<< HEAD
+=======
+  const handleExport = () => {
+    if (!reportData || !reportData.details) {
+      alert("יש להפיק דוח לפני הייצוא.");
+      return;
+    }
+
+    const dataToExport = reportData.details.map((row) => ({
+      "שם עובד": row.employeeName,
+      מחלקה: row.department,
+      "תעריף שעתי (₪)": parseFloat(row.hourlyRate).toFixed(2),
+      "שעות רגילות": formatHours(row.regularHours),
+      "שעות נוספות": formatHours(row.overtimeHours),
+      'סה"כ שעות': formatHours(row.totalHours),
+      "עלות שכר משוערת (₪)": parseFloat(row.totalPay).toFixed(2),
+    }));
+
+    exportToExcel(dataToExport, "Report_Attendance_Hours");
+  };
+
+>>>>>>> last
   return (
     <>
       <div className="page-header">
@@ -87,23 +153,37 @@ function ReportsPage() {
         <DigitalClock />
       </div>
 
+<<<<<<< HEAD
       {/* --- אזור הסינון --- */}
+=======
+>>>>>>> last
       <div className="card">
         <h3>בחר פרמטרים לדוח</h3>
         <div className="report-controls">
           <div className="form-group">
             <label>מתאריך</label>
             <input
+<<<<<<< HEAD
               type="date"
               value={range.start}
               onChange={(e) =>
                 setRange((p) => ({ ...p, start: e.target.value }))
               }
+=======
+              style={{ fontSize: "20px" }}
+              type="date"
+              value={range.start}
+              onChange={(e) => setRange((p) => ({ ...p, start: e.target.value }))}
+>>>>>>> last
             />
           </div>
           <div className="form-group">
             <label>עד תאריך</label>
             <input
+<<<<<<< HEAD
+=======
+              style={{ fontSize: "20px" }}
+>>>>>>> last
               type="date"
               value={range.end}
               onChange={(e) => setRange((p) => ({ ...p, end: e.target.value }))}
@@ -112,6 +192,10 @@ function ReportsPage() {
           <div className="form-group">
             <label>עובד/ת</label>
             <select
+<<<<<<< HEAD
+=======
+              style={{ fontSize: "20px" }}
+>>>>>>> last
               value={selectedEmployeeId}
               onChange={(e) => setSelectedEmployeeId(e.target.value)}
             >
@@ -139,17 +223,25 @@ function ReportsPage() {
         )}
       </div>
 
+<<<<<<< HEAD
       {/* --- הצגת התוצאות --- */}
+=======
+>>>>>>> last
       {loading && (
         <div className="card">
           <p style={{ textAlign: "center" }}>טוען דוח, אנא המתן...</p>
         </div>
       )}
 
+<<<<<<< HEAD
       {/* הצג תוצאות רק אם reportData אינו null */}
       {reportData && (
         <>
           {/* אזור הסיכום (KPI) */}
+=======
+      {reportData && (
+        <>
+>>>>>>> last
           <div className="kpi-grid">
             <div className="card kpi-card">
               <h4>עובדים בדוח</h4>
@@ -157,6 +249,7 @@ function ReportsPage() {
             </div>
             <div className="card kpi-card">
               <h4>סה"כ שעות</h4>
+<<<<<<< HEAD
               <p className="kpi-value">
                 {formatHours(reportData.summary.totalHours)}
               </p>
@@ -172,12 +265,35 @@ function ReportsPage() {
           {/* טבלת הפירוט */}
           <div className="card">
             <h3>פירוט לפי עובד</h3>
+=======
+              <p className="kpi-value">{formatHours(reportData.summary.totalHours)}</p>
+            </div>
+            <div className="card kpi-card">
+              <h4>עלות שכר כוללת</h4>
+              <p className="kpi-value">{formatCurrency(reportData.summary.totalPay)}</p>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="report-table-header">
+              <h3 style={{ marginBottom: "20px" }}>פירוט לפי עובד</h3>
+              <button onClick={handleExport} className="secondary">
+                ייצוא לאקסל
+              </button>
+            </div>
+>>>>>>> last
             <div className="table-container">
               <table>
                 <thead>
                   <tr>
                     <th>שם העובד</th>
                     <th>מחלקה</th>
+<<<<<<< HEAD
+=======
+                    <th>תעריף שעתי</th>
+                    <th>שעות רגילות</th>
+                    <th>שעות נוספות</th>
+>>>>>>> last
                     <th>סה"כ שעות</th>
                     <th>עלות שכר משוערת</th>
                   </tr>
@@ -188,15 +304,28 @@ function ReportsPage() {
                       <tr key={row.employeeId}>
                         <td>{row.employeeName}</td>
                         <td>{row.department}</td>
+<<<<<<< HEAD
                         <td>{formatHours(row.totalHours)}</td>
                         <td style={{ fontWeight: "bold" }}>
                           {formatCurrency(row.totalPay)}
                         </td>
+=======
+                        <td>{formatCurrency(row.hourlyRate)}</td>
+                        <td>{formatHours(row.regularHours)}</td>
+                        <td>{formatHours(row.overtimeHours)}</td>
+                        <td>{formatHours(row.totalHours)}</td>
+                        <td style={{ fontWeight: "bold" }}>{formatCurrency(row.totalPay)}</td>
+>>>>>>> last
                       </tr>
                     ))
                   ) : (
                     <tr>
+<<<<<<< HEAD
                       <td colSpan="4" style={{ textAlign: "center" }}>
+=======
+                      {/* ⭐️⭐️⭐️ התיקון נמצא כאן ⭐️⭐️⭐️ */}
+                      <td colSpan="7" style={{ textAlign: "center" }}>
+>>>>>>> last
                         לא נמצאו נתונים עבור הבחירה הנוכחית.
                       </td>
                     </tr>
@@ -208,7 +337,10 @@ function ReportsPage() {
         </>
       )}
 
+<<<<<<< HEAD
       {/* הודעה ראשונית לפני הפקת הדוח */}
+=======
+>>>>>>> last
       {!loading && !reportData && !error && (
         <div className="card">
           <p style={{ textAlign: "center" }}>נא לבחור פרמטרים ולהפיק דוח.</p>
@@ -217,4 +349,8 @@ function ReportsPage() {
     </>
   );
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> last
 export default ReportsPage;

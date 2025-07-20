@@ -2,18 +2,52 @@ import { AppContext } from "./AppContext";
 import DigitalClock from "./DigitalClock";
 import "../styles.css";
 import { useContext, useEffect, useState } from "react";
+<<<<<<< HEAD
 function SettingsPage() {
   const { settings, setSettings, addToast } = useContext(AppContext);
   const [localSettings, setLocalSettings] = useState(settings);
   useEffect(() => {
     setLocalSettings(settings);
   }, [settings]);
+=======
+import { apiFetch } from "./utils";
+function SettingsPage() {
+  const { settings, setSettings, addToast } = useContext(AppContext);
+  const [localSettings, setLocalSettings] = useState({
+    standardWorkDayHours: 8.5,
+    overtimeRatePercent: 125,
+    ...settings,
+  });
+  //////////////////////////////
+
+  ///////////////////
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+
+    try {
+      await apiFetch("/settings", {
+        method: "PUT",
+        body: JSON.stringify(localSettings),
+      });
+
+      setSettings(localSettings);
+      addToast("ההגדרות נשמרו בהצלחה!", "success");
+    } catch (error) {
+      addToast(error.message || "שגיאה בשמירת הגדרות", "danger");
+    }
+  };
+
+  ///////////////////
+
+>>>>>>> last
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     const val =
       type === "checkbox"
         ? checked
         : type === "number"
+<<<<<<< HEAD
         ? parseFloat(value)
         : value;
     setLocalSettings((prev) => ({ ...prev, [name]: val }));
@@ -23,6 +57,28 @@ function SettingsPage() {
     setSettings(localSettings);
     addToast("ההגדרות נשמרו בהצלחה!", "success");
   };
+=======
+        ? parseFloat(value) || 0
+        : value;
+    setLocalSettings((prev) => ({ ...prev, [name]: val }));
+  };
+
+  /////////////////////
+
+  useEffect(() => {
+    setLocalSettings((prev) => ({ ...prev, settings }));
+  }, [settings]);
+
+  useEffect(() => {
+    // רק אם settings הוא אובייקט תקין, נעדכן את הערכים
+    if (settings && typeof settings === "object") {
+      setLocalSettings((prev) => ({ ...prev, ...settings }));
+    }
+  }, [settings]);
+  
+  ///////////////////
+
+>>>>>>> last
   return (
     <>
       <div className="page-header">

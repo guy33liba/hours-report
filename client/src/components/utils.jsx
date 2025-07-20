@@ -1,6 +1,12 @@
 import { useEffect } from "react";
+<<<<<<< HEAD
 export const API_BASE_URL = "http://192.168.1.19:8989/api";
 
+=======
+// export const API_BASE_URL = "http://192.168.1.19:8989/api";
+export const API_BASE_URL = "http://localhost:5000/api";
+import * as XLSX from "xlsx";
+>>>>>>> last
 
 export const apiFetch = async (endpoint, options = {}) => {
   const token = localStorage.getItem("token");
@@ -23,13 +29,25 @@ export const apiFetch = async (endpoint, options = {}) => {
       ...options,
       headers,
     });
+<<<<<<< HEAD
 
+=======
+    if (response.status === 401) {
+      localStorage.removeItem("token");
+      window.location.href = "/login";
+      throw new Error("החיבור פג תוקף, יש להתחבר מחדש.");
+    }
+>>>>>>> last
     const responseText = await response.text();
     const data = responseText ? JSON.parse(responseText) : {};
 
     if (!response.ok) {
+<<<<<<< HEAD
       const errorMessage =
         data.message || `An API error occurred (Status: ${response.status})`;
+=======
+      const errorMessage = data.message || `An API error occurred (Status: ${response.status})`;
+>>>>>>> last
       throw new Error(errorMessage);
     }
 
@@ -45,9 +63,13 @@ export const calculateNetSeconds = (entry) => {
   }
 
   const clockInTime = new Date(entry.clockIn).getTime();
+<<<<<<< HEAD
   const upToTime = entry.clockOut
     ? new Date(entry.clockOut).getTime()
     : Date.now();
+=======
+  const upToTime = entry.clockOut ? new Date(entry.clockOut).getTime() : Date.now();
+>>>>>>> last
 
   const totalDurationMs = upToTime - clockInTime;
 
@@ -98,3 +120,16 @@ export function Toast({ message, type, onDismiss }) {
   }, [onDismiss]);
   return <div className={`toast ${type}`}>{message}</div>;
 }
+<<<<<<< HEAD
+=======
+
+export const exportToExcel = (data, fileName) => {
+  const worksheet = XLSX.utils.json_to_sheet(data);
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+
+  const finalFileName = `${fileName}_${new Date().toISOString().split("T")[0]}.xlsx`;
+  XLSX.writeFile(workbook, finalFileName);
+};
+>>>>>>> last

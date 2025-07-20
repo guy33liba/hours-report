@@ -1,9 +1,14 @@
+<<<<<<< HEAD
 import { useContext, useState } from "react";
+=======
+import { useContext, useMemo, useState } from "react";
+>>>>>>> last
 import DigitalClock from "./DigitalClock";
 import { AppContext } from "./AppContext";
 import { apiFetch } from "./utils";
 import "../styles.css";
 
+<<<<<<< HEAD
 function PayrollPage() {
   const {
     employees,
@@ -16,6 +21,26 @@ function PayrollPage() {
   const [payrollResult, setPayrollResult] = useState(null);
   const [isCalculating, setIsCalculating] = useState(false);
 
+=======
+const getYYYYMMDD = (date) => date.toISOString().split("T")[0];
+
+function PayrollPage() {
+  const { employees, addToast, loading: contextLoading } = useContext(AppContext);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
+  const [dateRange, setDateRange] = useState({
+    start: getYYYYMMDD(new Date(new Date().getFullYear(), new Date().getMonth(), 2)),
+    end: getYYYYMMDD(new Date()),
+  });
+  const [payrollResult, setPayrollResult] = useState(null);
+  const [isCalculating, setIsCalculating] = useState(false);
+
+  // רשימה של כל העובדים והמנהלים שניתן לבחור
+  const selectableEmployees = useMemo(
+    () => (employees || []).filter((emp) => emp.role === "employee" || emp.role === "manager"),
+    [employees]
+  );
+
+>>>>>>> last
   const handleEmployeeSelection = (e) => {
     const id = parseInt(e.target.value);
     setSelectedEmployeeIds((prev) =>
@@ -23,6 +48,7 @@ function PayrollPage() {
     );
   };
 
+<<<<<<< HEAD
   const handleSelectAll = (e) => {
     setSelectedEmployeeIds(
       e.target.checked
@@ -39,6 +65,15 @@ function PayrollPage() {
       !dateRange.start ||
       !dateRange.end
     ) {
+=======
+  // פונקציה פשוטה ונכונה לבחירת כולם
+  const handleSelectAll = (e) => {
+    setSelectedEmployeeIds(e.target.checked ? selectableEmployees.map((emp) => emp.id) : []);
+  };
+
+  const handleCalculatePayroll = async () => {
+    if (selectedEmployeeIds.length === 0 || !dateRange.start || !dateRange.end) {
+>>>>>>> last
       addToast("יש לבחור עובדים וטווח תאריכים.", "danger");
       return;
     }
@@ -54,7 +89,16 @@ function PayrollPage() {
           endDate: dateRange.end,
         }),
       });
+<<<<<<< HEAD
       setPayrollResult(data.details);
+=======
+      // בדיקה בטיחותית לפני שמירת התוצאה
+      if (data && data.details) {
+        setPayrollResult(data.details);
+      } else {
+        setPayrollResult([]); // הצג הודעת "אין נתונים" במקום קריסה
+      }
+>>>>>>> last
     } catch (err) {
       addToast(err.message || "שגיאה בחישוב השכר", "danger");
     } finally {
@@ -78,11 +122,16 @@ function PayrollPage() {
             <h3>1. בחר עובדים</h3>
             <div className="employee-select-list">
               <div className="select-all-item">
+<<<<<<< HEAD
+=======
+                {/* --- התיקון כאן: שימוש בלוגיקה הפשוטה והנכונה --- */}
+>>>>>>> last
                 <input
                   type="checkbox"
                   id="select-all"
                   onChange={handleSelectAll}
                   checked={
+<<<<<<< HEAD
                     selectedEmployeeIds.length ===
                       (employees || []).filter((e) => e.role === "employee")
                         .length &&
@@ -110,6 +159,28 @@ function PayrollPage() {
                     <label htmlFor={`emp-${emp.id}`}>{emp.name}</label>
                   </div>
                 ))}
+=======
+                    selectableEmployees.length > 0 &&
+                    selectedEmployeeIds.length === selectableEmployees.length
+                  }
+                  disabled={selectableEmployees.length === 0}
+                />
+                <label htmlFor="select-all">בחר את כולם</label>
+              </div>
+              {/* --- התיקון כאן: שימוש ברשימה שהכנו מראש --- */}
+              {selectableEmployees.map((emp) => (
+                <div key={emp.id} className="employee-select-item">
+                  <input
+                    type="checkbox"
+                    id={`emp-${emp.id}`}
+                    value={emp.id}
+                    checked={selectedEmployeeIds.includes(emp.id)}
+                    onChange={handleEmployeeSelection}
+                  />
+                  <label htmlFor={`emp-${emp.id}`}>{emp.name}</label>
+                </div>
+              ))}
+>>>>>>> last
             </div>
           </div>
           <div className="control-section">
@@ -119,9 +190,13 @@ function PayrollPage() {
               <input
                 type="date"
                 value={dateRange.start}
+<<<<<<< HEAD
                 onChange={(e) =>
                   setDateRange((p) => ({ ...p, start: e.target.value }))
                 }
+=======
+                onChange={(e) => setDateRange((p) => ({ ...p, start: e.target.value }))}
+>>>>>>> last
               />
             </div>
             <div className="form-group">
@@ -129,9 +204,13 @@ function PayrollPage() {
               <input
                 type="date"
                 value={dateRange.end}
+<<<<<<< HEAD
                 onChange={(e) =>
                   setDateRange((p) => ({ ...p, end: e.target.value }))
                 }
+=======
+                onChange={(e) => setDateRange((p) => ({ ...p, end: e.target.value }))}
+>>>>>>> last
               />
             </div>
           </div>
@@ -147,6 +226,10 @@ function PayrollPage() {
           <p style={{ textAlign: "center" }}>מחשב דוח שכר, אנא המתן...</p>
         </div>
       )}
+<<<<<<< HEAD
+=======
+      {/* --- התיקון כאן: בדיקה בטוחה יותר של התוצאות --- */}
+>>>>>>> last
       {payrollResult && (
         <div className="card">
           <h3>תוצאות דוח שכר</h3>
@@ -158,11 +241,17 @@ function PayrollPage() {
                   <th>שעות רגילות</th>
                   <th>שעות נוספות</th>
                   <th>שכר בסיס</th>
+<<<<<<< HEAD
                   <th>תוספת שעות נוספות</th>
+=======
+                  <th> שעות נוספות</th>
+                  <th>סה"כ שעות</th>
+>>>>>>> last
                   <th>סה"כ לתשלום</th>
                 </tr>
               </thead>
               <tbody>
+<<<<<<< HEAD
                 {payrollResult.details.length > 0 ? (
                   payrollResult.details.map((item) => (
                     <tr key={item.id}>
@@ -174,6 +263,18 @@ function PayrollPage() {
                       <td style={{ fontWeight: "bold" }}>
                         ₪{item.totalPay.toFixed(2)}
                       </td>
+=======
+                {payrollResult.length > 0 ? (
+                  payrollResult.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.name}</td>
+                      <td>{(item.totalRegularHours || 0).toFixed(2)}</td>
+                      <td>{(item.totalOvertimeHours || 0).toFixed(2)}</td>
+                      <td>₪{(item.basePay || 0).toFixed(2)}</td>
+                      <td>₪{(item.overtimePay || 0).toFixed(2)}</td>
+                      <td>{(item.totalHours || 0).toFixed(2)}</td>
+                      <td style={{ fontWeight: "bold" }}>₪{(item.totalPay || 0).toFixed(2)}</td>
+>>>>>>> last
                     </tr>
                   ))
                 ) : (

@@ -1,16 +1,31 @@
 import { AppContext } from "./AppContext";
-import { apiFetch } from "./utils"; // ודא ש-apiFetch מיובא
+import { apiFetch } from "./utils";
 import "../styles.css";
 import { useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { Icon } from "./utils";
-
+const getTodayYYYYMMDD = () => {
+  return new Date().toISOString().split("T")[0];
+};
 function AttendanceReportPage() {
   const { addToast } = useContext(AppContext);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
 
+  // --- שלב 1: הוספת משתני State חדשים עבור סינון התאריכים ---
+  const [filters, setFilters] = useState({
+    name: "",
+    startDate: getTodayYYYYMMDD(),
+    endDate: getTodayYYYYMMDD(),
+  });
+  // -----------------------------------------------------------
+  const handleClearFilters = () => {
+    setFilters({
+      name: "",
+      startDate: "",
+      endDate: "",
+    });
+  };
   const fetchAttendance = useCallback(async () => {
     try {
       setLoading(true);
@@ -27,31 +42,42 @@ function AttendanceReportPage() {
     }
   }, [addToast]);
 
+  // --- שלב 2: שדרוג לוגיקת הסינון ---
   const filteredRecords = useMemo(() => {
-    if (!searchTerm) {
-      return attendanceRecords; // אם אין חיפוש, החזר את כל הרשומות
-    }
-    return attendanceRecords.filter((record) =>
-      record.employeeName?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [attendanceRecords, searchTerm]);
+    // מתחילים עם כל הרשומות ומסננים אותן צעד אחר צעד
+    return attendanceRecords.filter((record) => {
+      const recordDate = new Date(record.clockIn || record.check_in_time);
+
+      // תנאי 1: בדיקת שם העובד
+      const nameMatch = filters.name
+        ? record.employeeName?.toLowerCase().includes(filters.name.toLowerCase())
+        : true; // אם אין חיפוש שם, תמיד תחזיר אמת
+
+      // תנאי 2: בדיקת תאריך התחלה
+      const startDateMatch = filters.startDate ? recordDate >= new Date(filters.startDate) : true; // אם אין תאריך התחלה, תמיד תחזיר אמת
+
+      // תנאי 3: בדיקת תאריך סיום
+      const endDateMatch = filters.endDate
+        ? recordDate <= new Date(filters.endDate + "T23:59:59")
+        : true;
+
+      // רק רשומה שעונה על כל התנאים תישאר ברשימה
+      return nameMatch && startDateMatch && endDateMatch;
+    });
+  }, [attendanceRecords, filters]); // הלוגיקה תרוץ מחדש כל פעם שהרשומות או הפילטרים משתנים
+  // ----------------------------------------------------
 
   useEffect(() => {
     fetchAttendance();
-  }, []); // ירוץ פעם אחת כשהרכיב נטען
+  }, [fetchAttendance]); // שינוי קטן: הוספת fetchAttendance למערך התלויות
 
-  // const formatDateTime = (dateString) => {
-  //   if (!dateString) return "בפנים";
-  //   return new Date(dateString).toLocaleString("he-IL");
-  // };
   const formatDate = (dateString) => {
     if (!dateString) return "-";
     return new Date(dateString).toLocaleDateString("he-IL");
   };
 
-  // Formats only the time (e.g., "09:30")
   const formatTime = (dateString) => {
-    if (!dateString) return "בפנים"; // "Still In"
+    if (!dateString) return "בפנים";
     return new Date(dateString).toLocaleTimeString("he-IL", {
       hour: "2-digit",
       minute: "2-digit",
@@ -60,7 +86,7 @@ function AttendanceReportPage() {
 
   const calculateHours = (start, end) => {
     if (!start || !end) return "-";
-    const durationHours = (new Date(end).getTime() - new Date(start).getTime()) / (1000 * 60 * 60);
+    const durationHours = (new Date(end).getTime() - new Date(start).getTime()) / 3600000;
     return durationHours.toFixed(2) + " שעות";
   };
 
@@ -71,25 +97,51 @@ function AttendanceReportPage() {
     <>
       <div className="page-header">
         <h2>דוח נוכחות עובדים</h2>
+        <button
+          onClick={handleClearFilters}
+          className="secondary"
+          style={{ position: "relative", left: "20px", width: "200px" }}
+        >
+          נקה סינון
+        </button>
       </div>
       <div className="card">
-        <div className="card-header" style={{ marginBottom: "20px" }}>
-          <div className="search-bar" style={{ maxWidth: "400px", margin: "0 auto" }}>
-            <span className="search-icon">
-              <Icon path="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
-            </span>
+        {/* --- שלב 3: הוספת שדות התאריך ל-UI --- */}
+        <div className="card-header report-controls" style={{ marginBottom: "20px" }}>
+          {/* חיפוש לפי שם */}
+          <div className="form-group">
+            <label>חפש שם</label>
             <input
               type="text"
-              placeholder="חפש לפי שם עובד..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="הקלד שם לחיפוש..."
+              value={filters.name}
+              onChange={(e) => setFilters((prev) => ({ ...prev, name: e.target.value }))}
+            />
+          </div>
+          {/* סינון לפי תאריך התחלה */}
+          <div className="form-group">
+            <label>מתאריך</label>
+            <input
+              type="date"
+              value={filters.startDate}
+              onChange={(e) => setFilters((prev) => ({ ...prev, startDate: e.target.value }))}
+            />
+          </div>
+          {/* סינון לפי תאריך סיום */}
+          <div className="form-group">
+            <label>עד תאריך</label>
+            <input
+              type="date"
+              value={filters.endDate}
+              onChange={(e) => setFilters((prev) => ({ ...prev, endDate: e.target.value }))}
             />
           </div>
         </div>
+        {/* ------------------------------------------- */}
 
-        {/* שלב 2: החלפת מבנה הטבלה כולו */}
         <div className="attendance-table-container">
           <table>
+            {/* ... שאר הטבלה נשאר זהה ... */}
             <thead>
               <tr>
                 <th>שם עובד</th>
@@ -130,7 +182,7 @@ function AttendanceReportPage() {
               ) : (
                 <tr>
                   <td colSpan="6" style={{ textAlign: "center" }}>
-                    אין נתוני נוכחות להצגה.
+                    אין נתוני נוכחות התואמים לסינון.
                   </td>
                 </tr>
               )}

@@ -24,6 +24,7 @@ function LoginPage({ onLogin }) {
       if (data.token && data.user) {
         onLogin(data.user, data.token); // קריאה לפונקציה הראשית עם המידע החדש
       } else {
+        alert("תגובה לא תקינה");
         setError("תגובה לא תקינה מהשרת");
       }
     } catch (err) {
@@ -62,11 +63,7 @@ function LoginPage({ onLogin }) {
               required
             />
           </div>
-          <button
-            type="submit"
-            className="button-full-width"
-            disabled={isLoading}
-          >
+          <button type="submit" className="button-full-width" disabled={isLoading}>
             {isLoading ? "מתחבר..." : "התחבר"}
           </button>
         </form>

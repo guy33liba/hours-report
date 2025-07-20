@@ -24,7 +24,7 @@ export const apiFetch = async (endpoint, options = {}) => {
       ...options,
       headers,
     });
-    if (response.status === 401) {
+    if (response.status === 401 && endpoint !== "/auth/login") {
       localStorage.removeItem("token");
       window.location.href = "/login";
       throw new Error("החיבור פג תוקף, יש להתחבר מחדש.");

@@ -403,6 +403,7 @@ app.get("/api/reports/hours", authenticateToken, authorizeManager, async (req, r
 
 //SETTINGS////////////////////////
 
+// ✅✅✅ הקוד השלם, הנקי והסופי. יש להחליף את כל הפונקציה שלך בזה. ✅✅✅
 app.post("/api/payroll", authenticateToken, authorizeManager, async (req, res) => {
   const { employeeIds, startDate, endDate } = req.body;
 
@@ -417,63 +418,49 @@ app.post("/api/payroll", authenticateToken, authorizeManager, async (req, res) =
   }
 
   try {
-    // --- שלב 1: הבאת פרטי כל העובדים הנבחרים ---
+    // שלב 1: שליפת כל הנתונים הנדרשים ממסד הנתונים
     const { rows: employeesData } = await pool.query(
       `SELECT id, name, department, hourly_rate FROM employees WHERE id = ANY($1::int[])`,
       [employeeIds]
     );
 
-    // אם לא נמצאו עובדים בכלל, החזר תשובה ריקה
     if (employeesData.length === 0) {
       return res.json({ details: [] });
     }
 
-    // --- שלב 2: הבאת כל רשומות הנוכחות הרלוונטיות ---
-    const { rows: attendanceData } = await pool.query(
+    const { rows: allAttendanceData } = await pool.query(
       `SELECT employee_id, clock_in, clock_out, breaks FROM attendance 
              WHERE employee_id = ANY($1::int[]) AND clock_out IS NOT NULL 
              AND clock_in::date >= $2 AND clock_in::date <= $3`,
       [employeeIds, startDate, endDate]
     );
-    const attendanceByEmployee = attendanceData.reduce((acc, entry) => {
-      const empId = entry.employee_id;
-      if (!acc[empId]) {
-        acc[empId] = [];
-      }
-      acc[empId].push(entry);
-      return acc;
-    }, {});
-    // --- שלב 3: חישוב השכר (אותה לוגיקה כמו קודם, אבל עכשיו תמיד יש לנו את פרטי העובד) ---
-    const { rows: settingsRows } = await pool.query(
-      "SELECT standard_work_day_hours,overtime_rate_percent FROM application_settings WHERE id = 1"
-    );
-    const dbSettings = settingsRows[0] || {};
 
+    const { rows: settingsRows } = await pool.query(
+      "SELECT standard_work_day_hours, overtime_rate_percent FROM application_settings WHERE id = 1"
+    );
+
+    const dbSettings = settingsRows[0] || {};
     const settings = {
       standardWorkDayHours: parseFloat(dbSettings.standard_work_day_hours || 8.5),
       overtimeRatePercent: parseFloat(dbSettings.overtime_rate_percent || 125.0),
     };
+
+    // שלב 2: חישוב השכר עבור כל עובד בנפרד
     const payrollDetails = employeesData.map((employee) => {
       try {
-        // --- הדפסת הנתונים הגולמיים לפני כל חישוב ---
-        const empAttendance = attendanceByEmployee[employee.id] || [];
-        console.log(`\n--- RAW DATA FOR EMPLOYEE: ${employee.name} ---`);
-        console.log(JSON.stringify(empAttendance, null, 2));
-        console.log("------------------------------------------");
-        // ----------------------------------------------------
-
         const hourlyRate = parseFloat(employee.hourly_rate) || 0;
-        
-        let grandTotalHours = 0;
-        empAttendance.forEach((entry) => {
-          if (!entry.clock_in || !entry.clock_out) return; // דלג על רשומות פגומות
 
+        // סינון רשומות הנוכחות הרלוונטיות לעובד זה בלבד
+        const employeeSpecificAttendance = allAttendanceData.filter(
+          (entry) => entry.employee_id === employee.id
+        );
+
+        // חישוב סך שעות העבודה לכל יום
+        const dailyHours = employeeSpecificAttendance.reduce((acc, entry) => {
           const clockInTime = new Date(entry.clock_in).getTime();
           const clockOutTime = new Date(entry.clock_out).getTime();
+          if (isNaN(clockInTime) || isNaN(clockOutTime)) return acc;
 
-          // בדיקה אם התאריכים תקינים
-          if (isNaN(clockInTime) || isNaN(clockOutTime)) return;
-          
           let totalDurationMs = clockOutTime - clockInTime;
           let totalBreakMs = 0;
           if (Array.isArray(entry.breaks)) {
@@ -483,48 +470,62 @@ app.post("/api/payroll", authenticateToken, authorizeManager, async (req, res) =
               }
             });
           }
-          const netWorkSeconds = Math.max(0, (totalDurationMs - totalBreakMs) / 1000);
-          grandTotalHours += netWorkSeconds / 3600;
-        });
+          const netWorkHours = Math.max(0, (totalDurationMs - totalBreakMs) / 3600000);
+          const entryDate = new Date(entry.clock_in).toISOString().split("T")[0];
+          acc[entryDate] = (acc[entryDate] || 0) + netWorkHours;
+          return acc;
+        }, {});
 
-        const uniqueWorkDays = new Set(
-          empAttendance
-            .filter(entry => entry && entry.clock_in)
-            .map(entry => new Date(entry.clock_in).toISOString().split('T')[0])
-        );
-        const numberOfUniqueDays = uniqueWorkDays.size;
+        // חישוב שעות רגילות ונוספות
+        let totalRegularHours = 0;
+        let totalOvertimeHours = 0;
+        for (const date in dailyHours) {
+          const hoursOnDay = dailyHours[date];
+          const dailyOvertime = Math.max(0, hoursOnDay - settings.standardWorkDayHours);
+          const dailyRegular = hoursOnDay - dailyOvertime;
 
-        const standardHoursForPeriod = numberOfUniqueDays * settings.standardWorkDayHours;
-        const totalOvertimeHours = Math.max(0, grandTotalHours - standardHoursForPeriod);
-        const totalRegularHours = grandTotalHours - totalOvertimeHours;
-        
+          totalOvertimeHours += dailyOvertime;
+          totalRegularHours += dailyRegular;
+        }
+
+        // חישוב התשלום הסופי
         const basePay = totalRegularHours * hourlyRate;
         const overtimePay = totalOvertimeHours * hourlyRate * (settings.overtimeRatePercent / 100);
+        const totalPay = basePay + overtimePay;
 
         return {
-          id: employee.id, name: employee.name, department: employee.department,
-          totalRegularHours: totalRegularHours || 0,
-          totalOvertimeHours: totalOvertimeHours || 0,
-          basePay: basePay || 0,
-          overtimePay: overtimePay || 0,
-          totalPay: (basePay + overtimePay) || 0,
+          id: employee.id,
+          name: employee.name,
+          department: employee.department,
+          totalRegularHours,
+          totalOvertimeHours,
+          basePay,
+          overtimePay,
+          totalPay,
         };
-
       } catch (innerErr) {
-        // אם החישוב עבור עובד ספציפי נכשל, נדפיס שגיאה ונמשיך הלאה
-        console.error(`!!! FAILED TO PROCESS PAYROLL FOR EMPLOYEE: ${employee.name} (ID: ${employee.id}) !!!`);
-        console.error('THE ERROR WAS:', innerErr);
-        // החזר אובייקט בטוח כדי שהפרונטאנד לא יקרוס
+        console.error(
+          `!!! FAILED TO PROCESS PAYROLL FOR EMPLOYEE: ${employee.name} (ID: ${employee.id}) !!!`,
+          innerErr
+        );
         return {
-          id: employee.id, name: employee.name, department: employee.department,
-          totalRegularHours: 0, totalOvertimeHours: 0, basePay: 0, overtimePay: 0, totalPay: 0,
+          id: employee.id,
+          name: employee.name,
+          department: employee.department,
+          totalRegularHours: 0,
+          totalOvertimeHours: 0,
+          basePay: 0,
+          overtimePay: 0,
+          totalPay: 0,
         };
       }
     });
+
+    // שלב 3: שליחת התוצאה הסופית
     res.json({ details: payrollDetails });
   } catch (err) {
-    console.error(" ERROR Generating Payroll Report:", err);
-    res.status(500).json({ message: "שגיאה בהפקת דוח שכר." });
+    console.error("FATAL ERROR Generating Payroll Report:", err);
+    res.status(500).json({ message: "שגיאה קריטית בהפקת דוח השכר." });
   }
 });
 app.get("/api/settings", authenticateToken, (req, res) => {
@@ -542,6 +543,7 @@ app.put("/api/settings", authenticateToken, authorizeManager, async (req, res) =
   if (standardWorkDayHours === undefined || overtimeRatePercent === undefined) {
     return res.status(400).json({ message: "נדרש לספק את כל ערכי ההגדרות." });
   }
+  console.log("2131");
 
   try {
     await pool.query(
@@ -554,6 +556,7 @@ app.put("/api/settings", authenticateToken, authorizeManager, async (req, res) =
     res.status(500).json({ message: "שגיאה בעדכון ההגדרות." });
   }
 });
+console.log("kakai");
 server.listen(PORT, () => {
   console.log(`✅ Server is running on port ${PORT}`);
 });

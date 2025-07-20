@@ -5,26 +5,26 @@ import { apiFetch, exportToExcel } from "./utils";
 import "../styles.css";
 
 // פונקציות עזר קטנות ונקיות
-const formatHours = (hours) => (typeof hours === "number" ? hours.toFixed(2) : "0.00");
+const formatHours = (hours) => {
+  const num = parseFloat(hours);
+  return !isNaN(num) ? num.toFixed(2) : "0.00";
+};
 const formatCurrency = (amount) =>
   new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS" }).format(amount || 0);
 const getYYYYMMDD = (date) => date.toISOString().split("T")[0];
 
 function ReportsPage() {
-  // 1. קבלת רשימת העובדים מהקונטקסט, רק כדי למלא את תיבת הבחירה
   const { employees } = useContext(AppContext);
 
-  // 2. הגדרת כל המצבים (States) שהקומפוננטה צריכה
   const [range, setRange] = useState({
     start: getYYYYMMDD(new Date(new Date().getFullYear(), new Date().getMonth(), 1)),
     end: getYYYYMMDD(new Date()),
   });
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState(""); // "" = כל העובדים
-  const [reportData, setReportData] = useState(null); // null = דוח עוד לא הופק
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
+  const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // 3. הפונקציה המרכזית: שולחת בקשה לשרת ומקבלת תוצאה מוכנה
   const handleGenerateReport = async () => {
     setError("");
     if (new Date(range.start) > new Date(range.end)) {
@@ -33,7 +33,7 @@ function ReportsPage() {
     }
 
     setLoading(true);
-    setReportData(null); // איפוס תוצאות קודמות
+    setReportData(null);
 
     try {
       const params = new URLSearchParams({
@@ -46,20 +46,14 @@ function ReportsPage() {
 
       const dataFromServer = await apiFetch(`/reports/hours?${params.toString()}`);
 
-      // חישובים פשוטים בצד הלקוח על התוצאה הסופית שהגיעה מהשרת
       const finalData = {
-        details: dataFromServer.map((row) => {
-          const totalHours = row.totalSeconds / 3600;
-          const totalPay = totalHours * parseFloat(row.hourlyRate || 0);
-          return { ...row, totalHours, totalPay };
-        }),
+        details: dataFromServer,
       };
 
-      // חישוב הסיכום הכללי
       finalData.summary = finalData.details.reduce(
         (acc, row) => {
-          acc.totalHours += row.totalHours;
-          acc.totalPay += row.totalPay;
+          acc.totalHours += parseFloat(row.totalHours) || 0;
+          acc.totalPay += parseFloat(row.totalPay) || 0;
           return acc;
         },
         { totalHours: 0, totalPay: 0, totalEmployees: finalData.details.length }
@@ -72,22 +66,26 @@ function ReportsPage() {
       setLoading(false);
     }
   };
+
   const handleExport = () => {
     if (!reportData || !reportData.details) {
       alert("יש להפיק דוח לפני הייצוא.");
       return;
     }
 
-    // הכנת הנתונים לפורמט יפה באקסל, עם כותרות בעברית
     const dataToExport = reportData.details.map((row) => ({
       "שם עובד": row.employeeName,
-      'מחלקה': row.department,
+      מחלקה: row.department,
+      "תעריף שעתי (₪)": parseFloat(row.hourlyRate).toFixed(2),
+      "שעות רגילות": formatHours(row.regularHours),
+      "שעות נוספות": formatHours(row.overtimeHours),
       'סה"כ שעות': formatHours(row.totalHours),
-      "עלות שכר משוערת (₪)": row.totalPay.toFixed(2), // ייצוא כמספר נקי
+      "עלות שכר משוערת (₪)": parseFloat(row.totalPay).toFixed(2),
     }));
 
     exportToExcel(dataToExport, "Report_Attendance_Hours");
   };
+
   return (
     <>
       <div className="page-header">
@@ -95,7 +93,6 @@ function ReportsPage() {
         <DigitalClock />
       </div>
 
-      {/* --- אזור הסינון --- */}
       <div className="card">
         <h3>בחר פרמטרים לדוח</h3>
         <div className="report-controls">
@@ -148,17 +145,14 @@ function ReportsPage() {
         )}
       </div>
 
-      {/* --- הצגת התוצאות --- */}
       {loading && (
         <div className="card">
           <p style={{ textAlign: "center" }}>טוען דוח, אנא המתן...</p>
         </div>
       )}
 
-      {/* הצג תוצאות רק אם reportData אינו null */}
       {reportData && (
         <>
-          {/* אזור הסיכום (KPI) */}
           <div className="kpi-grid">
             <div className="card kpi-card">
               <h4>עובדים בדוח</h4>
@@ -174,7 +168,6 @@ function ReportsPage() {
             </div>
           </div>
 
-          {/* טבלת הפירוט */}
           <div className="card">
             <div className="report-table-header">
               <h3 style={{ marginBottom: "20px" }}>פירוט לפי עובד</h3>
@@ -188,6 +181,9 @@ function ReportsPage() {
                   <tr>
                     <th>שם העובד</th>
                     <th>מחלקה</th>
+                    <th>תעריף שעתי</th>
+                    <th>שעות רגילות</th>
+                    <th>שעות נוספות</th>
                     <th>סה"כ שעות</th>
                     <th>עלות שכר משוערת</th>
                   </tr>
@@ -198,13 +194,17 @@ function ReportsPage() {
                       <tr key={row.employeeId}>
                         <td>{row.employeeName}</td>
                         <td>{row.department}</td>
+                        <td>{formatCurrency(row.hourlyRate)}</td>
+                        <td>{formatHours(row.regularHours)}</td>
+                        <td>{formatHours(row.overtimeHours)}</td>
                         <td>{formatHours(row.totalHours)}</td>
                         <td style={{ fontWeight: "bold" }}>{formatCurrency(row.totalPay)}</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="4" style={{ textAlign: "center" }}>
+                      {/* ⭐️⭐️⭐️ התיקון נמצא כאן ⭐️⭐️⭐️ */}
+                      <td colSpan="7" style={{ textAlign: "center" }}>
                         לא נמצאו נתונים עבור הבחירה הנוכחית.
                       </td>
                     </tr>
@@ -216,7 +216,6 @@ function ReportsPage() {
         </>
       )}
 
-      {/* הודעה ראשונית לפני הפקת הדוח */}
       {!loading && !reportData && !error && (
         <div className="card">
           <p style={{ textAlign: "center" }}>נא לבחור פרמטרים ולהפיק דוח.</p>
@@ -225,4 +224,5 @@ function ReportsPage() {
     </>
   );
 }
+
 export default ReportsPage;

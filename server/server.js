@@ -347,56 +347,88 @@ app.delete("/api/absences/:id", authenticateToken, authorizeManager, async (req,
 
 // ב-server.js
 
+// ✅✅✅ מחק את כל הפונקציה הישנה והדבק את כל זאת במקומה ✅✅✅
+
+
 app.get("/api/reports/hours", authenticateToken, authorizeManager, async (req, res) => {
+  // ⭐️⭐️⭐️ התיקון נמצא כאן! שיניתי חזרה ל-req.query ⭐️⭐️⭐️
   const { startDate, endDate, employeeId } = req.query;
+
+  console.log("--- [גרסה 100% מתוקנת] מתחיל הפקת דוח שעות ---");
+  console.log("--- [גרסה 100% מתוקנת] פרמטרים שהתקבלו מ-URL:", { startDate, endDate, employeeId });
 
   if (!startDate || !endDate) {
     return res.status(400).json({ message: "נדרשים תאריך התחלה וסיום." });
   }
 
   try {
+    // שלב 1: שליפת הגדרות מהטבלה הנכונה - application_settings
+    const settingsResult = await pool.query(
+      "SELECT standard_work_day_hours, overtime_rate_percent FROM application_settings WHERE id = 1"
+    );
+
+    const dbSettings = settingsResult.rows[0] || {};
+    const dailyOvertimeThreshold = parseFloat(dbSettings.standard_work_day_hours || "8.5");
+    const overtimeMultiplier = parseFloat(dbSettings.overtime_rate_percent || "125") / 100.0;
+
+    console.log("--- [גרסה 100% מתוקנת] משתמש בהגדרות היומיות:", { dailyOvertimeThreshold, overtimeMultiplier });
+
+    // שלב 2: השאילתה המורכבת לחישוב שעות נוספות יומיות
     let query = `
+      WITH DailyHours AS (
         SELECT
-          e.id AS "employeeId",
-          e.name AS "employeeName",
-          e.department,
-          e.hourly_rate AS "hourlyRate",
-          COALESCE(SUM(
+          a.employee_id,
+          a.clock_in::date AS work_day,
+          SUM(
             EXTRACT(EPOCH FROM (a.clock_out - a.clock_in)) -
             COALESCE((
               SELECT SUM(EXTRACT(EPOCH FROM (b.end::TIMESTAMP - b.start::TIMESTAMP)))
               FROM jsonb_to_recordset(a.breaks) AS b(start TEXT, "end" TEXT)
               WHERE b.start IS NOT NULL AND b.end IS NOT NULL
             ), 0)
-          ), 0) AS "totalSeconds"
-        FROM employees e
-        LEFT JOIN attendance a ON e.id = a.employee_id
-          AND a.clock_out IS NOT NULL
-          AND a.clock_in::date >= $1
-          AND a.clock_in::date <= $2
-        WHERE 1=1
-      `;
+          ) / 3600.0 AS hours_worked_on_day
+        FROM attendance a
+        WHERE a.clock_out IS NOT NULL AND a.clock_in::date >= $1 AND a.clock_in::date <= $2
+        GROUP BY a.employee_id, work_day
+      )
+      SELECT
+        e.id AS "employeeId", e.name AS "employeeName", e.department, e.hourly_rate AS "hourlyRate",
+        COALESCE(SUM(LEAST(dh.hours_worked_on_day, $3)), 0) AS "regularHours",
+        COALESCE(SUM(GREATEST(0, dh.hours_worked_on_day - $3)), 0) AS "overtimeHours",
+        COALESCE(SUM(dh.hours_worked_on_day), 0) AS "totalHours",
+        (
+            COALESCE(SUM(LEAST(dh.hours_worked_on_day, $3)), 0) * e.hourly_rate +
+            COALESCE(SUM(GREATEST(0, dh.hours_worked_on_day - $3)), 0) * e.hourly_rate * $4
+        ) AS "totalPay"
+      FROM employees e
+      LEFT JOIN DailyHours dh ON e.id = dh.employee_id
+      WHERE 1=1
+    `;
 
-    const params = [startDate, endDate];
-    let paramIndex = 3;
+    const params = [startDate, endDate, dailyOvertimeThreshold, overtimeMultiplier];
+    let paramIndex = 5;
 
     if (employeeId) {
-      query += ` AND e.id = $${paramIndex++}`;
-      params.push(employeeId);
+        query += ` AND e.id = $${paramIndex++}`;
+        params.push(employeeId);
     } else {
-      // אם לא נבחר עובד, הצג רק עובדים רגילים (לא מנהלים)
-      query += ` AND e.role = 'employee'`;
+        query += ` AND e.role = 'employee'`;
     }
 
     query += `
-        GROUP BY e.id, e.name, e.department, e.hourly_rate
-        ORDER BY e.name;
-      `;
+      GROUP BY e.id
+      HAVING COALESCE(SUM(dh.hours_worked_on_day), 0) > 0
+      ORDER BY e.name;
+    `;
 
+    console.log("--- [גרסה 100% מתוקנת] מריץ שאילתה...");
     const { rows } = await pool.query(query, params);
+
+    console.log("--- [גרסה 100% מתוקנת] שאילתה הסתיימה, שולח חזרה ללקוח:", rows);
     res.json(rows);
+
   } catch (err) {
-    console.error("!!! FATAL ERROR generating hours report:", err);
+    console.error("!!! FATAL ERROR בנקודת הקצה של דוח שעות יומי:", err);
     res.status(500).json({ message: "שגיאה בהפקת הדוח." });
   }
 });

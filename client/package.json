@@ -17,12 +17,8 @@
     "react-chartjs-2": "^5.3.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.0",
-<<<<<<< HEAD
-    "socket.io-client": "^4.8.1"
-=======
     "socket.io-client": "^4.8.1",
     "xlsx": "^0.18.5"
->>>>>>> last
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",

@@ -38,7 +38,8 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 // הוא מגדיר את המבנה של תפריט צד + תוכן
 const MainAppLayout = () => {
   const { currentUser, handleLogout } = useContext(AppContext);
-
+  // TEST UPDATE - JULY 24, 14:00.// TEST UPDATE - JULY 24, 14:00.// TEST UPDATE - JULY 24, 14:00.// TEST UPDATE - JULY 24, 14:00.// TEST UPDATE - JULY 24, 14:00.// TEST UPDATE - JULY 24, 14:00.
+  // TEST UPDATE - JULY 24, 14:00.// TEST UPDATE - JULY 24, 14:00.// TEST UPDATE - JULY 24, 14:00.// TEST UPDATE - JULY 24, 14:00.// TEST UPDATE - JULY 24, 14:00.
   return (
     <div className="app-layout">
       <aside className="sidebar">

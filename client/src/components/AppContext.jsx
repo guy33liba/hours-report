@@ -329,9 +329,8 @@ export const AppProvider = ({ children }) => {
       toasts,
     ]
   );
-//helolo
+
   return (
-<<<<<<< HEAD
     // ספק את ערך הקונטקסט לכל רכיבי הילד
     <AppContext.Provider value={contextValue}>
       {children} {/* זה ירינדר את רכיב ה-App הראשי שלך */}
@@ -340,14 +339,6 @@ export const AppProvider = ({ children }) => {
         {toasts.map((toastItem) => (
           <Toast // השתמש ברכיב Toast המיובא מ-utils
             key={toastItem.id}
-=======
-    <AppContext.Provider value={contextValue}>
-      {children}
-      <div className="toast-container">
-        {toasts.map((toastItem, index) => (
-          <Toast
-            key={index}
->>>>>>> last
             message={toastItem.message}
             type={toastItem.type}
             onDismiss={() =>

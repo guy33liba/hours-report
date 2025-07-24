@@ -2,27 +2,23 @@ import { useContext, useEffect, useMemo, useState } from "react";
 import Modal from "./Modal";
 import "../styles.css";
 function EmployeeFormModal({ show, onClose, onSave, employee }) {
-  const [formData, setFormData] = useState({
+  const initialState = {
     name: "",
     department: "תמיכה",
     hourlyRate: "",
     role: "employee",
-    // --- הוסף כאן שדה סיסמה, יהיה ריק כברירת מחדל ---
     password: "",
-  });
+  };
+  const [formData, setFormData] = useState(initialState);
 
   useEffect(() => {
-    setFormData(
-      employee
-        ? { ...employee, password: "" } // בעת עריכה, אל תציג את הסיסמה הקיימת, הותיר אותה ריקה
-        : {
-            name: "",
-            department: "תמיכה",
-            hourlyRate: "",
-            role: "employee",
-            password: "", // וודא שריק עבור חדש
-          }
-    );
+    // אם נכנסים למצב עריכה, מלא את הטופס בפרטי העובד
+    // אחרת, ודא שהטופס מאופס (למקרה שנשאר מידע קודם)
+    if (employee) {
+      setFormData({ ...employee, password: "" }); // אל תציג סיסמה קיימת
+    } else {
+      setFormData(initialState);
+    }
   }, [employee]);
 
   const handleChange = (e) => {
@@ -33,14 +29,14 @@ function EmployeeFormModal({ show, onClose, onSave, employee }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     onSave(formData);
+    setFormData(initialState);
   };
-
+  const handleCancel = () => {
+    onClose();
+    setFormData(initialState);
+  };
   return (
-    <Modal
-      show={show}
-      onClose={onClose}
-      title={employee ? "עריכת פרטי עובד" : "הוספת עובד חדש"}
-    >
+    <Modal show={show} onClose={onClose} title={employee ? "עריכת פרטי עובד" : "הוספת עובד חדש"}>
       <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label htmlFor="name">שם מלא</label>
@@ -79,20 +75,14 @@ function EmployeeFormModal({ show, onClose, onSave, employee }) {
         </div>
         <div className="form-group">
           <label htmlFor="role">תפקיד</label>
-          <select
-            id="role"
-            name="role"
-            value={formData.role}
-            onChange={handleChange}
-          >
+          <select id="role" name="role" value={formData.role} onChange={handleChange}>
             <option value="employee">עובד</option>
             <option value="manager">מנהל</option>
           </select>
         </div>
 
-
         <div className="form-actions">
-          <button type="button" className="secondary" onClick={onClose}>
+          <button type="button" className="secondary" onClick={handleCancel}>
             ביטול
           </button>
           <button type="submit">שמור</button>

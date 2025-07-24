@@ -97,11 +97,9 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(401).json({ message: "שם משתמש או סיסמה שגויים" });
     }
 
-    const token = jwt.sign(
-      { userId: user.id, role: user.role, name: user.name },
-      JWT_SECRET, // FIX: Used constant
-      { expiresIn: "24h" }
-    );
+    const token = jwt.sign({ userId: user.id, role: user.role, name: user.name }, JWT_SECRET, {
+      expiresIn: "24h",
+    });
     delete user.password;
     res.json({ token, user });
   } catch (error) {
@@ -349,7 +347,6 @@ app.delete("/api/absences/:id", authenticateToken, authorizeManager, async (req,
 
 // ✅✅✅ מחק את כל הפונקציה הישנה והדבק את כל זאת במקומה ✅✅✅
 
-
 app.get("/api/reports/hours", authenticateToken, authorizeManager, async (req, res) => {
   // ⭐️⭐️⭐️ התיקון נמצא כאן! שיניתי חזרה ל-req.query ⭐️⭐️⭐️
   const { startDate, endDate, employeeId } = req.query;
@@ -371,7 +368,10 @@ app.get("/api/reports/hours", authenticateToken, authorizeManager, async (req, r
     const dailyOvertimeThreshold = parseFloat(dbSettings.standard_work_day_hours || "8.5");
     const overtimeMultiplier = parseFloat(dbSettings.overtime_rate_percent || "125") / 100.0;
 
-    console.log("--- [גרסה 100% מתוקנת] משתמש בהגדרות היומיות:", { dailyOvertimeThreshold, overtimeMultiplier });
+    console.log("--- [גרסה 100% מתוקנת] משתמש בהגדרות היומיות:", {
+      dailyOvertimeThreshold,
+      overtimeMultiplier,
+    });
 
     // שלב 2: השאילתה המורכבת לחישוב שעות נוספות יומיות
     let query = `
@@ -409,10 +409,10 @@ app.get("/api/reports/hours", authenticateToken, authorizeManager, async (req, r
     let paramIndex = 5;
 
     if (employeeId) {
-        query += ` AND e.id = $${paramIndex++}`;
-        params.push(employeeId);
+      query += ` AND e.id = $${paramIndex++}`;
+      params.push(employeeId);
     } else {
-        query += ` AND e.role = 'employee'`;
+      query += ` AND e.role = 'employee'`;
     }
 
     query += `
@@ -426,7 +426,6 @@ app.get("/api/reports/hours", authenticateToken, authorizeManager, async (req, r
 
     console.log("--- [גרסה 100% מתוקנת] שאילתה הסתיימה, שולח חזרה ללקוח:", rows);
     res.json(rows);
-
   } catch (err) {
     console.error("!!! FATAL ERROR בנקודת הקצה של דוח שעות יומי:", err);
     res.status(500).json({ message: "שגיאה בהפקת הדוח." });

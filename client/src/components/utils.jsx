@@ -1,10 +1,15 @@
 import { useEffect } from "react";
 <<<<<<< HEAD
+<<<<<<< HEAD
 export const API_BASE_URL = "http://192.168.1.19:8989/api";
 
 =======
 // export const API_BASE_URL = "http://192.168.1.19:8989/api";
 export const API_BASE_URL = "http://localhost:5000/api";
+=======
+export const API_BASE_URL = "http://192.168.1.19:8989/api";
+// export const API_BASE_URL = "http://localhost:5000/api";
+>>>>>>> last
 import * as XLSX from "xlsx";
 >>>>>>> last
 
@@ -30,9 +35,13 @@ export const apiFetch = async (endpoint, options = {}) => {
       headers,
     });
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 =======
     if (response.status === 401) {
+=======
+    if (response.status === 401 && endpoint !== "/auth/login") {
+>>>>>>> last
       localStorage.removeItem("token");
       window.location.href = "/login";
       throw new Error("החיבור פג תוקף, יש להתחבר מחדש.");

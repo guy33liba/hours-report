@@ -184,13 +184,13 @@ function Dashboard() {
                     >
                       כניסה
                     </button>
-                    <button
+                    {/* <button
                       onClick={() => handleBreakToggle(emp.id)}
                       disabled={!isClockedIn || isDisabled}
                       className="secondary"
                     >
                       {status.class === "on_break" ? "חזור מהפסקה" : "הפסקה"}
-                    </button>
+                    </button> */}
                     <button
                       onClick={() => handleClockOut(emp.id)}
                       disabled={!isClockedIn || isDisabled}

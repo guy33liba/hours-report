@@ -102,14 +102,18 @@ function Dashboard() {
       return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
     };
 
-    // --- NEW: Helper function to format date and time ---
-    const formatDateTime = (dateString) => {
-      if (!dateString) return "N/A";
-      // Using toLocaleString to get both date and time
-      return new Date(dateString).toLocaleString("he-IL", {
-        year: "numeric",
-        month: "2-digit",
+    const formatDate = (dateString) => {
+      if (!dateString) return ""; // Return empty string if date is null
+      return new Date(dateString).toLocaleDateString("he-IL", {
         day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+    };
+
+    const formatTime = (dateString) => {
+      if (!dateString) return ""; // Return empty string if date is null
+      return new Date(dateString).toLocaleTimeString("he-IL", {
         hour: "2-digit",
         minute: "2-digit",
       });
@@ -118,10 +122,12 @@ function Dashboard() {
     const dataToExport = employeesToDisplay.map((emp) => {
       const status = getEmployeeStatus(emp);
 
+      // Find the most recent attendance record for the employee
       const lastEntry = attendance
         .filter((a) => a.employeeId === emp.id)
         .sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn))[0];
 
+      // Calculate total hours for today
       const today = new Date().toISOString().split("T")[0];
       const todaysRecords = attendance.filter(
         (a) => a.employeeId === emp.id && a.clockIn.startsWith(today)
@@ -135,12 +141,21 @@ function Dashboard() {
 
       const totalHours = totalMilliseconds / (1000 * 60 * 60);
 
+      // --- FINAL OBJECT: Separate columns for Date and Time ---
       return {
         "שם העובד": emp.name,
-        "כניסה אחרונה": lastEntry ? formatDateTime(lastEntry.clockIn) : "N/A",
-        "יציאה אחרונה":
-          lastEntry && lastEntry.clockOut ? formatDateTime(lastEntry.clockOut) : "לא הוחתם יציאה",
+        מחלקה: emp.department,
+        "תאריך כניסה": lastEntry ? formatDate(lastEntry.clockIn) : "",
+        "תאריך יציאה": lastEntry && lastEntry.clockOut ? formatDate(lastEntry.clockOut) : "",
+        "שעת כניסה": lastEntry ? formatTime(lastEntry.clockIn) : "",
+        "שעת יציאה":
+          lastEntry && lastEntry.clockOut
+            ? formatTime(lastEntry.clockOut)
+            : status.class.includes("present") || status.class.includes("break")
+              ? "בעבודה"
+              : "",
         'סה"כ שעות להיום': formatDuration(totalHours),
+        "סטטוס נוכחי": status.text,
       };
     });
 

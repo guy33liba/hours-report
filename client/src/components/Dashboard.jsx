@@ -161,9 +161,6 @@ function Dashboard() {
       <div className="page-header">
         <h2>לוח בקרה</h2>
         <div className="page-actions">
-          <button onClick={handleExport} className="secondary">
-            ייצא לאקסל
-          </button>
           <DigitalClock />
         </div>
       </div>
@@ -216,6 +213,9 @@ function Dashboard() {
             <p>אין עובדים להצגה עבור המשתמש הנוכחי.</p>
           )}
         </div>
+        <button onClick={handleExport} className="secondary" style={{ position: "relative" ,top:'20px' }}>
+          ייצא לאקסל
+        </button>
       </div>
     </>
   );

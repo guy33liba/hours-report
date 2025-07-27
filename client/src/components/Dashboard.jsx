@@ -1,20 +1,13 @@
-import { useContext, useMemo } from "react";
+import { useCallback, useContext, useMemo } from "react";
 import DigitalClock from "./DigitalClock";
 import EmployeeTimer from "./EmployeeTimer";
 import { AppContext } from "./AppContext";
-import { apiFetch } from "./utils";
+import { apiFetch, exportToExcel } from "./utils";
 import "../styles.css";
-
 function Dashboard() {
   // FIX 1: קבלת 'loading' מהקונטקסט. זה המפתח לדעת מתי הנתונים מוכנים.
-  const {
-    employees,
-    attendance,
-    setAttendance,
-    addToast,
-    currentUser,
-    loading,
-  } = useContext(AppContext);
+  const { employees, attendance, setAttendance, addToast, currentUser, loading } =
+    useContext(AppContext);
 
   // FIX 2: הוספת בדיקות בטיחות ל-useMemo. הוא לא ירוץ עד שכל הנתונים קיימים.
   const employeesToDisplay = useMemo(() => {
@@ -96,37 +89,61 @@ function Dashboard() {
       addToast(`שגיאה בהחתמת יציאה: ${error.message}`, "danger");
     }
   };
-  const handleBreakToggle = async (employeeId) => {
-    try {
-      await apiFetch("/attendance/toggle-break", {
-        method: "POST",
-        body: JSON.stringify({ employeeId }),
-      });
-      let isOnBreak = false;
-      setAttendance((prev) =>
-        prev.map((a) => {
-          if (!a.clockOut && a.employeeId === employeeId) {
-            const newBreakState = !a.onBreak;
-            const now = new Date().toISOString();
-            let newBreaks = [...(a.breaks || [])];
-            if (newBreakState) {
-              newBreaks.push({ start: now, end: null });
-              isOnBreak = true;
-            } else {
-              const last = newBreaks.findLastIndex((b) => !b.end);
-              if (last !== -1) newBreaks[last].end = now;
-            }
-            return { ...a, breaks: newBreaks, onBreak: newBreakState };
-          }
-          return a;
-        })
-      );
-      addToast(isOnBreak ? "יציאה להפסקה" : "חזרה מהפסקה");
-    } catch (error) {
-      addToast(`שגיאה בעדכון הפסקה: ${error.message}`, "danger");
+  const handleExport = useCallback(() => {
+    if (!employeesToDisplay || employeesToDisplay.length === 0) {
+      addToast("אין נתונים לייצוא", "danger");
+      return;
     }
-  };
 
+    const formatDuration = (hours) => {
+      if (typeof hours !== "number" || isNaN(hours) || hours <= 0) return "00:00";
+      const h = Math.floor(hours);
+      const m = Math.round((hours - h) * 60);
+      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    };
+
+    const dataToExport = employeesToDisplay.map((emp) => {
+      const status = getEmployeeStatus(emp);
+
+      // --- THIS IS THE MAIN LOGIC FIX ---
+      // 1. Find the single most recent attendance record for the employee, regardless of status.
+      const lastEntry = attendance
+        .filter((a) => a.employeeId === emp.id)
+        .sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn))[0];
+
+      // --- Calculate Total Hours for Today ---
+      const today = new Date().toISOString().split("T")[0];
+      const todaysRecords = attendance.filter(
+        (a) => a.employeeId === emp.id && a.clockIn.startsWith(today)
+      );
+
+      let totalMilliseconds = todaysRecords.reduce((sum, record) => {
+        const startTime = new Date(record.clockIn);
+        // If the shift is over, use clockOut. If not, use the current time.
+        const endTime = record.clockOut ? new Date(record.clockOut) : new Date();
+        return sum + (endTime - startTime);
+      }, 0);
+
+      const totalHours = totalMilliseconds / (1000 * 60 * 60);
+
+      return {
+        "שם העובד": emp.name,
+        מחלקה: emp.department,
+        "סטטוס נוכחי": status.text,
+        // Use lastEntry to get the most recent clock-in time
+        "שעת כניסה": lastEntry ? new Date(lastEntry.clockIn).toLocaleTimeString("he-IL") : "N/A",
+        // Use the SAME lastEntry to get the clock-out time, if it exists
+        "שעת יציאה":
+          lastEntry && lastEntry.clockOut
+            ? new Date(lastEntry.clockOut).toLocaleTimeString("he-IL")
+            : "בעבודה",
+        'סה"כ שעות להיום': formatDuration(totalHours),
+      };
+    });
+
+    exportToExcel(dataToExport, "Realtime_Attendance_Report");
+    addToast("הנתונים יוצאו בהצלחה!", "success");
+  }, [employeesToDisplay, attendance, getEmployeeStatus, addToast]);
   // FIX 5: הצגת הודעת טעינה בזמן שהנתונים מהשרת בדרך.
   if (loading) {
     return (
@@ -143,7 +160,12 @@ function Dashboard() {
     <>
       <div className="page-header">
         <h2>לוח בקרה</h2>
-        <DigitalClock />
+        <div className="page-actions">
+          <button onClick={handleExport} className="secondary">
+            ייצא לאקסל
+          </button>
+          <DigitalClock />
+        </div>
       </div>
       <div className="card">
         <h3>נוכחות בזמן אמת</h3>
@@ -152,17 +174,13 @@ function Dashboard() {
           {employeesToDisplay.length > 0 ? (
             employeesToDisplay.map((emp) => {
               const status = getEmployeeStatus(emp);
-              const isClockedIn =
-                status.class === "present" || status.class === "on_break";
-              const isDisabled =
-                status.class === "sick" || status.class === "vacation";
+              const isClockedIn = status.class === "present" || status.class === "on_break";
+              const isDisabled = status.class === "sick" || status.class === "vacation";
               return (
                 <div key={emp.id} className="employee-row">
                   <div className="employee-info">
                     <span className="employee-name">{emp.name}</span>
-                    <span className="employee-department">
-                      {emp.department}
-                    </span>
+                    <span className="employee-department">{emp.department}</span>
                   </div>
                   <EmployeeTimer employeeId={emp.id} />
                   <div className="employee-status">
@@ -203,3 +221,34 @@ function Dashboard() {
   );
 }
 export default Dashboard;
+
+// const handleBreakToggle = async (employeeId) => {
+//   try {
+//     await apiFetch("/attendance/toggle-break", {
+//       method: "POST",
+//       body: JSON.stringify({ employeeId }),
+//     });
+//     let isOnBreak = false;
+//     setAttendance((prev) =>
+//       prev.map((a) => {
+//         if (!a.clockOut && a.employeeId === employeeId) {
+//           const newBreakState = !a.onBreak;
+//           const now = new Date().toISOString();
+//           let newBreaks = [...(a.breaks || [])];
+//           if (newBreakState) {
+//             newBreaks.push({ start: now, end: null });
+//             isOnBreak = true;
+//           } else {
+//             const last = newBreaks.findLastIndex((b) => !b.end);
+//             if (last !== -1) newBreaks[last].end = now;
+//           }
+//           return { ...a, breaks: newBreaks, onBreak: newBreakState };
+//         }
+//         return a;
+//       })
+//     );
+//     addToast(isOnBreak ? "יציאה להפסקה" : "חזרה מהפסקה");
+//   } catch (error) {
+//     addToast(`שגיאה בעדכון הפסקה: ${error.message}`, "danger");
+//   }
+// };

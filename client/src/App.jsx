@@ -1,5 +1,4 @@
-// src/App.jsx - הגרסה המתוקנת והעובדת
-
+//27.7 25 its now
 import React, { useContext } from "react";
 import { Routes, Route, NavLink, Navigate } from "react-router-dom";
 import "./styles.css";

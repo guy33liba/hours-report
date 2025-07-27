@@ -102,16 +102,26 @@ function Dashboard() {
       return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
     };
 
+    // --- NEW: Helper function to format date and time ---
+    const formatDateTime = (dateString) => {
+      if (!dateString) return "N/A";
+      // Using toLocaleString to get both date and time
+      return new Date(dateString).toLocaleString("he-IL", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    };
+
     const dataToExport = employeesToDisplay.map((emp) => {
       const status = getEmployeeStatus(emp);
 
-      // --- THIS IS THE MAIN LOGIC FIX ---
-      // 1. Find the single most recent attendance record for the employee, regardless of status.
       const lastEntry = attendance
         .filter((a) => a.employeeId === emp.id)
         .sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn))[0];
 
-      // --- Calculate Total Hours for Today ---
       const today = new Date().toISOString().split("T")[0];
       const todaysRecords = attendance.filter(
         (a) => a.employeeId === emp.id && a.clockIn.startsWith(today)
@@ -119,7 +129,6 @@ function Dashboard() {
 
       let totalMilliseconds = todaysRecords.reduce((sum, record) => {
         const startTime = new Date(record.clockIn);
-        // If the shift is over, use clockOut. If not, use the current time.
         const endTime = record.clockOut ? new Date(record.clockOut) : new Date();
         return sum + (endTime - startTime);
       }, 0);
@@ -128,15 +137,9 @@ function Dashboard() {
 
       return {
         "שם העובד": emp.name,
-        מחלקה: emp.department,
-        "סטטוס נוכחי": status.text,
-        // Use lastEntry to get the most recent clock-in time
-        "שעת כניסה": lastEntry ? new Date(lastEntry.clockIn).toLocaleTimeString("he-IL") : "N/A",
-        // Use the SAME lastEntry to get the clock-out time, if it exists
-        "שעת יציאה":
-          lastEntry && lastEntry.clockOut
-            ? new Date(lastEntry.clockOut).toLocaleTimeString("he-IL")
-            : "בעבודה",
+        "כניסה אחרונה": lastEntry ? formatDateTime(lastEntry.clockIn) : "N/A",
+        "יציאה אחרונה":
+          lastEntry && lastEntry.clockOut ? formatDateTime(lastEntry.clockOut) : "לא הוחתם יציאה",
         'סה"כ שעות להיום': formatDuration(totalHours),
       };
     });
@@ -213,7 +216,11 @@ function Dashboard() {
             <p>אין עובדים להצגה עבור המשתמש הנוכחי.</p>
           )}
         </div>
-        <button onClick={handleExport} className="secondary" style={{ position: "relative" ,top:'20px' }}>
+        <button
+          onClick={handleExport}
+          className="secondary"
+          style={{ position: "relative", top: "20px" }}
+        >
           ייצא לאקסל
         </button>
       </div>

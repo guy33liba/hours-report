@@ -143,7 +143,7 @@ function AttendanceReportPage() {
             className="secondary"
             style={{ marginLeft: "20px", fontSize: "18px", width: "200px", padding: "11px" }}
           >
-            <Icon path={ICONS.REPORTS} />
+            <Icon path={ICONS.REPORTS} size={22} />
             ייצא לאקסל
           </button>
           <button
@@ -154,12 +154,11 @@ function AttendanceReportPage() {
               height: "30px",
               padding: "23px",
               position: "relative",
-              bottom: "2px",
               fontSize: "18px",
               width: "200px",
             }}
           >
-            <Icon path={ICONS.REFRESH} />
+            <Icon path={ICONS.REFRESH} size={22} />
             נקה סינון
           </button>
         </div>

@@ -50,6 +50,9 @@ const MainAppLayout = () => {
           <NavLink to="/">
             <Icon path={ICONS.DASHBOARD} /> סקירה כללית
           </NavLink>
+          <NavLink to="/attendance-report">
+            <Icon path={ICONS.ATTENDANCE_REPORT} /> דוח נוכחות
+          </NavLink>
           {currentUser.role === "manager" && (
             <>
               <NavLink to="/employees">
@@ -60,9 +63,6 @@ const MainAppLayout = () => {
               </NavLink>
               <NavLink to="/payroll">
                 <Icon path={ICONS.PAYROLL} /> חישוב שכר
-              </NavLink>
-              <NavLink to="/attendance-report">
-                <Icon path={ICONS.ATTENDANCE_REPORT} /> דוח נוכחות
               </NavLink>
               <NavLink to="/settings">
                 <Icon path={ICONS.SETTINGS} /> הגדרות
@@ -105,14 +105,7 @@ const MainAppLayout = () => {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/attendance-report"
-            element={
-              <ProtectedRoute allowedRoles={["manager"]}>
-                <AttendanceReportPage />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/attendance-report" element={<AttendanceReportPage />} />
           <Route
             path="/settings"
             element={

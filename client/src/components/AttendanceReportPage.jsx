@@ -104,7 +104,6 @@ function AttendanceReportPage() {
       'סה"כ שעות': calculateHours(record.clockIn, record.clockOut).replace(" שעות", ""),
       "תאריך כניסה": formatDate(record.clockIn),
       "שעת כניסה": formatTime(record.clockIn),
-      "תאריך יציאה": formatDate(record.clockOut),
       "שעת יציאה": formatTime(record.clockOut),
       "שם עובד": record.employeeName,
     }));
@@ -139,9 +138,28 @@ function AttendanceReportPage() {
         {/* 4. כותרת דינמית */}
         <h2>{currentUser?.role === "manager" ? "דוח נוכחות עובדים" : "דוח הנוכחות שלי"}</h2>
         <div className="page-actions">
-          <button onClick={handleExport} className="secondary" style={{ marginLeft: "20px" }}>
+          <button
+            onClick={handleExport}
+            className="secondary"
+            style={{ marginLeft: "20px", fontSize: "18px", width: "200px", padding: "11px" }}
+          >
             <Icon path={ICONS.REPORTS} />
             ייצא לאקסל
+          </button>
+          <button
+            onClick={handleClearFilters}
+            className="secondary"
+            style={{
+              marginLeft: "20px",
+              height: "30px",
+              padding: "23px",
+              position: "relative",
+              bottom: "2px",
+              fontSize: "18px",
+              width: "200px",
+            }}
+          >
+            נקה סינון
           </button>
         </div>
       </div>
@@ -159,9 +177,6 @@ function AttendanceReportPage() {
                   onChange={(e) => setFilters((prev) => ({ ...prev, name: e.target.value }))}
                 />
               </div>
-              <button onClick={handleClearFilters} className="secondary">
-                נקה סינון
-              </button>
             </>
           )}
 

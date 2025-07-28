@@ -159,6 +159,7 @@ function AttendanceReportPage() {
               width: "200px",
             }}
           >
+            <Icon path={ICONS.REFRESH} />
             נקה סינון
           </button>
         </div>

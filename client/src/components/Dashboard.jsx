@@ -89,92 +89,20 @@ function Dashboard() {
       addToast(`שגיאה בהחתמת יציאה: ${error.message}`, "danger");
     }
   };
-  // const handleExport = useCallback(() => {
-  //   if (!employeesToDisplay || employeesToDisplay.length === 0) {
-  //     addToast("אין נתונים לייצוא", "danger");
-  //     return;
-  //   }
-
-  //   const formatDuration = (hours) => {
-  //     if (typeof hours !== "number" || isNaN(hours) || hours <= 0) return "00:00";
-  //     const h = Math.floor(hours);
-  //     const m = Math.round((hours - h) * 60);
-  //     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-  //   };
-
-  //   const formatDate = (dateString) => {
-  //     if (!dateString) return ""; // Return empty string if date is null
-  //     return new Date(dateString).toLocaleDateString("he-IL", {
-  //       day: "2-digit",
-  //       month: "2-digit",
-  //       year: "numeric",
-  //     });
-  //   };
-
-  //   const formatTime = (dateString) => {
-  //     if (!dateString) return ""; // Return empty string if date is null
-  //     return new Date(dateString).toLocaleTimeString("he-IL", {
-  //       hour: "2-digit",
-  //       minute: "2-digit",
-  //     });
-  //   };
-
-  //   const dataToExport = employeesToDisplay.map((emp) => {
-  //     const status = getEmployeeStatus(emp);
-
-  //     // Find the most recent attendance record for the employee
-  //     const lastEntry = attendance
-  //       .filter((a) => a.employeeId === emp.id)
-  //       .sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn))[0];
-
-  //     // Calculate total hours for today
-  //     const today = new Date().toISOString().split("T")[0];
-  //     const todaysRecords = attendance.filter(
-  //       (a) => a.employeeId === emp.id && a.clockIn.startsWith(today)
-  //     );
-
-  //     let totalMilliseconds = todaysRecords.reduce((sum, record) => {
-  //       const startTime = new Date(record.clockIn);
-  //       const endTime = record.clockOut ? new Date(record.clockOut) : new Date();
-  //       return sum + (endTime - startTime);
-  //     }, 0);
-
-  //     const totalHours = totalMilliseconds / (1000 * 60 * 60);
-
-  //     // --- FINAL OBJECT: Separate columns for Date and Time ---
-  //     return {
-  //       "שם העובד": emp.name,
-  //       מחלקה: emp.department,
-  //       "תאריך כניסה": lastEntry ? formatDate(lastEntry.clockIn) : "",
-  //       "תאריך יציאה": lastEntry && lastEntry.clockOut ? formatDate(lastEntry.clockOut) : "",
-  //       "שעת כניסה": lastEntry ? formatTime(lastEntry.clockIn) : "",
-  //       "שעת יציאה":
-  //         lastEntry && lastEntry.clockOut
-  //           ? formatTime(lastEntry.clockOut)
-  //           : status.class.includes("present") || status.class.includes("break")
-  //             ? "בעבודה"
-  //             : "",
-  //       'סה"כ שעות להיום': formatDuration(totalHours),
-  //       "סטטוס נוכחי": status.text,
-  //     };
-  //   });
-
-  //   exportToExcel(dataToExport, "Realtime_Attendance_Report");
-  //   addToast("הנתונים יוצאו בהצלחה!", "success");
-  // }, [employeesToDisplay, attendance, getEmployeeStatus, addToast]);
+  
   const handleExport = useCallback(() => {
     if (!employeesToDisplay || employeesToDisplay.length === 0) {
       addToast("אין נתונים לייצוא", "danger");
       return;
     }
 
+    // פונקציות העזר נשארות זהות
     const formatDuration = (hours) => {
       if (typeof hours !== "number" || isNaN(hours) || hours <= 0) return "00:00";
       const h = Math.floor(hours);
       const m = Math.round((hours - h) * 60);
       return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
     };
-
     const formatDate = (dateString) => {
       if (!dateString) return "";
       return new Date(dateString).toLocaleDateString("he-IL", {
@@ -183,7 +111,6 @@ function Dashboard() {
         year: "numeric",
       });
     };
-
     const formatTime = (dateString) => {
       if (!dateString) return "";
       return new Date(dateString).toLocaleTimeString("he-IL", {
@@ -194,21 +121,33 @@ function Dashboard() {
 
     const dataToExport = employeesToDisplay.map((emp) => {
       const status = getEmployeeStatus(emp);
-
       const lastEntry = attendance
         .filter((a) => a.employeeId === emp.id)
         .sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn))[0];
 
-      // --- הלוגיקה החדשה והמתוקנת לחישוב שעות ---
-      let totalHoursToday = 0;
-      const activeEntry = attendance.find((a) => a.employeeId === emp.id && !a.clockOut);
+      // +++ הדפסת אבחון מספר 2: על איזה עובד אנחנו עובדים +++
 
-      if (activeEntry) {
-        const startTime = new Date(activeEntry.clockIn);
-        const now = new Date();
-        totalHoursToday = (now - startTime) / (1000 * 60 * 60);
-        // ניתן להוסיף כאן גם חישוב הפסקות אם צריך
-      }
+      const todayStr = new Date().toISOString().split("T")[0];
+
+      const todaysAttendance = attendance.filter(
+        (a) => a.employeeId === emp.id && a.clockIn.startsWith(todayStr)
+      );
+
+      // +++ הדפסת אבחון מספר 3: אילו רשומות נמצאו עבור העובד "להיום" +++
+
+      const totalMillisecondsToday = todaysAttendance.reduce((total, entry) => {
+        const startTime = new Date(entry.clockIn);
+        const endTime = entry.clockOut ? new Date(entry.clockOut) : new Date();
+        const duration = endTime - startTime;
+
+        // +++ הדפסת אבחון מספר 4: מה החישוב עבור כל רשומה בודדת +++
+
+        return total + duration;
+      }, 0);
+
+      const totalHoursToday = totalMillisecondsToday / (1000 * 60 * 60);
+
+      // +++ הדפסת אבחון מספר 5: מה הסכום הסופי שחושב +++
 
       return {
         "שם העובד": emp.name,
@@ -222,7 +161,7 @@ function Dashboard() {
             : status.class.includes("present") || status.class.includes("break")
               ? "בעבודה"
               : "",
-        'סה"כ שעות להיום': formatDuration(totalHoursToday), // שימוש בחישוב החדש
+        'סה"כ שעות להיום': formatDuration(totalHoursToday),
         "סטטוס נוכחי": status.text,
       };
     });
@@ -230,6 +169,7 @@ function Dashboard() {
     exportToExcel(dataToExport, "Realtime_Attendance_Report");
     addToast("הנתונים יוצאו בהצלחה!", "success");
   }, [employeesToDisplay, attendance, getEmployeeStatus, addToast]);
+
   if (loading) {
     return (
       <div className="page-header">

@@ -1,9 +1,8 @@
-import { useContext, useMemo, useState } from "react";
+import { useCallback, useContext, useMemo, useState } from "react";
 import DigitalClock from "./DigitalClock";
 import { AppContext } from "./AppContext";
-import { apiFetch } from "./utils";
 import "../styles.css";
-
+import { apiFetch, exportToExcel } from "./utils";
 const getYYYYMMDD = (date) => date.toISOString().split("T")[0];
 
 function PayrollPage() {
@@ -63,6 +62,28 @@ function PayrollPage() {
       setIsCalculating(false);
     }
   };
+
+  const handleExport = useCallback(() => {
+    if (!payrollResult || payrollResult.length === 0) {
+      addToast("אין נתונים לייצוא", "danger");
+      return;
+    }
+
+    // Format the data exactly as it appears in the table
+    const dataToExport = payrollResult.map((item) => ({
+      שם: item.name,
+      "שעות רגילות": (item.totalRegularHours || 0).toFixed(2),
+      "שעות נוספות": (item.totalOvertimeHours || 0).toFixed(2),
+      "שכר בסיס (₪)": (item.basePay || 0).toFixed(2),
+      "שעות נוספות (₪)": (item.overtimePay || 0).toFixed(2),
+      'סה"כ שעות': (item.totalHours || 0).toFixed(2),
+      'סה"כ לתשלום (₪)': (item.totalPay || 0).toFixed(2),
+    }));
+
+    const fileName = `Payroll_Report_${dateRange.start}_to_${dateRange.end}`;
+    exportToExcel(dataToExport, fileName);
+    addToast("דוח השכר יוצא בהצלחה!", "success");
+  }, [payrollResult, dateRange, addToast]);
 
   if (contextLoading) {
     return <div>טוען נתונים...</div>;
@@ -143,6 +164,12 @@ function PayrollPage() {
       {payrollResult && (
         <div className="card">
           <h3>תוצאות דוח שכר</h3>
+          <div className="page-actions">
+            <button onClick={handleExport} className="secondary">
+              {/* Optional: Add an icon here */}
+              ייצא לאקסל
+            </button>
+          </div>
           <div className="table-container">
             <table>
               <thead>

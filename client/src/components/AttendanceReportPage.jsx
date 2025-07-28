@@ -1,10 +1,9 @@
 //right change
 
 import { AppContext } from "./AppContext";
-import { apiFetch } from "./utils";
 import "../styles.css";
 import { useContext, useEffect, useState, useCallback, useMemo } from "react";
-import { Icon } from "./utils";
+import { exportToExcel, ICONS, apiFetch, Icon } from "./utils";
 const getTodayYYYYMMDD = () => {
   return new Date().toISOString().split("T")[0];
 };
@@ -14,13 +13,12 @@ function AttendanceReportPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // --- שלב 1: הוספת משתני State חדשים עבור סינון התאריכים ---
   const [filters, setFilters] = useState({
     name: "",
     startDate: getTodayYYYYMMDD(),
     endDate: getTodayYYYYMMDD(),
   });
-  // -----------------------------------------------------------
+
   const handleClearFilters = () => {
     setFilters({
       name: "",
@@ -50,28 +48,22 @@ function AttendanceReportPage() {
     return attendanceRecords.filter((record) => {
       const recordDate = new Date(record.clockIn || record.check_in_time);
 
-      // תנאי 1: בדיקת שם העובד
       const nameMatch = filters.name
         ? record.employeeName?.toLowerCase().includes(filters.name.toLowerCase())
-        : true; // אם אין חיפוש שם, תמיד תחזיר אמת
+        : true;
 
-      // תנאי 2: בדיקת תאריך התחלה
-      const startDateMatch = filters.startDate ? recordDate >= new Date(filters.startDate) : true; // אם אין תאריך התחלה, תמיד תחזיר אמת
-
-      // תנאי 3: בדיקת תאריך סיום
+      const startDateMatch = filters.startDate ? recordDate >= new Date(filters.startDate) : true;
       const endDateMatch = filters.endDate
         ? recordDate <= new Date(filters.endDate + "T23:59:59")
         : true;
 
-      // רק רשומה שעונה על כל התנאים תישאר ברשימה
       return nameMatch && startDateMatch && endDateMatch;
     });
-  }, [attendanceRecords, filters]); // הלוגיקה תרוץ מחדש כל פעם שהרשומות או הפילטרים משתנים
-  // ----------------------------------------------------
+  }, [attendanceRecords, filters]);
 
   useEffect(() => {
     fetchAttendance();
-  }, [fetchAttendance]); // שינוי קטן: הוספת fetchAttendance למערך התלויות
+  }, [fetchAttendance]);
 
   const formatDate = (dateString) => {
     if (!dateString) return "-";
@@ -91,6 +83,23 @@ function AttendanceReportPage() {
     const durationHours = (new Date(end).getTime() - new Date(start).getTime()) / 3600000;
     return durationHours.toFixed(2) + " שעות";
   };
+  const handleExport = useCallback(() => {
+    if (!filteredRecords || filteredRecords.length === 0) {
+      addToast("אין נתונים לייצוא", "danger");
+      return;
+    }
+    const dataToExport = filteredRecords.map((record) => ({
+      "שם עובד": record.employeeName,
+      "תאריך כניסה": formatDate(record.clockIn),
+      "שעת כניסה": formatTime(record.clockIn),
+      "תאריך יציאה": formatDate(record.clockOut),
+      "שעת יציאה": formatTime(record.clockOut),
+      'סה"כ שעות': calculateHours(record.clockIn, record.clockOut).replace(" שעות", ""),
+    }));
+    const fileName = `Attendance_Report_${filters.startDate}_to_${filters.endDate}`;
+    exportToExcel(dataToExport, fileName);
+    addToast("הדוח יוצא בהצלחה!", "success");
+  }, [filteredRecords, filters.startDate, filters.endDate, addToast]);
 
   if (loading) return <div>טוען נתוני נוכחות...</div>;
   if (error) return <div style={{ color: "red" }}>{error}</div>;
@@ -99,13 +108,20 @@ function AttendanceReportPage() {
     <>
       <div className="page-header">
         <h2>דוח נוכחות עובדים</h2>
+
         <button
           onClick={handleClearFilters}
           className="secondary"
-          style={{ position: "relative", left: "20px", width: "200px" }}
+          style={{ position: "relative", right: "420px", width: "180px" }}
         >
           נקה סינון
         </button>
+        <div className="page-actions">
+          <button onClick={handleExport} className="secondary"  style={{ marginLeft:'20px' }}>
+            <Icon path={ICONS.REPORTS} /> {/* Using your Icon component */}
+            ייצא לאקסל
+          </button>
+        </div>
       </div>
       <div className="card">
         {/* --- שלב 3: הוספת שדות התאריך ל-UI --- */}

@@ -101,7 +101,6 @@ function PayrollPage() {
             <h3>1. בחר עובדים</h3>
             <div className="employee-select-list">
               <div className="select-all-item">
-                {/* --- התיקון כאן: שימוש בלוגיקה הפשוטה והנכונה --- */}
                 <input
                   type="checkbox"
                   id="select-all"
@@ -114,7 +113,6 @@ function PayrollPage() {
                 />
                 <label htmlFor="select-all">בחר את כולם</label>
               </div>
-              {/* --- התיקון כאן: שימוש ברשימה שהכנו מראש --- */}
               {selectableEmployees.map((emp) => (
                 <div key={emp.id} className="employee-select-item">
                   <input

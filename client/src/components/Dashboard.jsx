@@ -89,14 +89,13 @@ function Dashboard() {
       addToast(`שגיאה בהחתמת יציאה: ${error.message}`, "danger");
     }
   };
-  
+
   const handleExport = useCallback(() => {
     if (!employeesToDisplay || employeesToDisplay.length === 0) {
       addToast("אין נתונים לייצוא", "danger");
       return;
     }
 
-    // פונקציות העזר נשארות זהות
     const formatDuration = (hours) => {
       if (typeof hours !== "number" || isNaN(hours) || hours <= 0) return "00:00";
       const h = Math.floor(hours);

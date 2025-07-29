@@ -152,7 +152,6 @@ function Dashboard() {
         "שם העובד": emp.name,
         מחלקה: emp.department,
         "תאריך כניסה": lastEntry ? formatDate(lastEntry.clockIn) : "",
-        "תאריך יציאה": lastEntry && lastEntry.clockOut ? formatDate(lastEntry.clockOut) : "",
         "שעת כניסה": lastEntry ? formatTime(lastEntry.clockIn) : "",
         "שעת יציאה":
           lastEntry && lastEntry.clockOut

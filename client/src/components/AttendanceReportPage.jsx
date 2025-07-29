@@ -6,7 +6,12 @@ import { exportToExcel, ICONS, apiFetch, Icon } from "./utils";
 const getTodayYYYYMMDD = () => {
   return new Date().toISOString().split("T")[0];
 };
-
+const getFirstDayOfMonthYYYYMMDD = () => {
+  const today = new Date();
+  // יוצר תאריך חדש עם השנה הנוכחית, החודש הנוכחי, וביום הראשון (1)
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 2);
+  return firstDay.toISOString().split("T")[0];
+};
 function AttendanceReportPage() {
   // 1. קבל מהקונטקסט גם את המשתמש המחובר (currentUser)
   const { addToast, currentUser } = useContext(AppContext);
@@ -16,7 +21,7 @@ function AttendanceReportPage() {
 
   const [filters, setFilters] = useState({
     name: "",
-    startDate: getTodayYYYYMMDD(),
+    startDate: getFirstDayOfMonthYYYYMMDD(),
     endDate: getTodayYYYYMMDD(),
   });
 

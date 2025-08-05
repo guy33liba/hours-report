@@ -5,6 +5,7 @@ const { Pool } = require("pg");
 const http = require("http");
 const jwt = require("jsonwebtoken");
 const { Server } = require("socket.io");
+const cron = require("node-cron");
 const JWT_SECRET = "my-ultra-secure-and-long-secret-key-for-jwt";
 const PORT = 5000;
 
@@ -112,7 +113,7 @@ app.post("/api/auth/login", async (req, res) => {
 app.get("/api/employees", authenticateToken, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      "SELECT id, name, role, department, hourly_rate, status FROM employees ORDER BY name"
+      "SELECT id, name, role, department, hourly_rate, status,has_auto_clock FROM employees ORDER BY name"
     );
     res.json(rows);
   } catch (error) {
@@ -120,6 +121,42 @@ app.get("/api/employees", authenticateToken, async (req, res) => {
     res.status(500).json({ message: "שגיאה קריטית בטעינת עובדים מהשרת." });
   }
 });
+
+app.put(
+  "/api/employees/:id/toggle-auto-clock",
+  authenticateToken,
+  authorizeManager,
+  async (req, res) => {
+    const { id } = req.params;
+    const { hasAutoClock } = req.body; // Expecting a boolean: true or false
+
+    // Basic validation
+    if (typeof hasAutoClock !== "boolean") {
+      return res.status(400).json({ message: "Invalid hasAutoClock value provided." });
+    }
+
+    try {
+      const { rows } = await pool.query(
+        "UPDATE employees SET has_auto_clock = $1 WHERE id = $2 RETURNING id, name, has_auto_clock",
+        [hasAutoClock, id]
+      );
+
+      if (rows.length === 0) {
+        return res.status(404).json({ message: "Employee not found." });
+      }
+
+      res.json({
+        message: `Auto-clock for ${rows[0].name} has been ${
+          hasAutoClock ? "enabled" : "disabled"
+        }.`,
+        employee: rows[0],
+      });
+    } catch (err) {
+      console.error(`Error toggling auto-clock for employee ${id}:`, err);
+      res.status(500).json({ message: "Server error" });
+    }
+  }
+);
 
 app.post("/api/employees", authenticateToken, authorizeManager, async (req, res) => {
   const { name, department, hourlyRate, role } = req.body;
@@ -589,7 +626,111 @@ app.put("/api/settings", authenticateToken, authorizeManager, async (req, res) =
     res.status(500).json({ message: "שגיאה בעדכון ההגדרות." });
   }
 });
-console.log("kakai");
+console.log("SCHEDULER: Test mode is ACTIVE. Tasks will run every minute.");
+
+// Task 1: Auto Clock-In Test (runs every minute)
+cron.schedule(
+  "*/1 * * * *",
+  async () => {
+    const currentTime = new Date().toLocaleTimeString("he-IL");
+    console.log(`\n--- [${currentTime}] SCHEDULER: Waking up to check for CLOCK-INS ---`);
+
+    try {
+      console.log("   Step 1: Looking for employees with has_auto_clock = true...");
+      const { rows: employeesToClockIn } = await pool.query(
+        `SELECT id, name FROM employees WHERE has_auto_clock = true`
+      );
+
+      if (employeesToClockIn.length === 0) {
+        console.log("   Step 2: No employees found for auto clock-in. Task finished.");
+        return;
+      }
+
+      console.log(
+        `   Step 2: Found ${employeesToClockIn.length} employee(s): [${employeesToClockIn
+          .map((e) => e.name)
+          .join(", ")}]`
+      );
+
+      for (const employee of employeesToClockIn) {
+        console.log(`   -> Processing ${employee.name} (ID: ${employee.id})...`);
+
+        const { rows: existing } = await pool.query(
+          `SELECT id FROM attendance WHERE employee_id = $1 AND clock_out IS NULL`,
+          [employee.id]
+        );
+
+        if (existing.length === 0) {
+          console.log(`      - Status: Not clocked in. Creating new record.`);
+          await pool.query(`INSERT INTO attendance (employee_id, clock_in) VALUES ($1, NOW())`, [
+            employee.id,
+          ]);
+          await pool.query("UPDATE employees SET status = 'נוכח' WHERE id = $1", [employee.id]);
+          console.log(`      - SUCCESS: Auto-clocked in ${employee.name}.`);
+        } else {
+          console.log(`      - Status: Already clocked in. Skipping.`);
+        }
+      }
+      console.log(`--- [${currentTime}] SCHEDULER: CLOCK-IN check finished. ---`);
+    } catch (err) {
+      console.error("SCHEDULER: FATAL ERROR during auto clock-in task:", err);
+    }
+  },
+  {
+    timezone: "Asia/Jerusalem",
+  }
+);
+
+// Task 2: Auto Clock-Out Test (runs every minute, but only acts between 17:00 and 17:01 for safety)
+cron.schedule(
+  "*/1 * * * *",
+  async () => {
+    const currentTime = new Date().toLocaleTimeString("he-IL");
+    const currentHour = new Date().getHours();
+
+    // Safety check to prevent accidental clock-outs during the day while testing
+    if (currentHour < 17) {
+      // console.log(`--- [${currentTime}] SCHEDULER: It's before 5 PM, skipping CLOCK-OUT check. ---`);
+      return;
+    }
+
+    console.log(`\n--- [${currentTime}] SCHEDULER: Waking up to check for CLOCK-OUTS ---`);
+    try {
+      console.log("   Step 1: Looking for clocked-in employees with has_auto_clock = true...");
+      const { rows: employeesToClockOut } = await pool.query(
+        `SELECT id, name FROM employees WHERE has_auto_clock = true AND status = 'נוכח'`
+      );
+
+      if (employeesToClockOut.length === 0) {
+        console.log("   Step 2: No employees found for auto clock-out. Task finished.");
+        return;
+      }
+
+      console.log(
+        `   Step 2: Found ${
+          employeesToClockOut.length
+        } employee(s) to clock out: [${employeesToClockOut.map((e) => e.name).join(", ")}]`
+      );
+
+      for (const employee of employeesToClockOut) {
+        console.log(`   -> Processing ${employee.name} (ID: ${employee.id})...`);
+        await pool.query(
+          `UPDATE attendance SET clock_out = NOW() WHERE employee_id = $1 AND clock_out IS NULL`,
+          [employee.id]
+        );
+        await pool.query("UPDATE employees SET status = 'לא בעבודה' WHERE id = $1", [employee.id]);
+        console.log(`      - SUCCESS: Auto-clocked out ${employee.name}.`);
+      }
+      console.log(`--- [${currentTime}] SCHEDULER: CLOCK-OUT check finished. ---`);
+    } catch (err) {
+      console.error("SCHEDULER: FATAL ERROR during auto clock-out task:", err);
+    }
+  },
+  {
+    timezone: "Asia/Jerusalem",
+  }
+);
+
 server.listen(PORT, () => {
   console.log(`✅ Server is running on port ${PORT}`);
 });

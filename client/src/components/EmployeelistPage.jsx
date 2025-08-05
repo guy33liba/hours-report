@@ -6,7 +6,7 @@ import { AppContext } from "./AppContext";
 import "../styles.css";
 AppContext;
 function EmployeeListPage() {
-  const { employees, addToast, fetchData } = useContext(AppContext);
+  const { employees, setEmployees, addToast, fetchData } = useContext(AppContext);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -77,6 +77,33 @@ function EmployeeListPage() {
       }
     }
   };
+  const handleToggleAutoClock = async (employeeId, currentStatus) => {
+    const newStatus = !currentStatus;
+
+    // Instantly update the UI for a better user experience
+    setEmployees((prevEmployees) =>
+      prevEmployees.map((emp) =>
+        emp.id === employeeId ? { ...emp, has_auto_clock: newStatus } : emp
+      )
+    );
+
+    try {
+      // Call the new API endpoint we created in the backend
+      await apiFetch(`/employees/${employeeId}/toggle-auto-clock`, {
+        method: "PUT",
+        body: JSON.stringify({ hasAutoClock: newStatus }),
+      });
+      addToast(`שעון אוטומטי ${newStatus ? "הופעל" : "כובה"}`, "success");
+    } catch (err) {
+      addToast(err.message, "danger");
+      // If the API call fails, revert the change in the UI
+      setEmployees((prevEmployees) =>
+        prevEmployees.map((emp) =>
+          emp.id === employeeId ? { ...emp, has_auto_clock: currentStatus } : emp
+        )
+      );
+    }
+  };
 
   return (
     <>
@@ -93,6 +120,7 @@ function EmployeeListPage() {
                 <th>מחלקה</th>
                 <th>שכר שעתי</th>
                 <th>תפקיד</th>
+                <th>שעון אוטומטי</th>
                 <th>פעולות</th>
               </tr>
             </thead>
@@ -101,13 +129,23 @@ function EmployeeListPage() {
               {sortedEmployees.length > 0 ? (
                 sortedEmployees.map((emp) => (
                   <tr key={emp.id}>
-                    {console.log(`emp ${emp.hourly_rate}`)}
                     <td>{emp.name}</td>
                     <td>{emp.department}</td>
                     <td>{emp.hourly_rate} ₪</td>
                     <td>
                       {/* Display role in Hebrew */}
                       {emp.role === "manager" ? "מנהל" : emp.role === "support" ? "תמיכה" : "עובד"}
+                    </td>
+                    <td>
+                      <label className="autoClockSwitch">
+                        <input
+                          type="checkbox"
+                          // נניח שנתוני העובד מכילים עכשיו has_auto_clock
+                          checked={emp.has_auto_clock || false}
+                          onChange={() => handleToggleAutoClock(emp.id, emp.has_auto_clock)}
+                        />
+                        <span className="slider round"></span>
+                      </label>
                     </td>
                     <td className="actions-cell">
                       <button

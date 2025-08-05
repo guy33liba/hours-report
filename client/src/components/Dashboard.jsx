@@ -11,7 +11,6 @@ function Dashboard() {
 
   // FIX 2: הוספת בדיקות בטיחות ל-useMemo. הוא לא ירוץ עד שכל הנתונים קיימים.
   const employeesToDisplay = useMemo(() => {
-    // אם הנתונים עדיין בטעינה, או שאין עובדים או משתמש, החזר מערך ריק כדי למנוע קריסה.
     if (loading || !employees || !currentUser) {
       return [];
     }
@@ -19,11 +18,9 @@ function Dashboard() {
       return employees;
     }
     return employees.filter((emp) => emp.id === currentUser.id);
-  }, [employees, currentUser, loading]); // FIX 3: הוספת 'loading' למערך התלויות
+  }, [employees, currentUser, loading]);
 
-  // FIX 4: פונקציה 'getEmployeeStatus' בטוחה יותר.
   const getEmployeeStatus = (employee) => {
-    // אם אין נתוני נוכחות עדיין, אל תנסה לסנן אותם.
     if (!attendance) {
       return { text: "טוען...", class: "loading" };
     }
@@ -48,6 +45,40 @@ function Dashboard() {
     return { text: "נוכח", class: "present" };
   };
 
+  const dashboardStats = useMemo(() => {
+    if (loading || !attendance || !employees) {
+      return { presentCount: 0, totalHoursToday: 0, totalPayToday: 0 };
+    }
+
+    const todayStr = new Date().toISOString().split("T")[0];
+    let presentCount = 0;
+    let totalMillisecondsToday = 0;
+    let totalPayToday = 0;
+
+    employees.forEach((emp) => {
+      const hourlyRate = parseFloat(emp.hourly_rate) || 0;
+
+      if (attendance.some((a) => a.employeeId === emp.id && !a.clockOut)) {
+        presentCount++;
+      }
+
+      attendance
+        .filter((a) => a.employeeId === emp.id && a.clockIn.startsWith(todayStr))
+        .forEach((entry) => {
+          const startTime = new Date(entry.clockIn);
+          const endTime = entry.clockOut ? new Date(entry.clockOut) : new Date();
+          const durationMs = endTime - startTime;
+          totalMillisecondsToday += durationMs;
+          totalPayToday += (durationMs / 3600000) * hourlyRate;
+        });
+    });
+
+    return {
+      presentCount,
+      totalHoursToday: totalMillisecondsToday / 3600000,
+      totalPayToday,
+    };
+  }, [attendance, employees, loading]);
   // כל פונקציות ה-handle... נשארות כפי שהן, הן תקינות.
   const handleClockIn = async (employeeId) => {
     try {
@@ -183,8 +214,28 @@ function Dashboard() {
     <>
       <div className="page-header">
         <h2>לוח בקרה</h2>
+
         <div className="page-actions">
           <DigitalClock />
+        </div>
+      </div>
+
+      <div className="kpi-grid">
+        <div className="card kpi-card">
+          <h4>נוכחים כרגע</h4>
+          <p className="kpi-value">{dashboardStats.presentCount}</p>
+        </div>
+        <div className="card kpi-card">
+          <h4>סה"כ שעות להיום</h4>
+          <p className="kpi-value">{dashboardStats.totalHoursToday.toFixed(2)}</p>
+        </div>
+        <div className="card kpi-card">
+          <h4>עלות שכר להיום (משוערת)</h4>
+          <p className="kpi-value">
+            {new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS" }).format(
+              dashboardStats.totalPayToday
+            )}
+          </p>
         </div>
       </div>
       <div className="card">

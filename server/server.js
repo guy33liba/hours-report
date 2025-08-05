@@ -475,6 +475,9 @@ app.get("/api/reports/hours", authenticateToken, authorizeManager, async (req, r
 app.post("/api/payroll", authenticateToken, authorizeManager, async (req, res) => {
   const { employeeIds, startDate, endDate } = req.body;
 
+  console.log("\n\n--- PAYROLL REPORT STARTED ---");
+  console.log(`Received request for employees [${employeeIds}] from ${startDate} to ${endDate}`);
+
   if (
     !employeeIds ||
     !Array.isArray(employeeIds) ||
@@ -486,81 +489,93 @@ app.post("/api/payroll", authenticateToken, authorizeManager, async (req, res) =
   }
 
   try {
-    // שלב 1: שליפת כל הנתונים הנדרשים ממסד הנתונים
+    // --- שלב 1: שליפת נתונים ---
     const { rows: employeesData } = await pool.query(
       `SELECT id, name, department, hourly_rate FROM employees WHERE id = ANY($1::int[])`,
       [employeeIds]
     );
+    console.log(`Step 1.1: Found ${employeesData.length} employees in the database.`);
 
-    if (employeesData.length === 0) {
-      return res.json({ details: [] });
-    }
+    if (employeesData.length === 0) return res.json({ details: [] });
 
     const { rows: allAttendanceData } = await pool.query(
-      `SELECT employee_id, clock_in, clock_out, breaks FROM attendance 
-             WHERE employee_id = ANY($1::int[]) AND clock_out IS NOT NULL 
-             AND clock_in::date >= $2 AND clock_in::date <= $3`,
+      `SELECT id, employee_id, clock_in, clock_out, breaks FROM attendance 
+       WHERE employee_id = ANY($1::int[]) AND clock_out IS NOT NULL 
+       AND clock_in::date <= $3::date AND clock_out::date >= $2::date`,
       [employeeIds, startDate, endDate]
     );
+    console.log(`Step 1.2: Found ${allAttendanceData.length} relevant attendance records.`);
 
     const { rows: settingsRows } = await pool.query(
-      "SELECT standard_work_day_hours, overtime_rate_percent FROM application_settings WHERE id = 1"
+      "SELECT * FROM application_settings WHERE id = 1"
     );
-
-    const dbSettings = settingsRows[0] || {};
     const settings = {
-      standardWorkDayHours: parseFloat(dbSettings.standard_work_day_hours || 8.5),
-      overtimeRatePercent: parseFloat(dbSettings.overtime_rate_percent || 125.0),
+      standardWorkDayHours: parseFloat(settingsRows[0]?.standard_work_day_hours || 8.5),
+      overtimeRatePercent: parseFloat(settingsRows[0]?.overtime_rate_percent || 125.0),
     };
+    console.log("Step 1.3: Using settings:", settings);
 
-    // שלב 2: חישוב השכר עבור כל עובד בנפרד
+    // --- שלב 2: חישוב השכר ---
     const payrollDetails = employeesData.map((employee) => {
       try {
         const hourlyRate = parseFloat(employee.hourly_rate) || 0;
+        const employeeAttendance = allAttendanceData.filter((e) => e.employee_id === employee.id);
 
-        // סינון רשומות הנוכחות הרלוונטיות לעובד זה בלבד
-        const employeeSpecificAttendance = allAttendanceData.filter(
-          (entry) => entry.employee_id === employee.id
-        );
+        const dailyHours = {};
 
-        // חישוב סך שעות העבודה לכל יום
-        const dailyHours = employeeSpecificAttendance.reduce((acc, entry) => {
-          const clockInTime = new Date(entry.clock_in).getTime();
-          const clockOutTime = new Date(entry.clock_out).getTime();
-          if (isNaN(clockInTime) || isNaN(clockOutTime)) return acc;
+        for (const entry of employeeAttendance) {
+          console.log(
+            `    -> Analyzing entry ID ${entry.id}: from ${entry.clock_in} to ${entry.clock_out}`
+          );
+          let current = new Date(entry.clock_in);
+          let end = new Date(entry.clock_out);
 
-          let totalDurationMs = clockOutTime - clockInTime;
-          let totalBreakMs = 0;
-          if (Array.isArray(entry.breaks)) {
-            entry.breaks.forEach((b) => {
-              if (b.start && b.end) {
-                totalBreakMs += new Date(b.end).getTime() - new Date(b.start).getTime();
-              }
-            });
+          while (current < end) {
+            const dayEnd = new Date(current);
+            dayEnd.setHours(23, 59, 59, 999);
+            const effectiveEnd = end < dayEnd ? end : dayEnd;
+            let durationMs = effectiveEnd - current;
+            const netWorkHours = Math.max(0, durationMs / 3600000);
+            const entryDate = current.toISOString().split("T")[0];
+
+            if (entryDate >= startDate && entryDate <= endDate) {
+              if (!dailyHours[entryDate]) dailyHours[entryDate] = 0;
+              dailyHours[entryDate] += netWorkHours;
+              console.log(
+                `       - Allocated ${netWorkHours.toFixed(2)} hours to date: ${entryDate}`
+              );
+            }
+            current = new Date(dayEnd.getTime() + 1);
           }
-          const netWorkHours = Math.max(0, (totalDurationMs - totalBreakMs) / 3600000);
-          const entryDate = new Date(entry.clock_in).toISOString().split("T")[0];
-          acc[entryDate] = (acc[entryDate] || 0) + netWorkHours;
-          return acc;
-        }, {});
+        }
 
-        // חישוב שעות רגילות ונוספות
+        console.log("  Finished splitting shifts. Calculated daily hours:", dailyHours);
+
         let totalRegularHours = 0;
         let totalOvertimeHours = 0;
         for (const date in dailyHours) {
           const hoursOnDay = dailyHours[date];
           const dailyOvertime = Math.max(0, hoursOnDay - settings.standardWorkDayHours);
-          const dailyRegular = hoursOnDay - dailyOvertime;
-
           totalOvertimeHours += dailyOvertime;
-          totalRegularHours += dailyRegular;
+          totalRegularHours += hoursOnDay - dailyOvertime;
         }
 
-        // חישוב התשלום הסופי
+        console.log(
+          `  Total Regular Hours: ${totalRegularHours.toFixed(
+            2
+          )}, Total Overtime Hours: ${totalOvertimeHours.toFixed(2)}`
+        );
+
         const basePay = totalRegularHours * hourlyRate;
         const overtimePay = totalOvertimeHours * hourlyRate * (settings.overtimeRatePercent / 100);
         const totalHours = totalOvertimeHours + totalRegularHours;
         const totalPay = basePay + overtimePay;
+
+        console.log(
+          `  Final Pay: Base=₪${basePay.toFixed(2)}, Overtime=₪${overtimePay.toFixed(
+            2
+          )}, Total=₪${totalPay.toFixed(2)}`
+        );
 
         return {
           id: employee.id,
@@ -574,24 +589,12 @@ app.post("/api/payroll", authenticateToken, authorizeManager, async (req, res) =
           totalPay,
         };
       } catch (innerErr) {
-        console.error(
-          `!!! FAILED TO PROCESS PAYROLL FOR EMPLOYEE: ${employee.name} (ID: ${employee.id}) !!!`,
-          innerErr
-        );
-        return {
-          id: employee.id,
-          name: employee.name,
-          department: employee.department,
-          totalRegularHours: 0,
-          totalOvertimeHours: 0,
-          basePay: 0,
-          overtimePay: 0,
-          totalPay: 0,
-        };
+        console.error(`!!! FAILED TO PROCESS PAYROLL FOR ${employee.name} !!!`, innerErr);
+        return { id: employee.id, name: employee.name, error: true };
       }
     });
 
-    // שלב 3: שליחת התוצאה הסופית
+    console.log("\n--- PAYROLL REPORT FINISHED ---\n");
     res.json({ details: payrollDetails });
   } catch (err) {
     console.error("FATAL ERROR Generating Payroll Report:", err);
@@ -694,7 +697,6 @@ cron.schedule(
       return;
     }
 
-    console.log(`\n--- [${currentTime}] SCHEDULER: Waking up to check for CLOCK-OUTS ---`);
     try {
       console.log("   Step 1: Looking for clocked-in employees with has_auto_clock = true...");
       const { rows: employeesToClockOut } = await pool.query(
@@ -706,22 +708,13 @@ cron.schedule(
         return;
       }
 
-      console.log(
-        `   Step 2: Found ${
-          employeesToClockOut.length
-        } employee(s) to clock out: [${employeesToClockOut.map((e) => e.name).join(", ")}]`
-      );
-
       for (const employee of employeesToClockOut) {
-        console.log(`   -> Processing ${employee.name} (ID: ${employee.id})...`);
         await pool.query(
           `UPDATE attendance SET clock_out = NOW() WHERE employee_id = $1 AND clock_out IS NULL`,
           [employee.id]
         );
         await pool.query("UPDATE employees SET status = 'לא בעבודה' WHERE id = $1", [employee.id]);
-        console.log(`      - SUCCESS: Auto-clocked out ${employee.name}.`);
       }
-      console.log(`--- [${currentTime}] SCHEDULER: CLOCK-OUT check finished. ---`);
     } catch (err) {
       console.error("SCHEDULER: FATAL ERROR during auto clock-out task:", err);
     }

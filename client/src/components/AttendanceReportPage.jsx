@@ -106,11 +106,11 @@ function AttendanceReportPage() {
       return;
     }
     const dataToExport = filteredRecords.map((record) => ({
-      'סה"כ שעות': calculateHours(record.clockIn, record.clockOut).replace(" שעות", ""),
-      "תאריך כניסה": formatDate(record.clockIn),
-      "שעת כניסה": formatTime(record.clockIn),
-      "שעת יציאה": formatTime(record.clockOut),
       "שם עובד": record.employeeName,
+      "שעת יציאה": formatTime(record.clockOut),
+      "שעת כניסה": formatTime(record.clockIn),
+      "תאריך כניסה": formatDate(record.clockIn),
+      'סה"כ שעות': calculateHours(record.clockIn, record.clockOut).replace(" שעות", ""),
     }));
 
     // --- התוספות החדשות ---

@@ -150,6 +150,7 @@ function Dashboard() {
 
       return {
         "שם העובד": emp.name,
+        "סטטוס נוכחי": status.text,
         מחלקה: emp.department,
         "תאריך כניסה": lastEntry ? formatDate(lastEntry.clockIn) : "",
         "שעת כניסה": lastEntry ? formatTime(lastEntry.clockIn) : "",
@@ -160,7 +161,6 @@ function Dashboard() {
               ? "בעבודה"
               : "",
         'סה"כ שעות להיום': formatDuration(totalHoursToday),
-        "סטטוס נוכחי": status.text,
       };
     });
 

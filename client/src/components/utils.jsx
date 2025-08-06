@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-// export const API_BASE_URL = "http://192.168.1.19:8989/api";
-export const API_BASE_URL = "http://localhost:5000/api";
+export const API_BASE_URL = "http://192.168.1.19:8989/api";
+// export const API_BASE_URL = "http://localhost:5000/api";
 import * as XLSX from "xlsx";
 
 export const apiFetch = async (endpoint, options = {}) => {

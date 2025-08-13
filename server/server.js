@@ -252,7 +252,7 @@ app.get("/api/attendance", authenticateToken, async (req, res) => {
 });
 
 app.post("/api/attendance/clock-in", authenticateToken, async (req, res) => {
- // Or use the provided employeeId if an admin/manager is clocking someone in.
+  // Or use the provided employeeId if an admin/manager is clocking someone in.
   const employeeId = req.body.employeeId || req.user.id;
   const now = new Date();
 
@@ -270,21 +270,21 @@ app.post("/api/attendance/clock-in", authenticateToken, async (req, res) => {
     // 2. If there are any open shifts, we must handle them.
     if (openShifts.length > 0) {
       console.warn(`WARN: Employee ${employeeId} has an open shift. Auto-closing it.`);
-      
+
       for (const shift of openShifts) {
         // Option 1: A simple auto-clock-out. You could make this smarter.
         // Let's assume a shift cannot be longer than 12 hours.
         const clockInTime = new Date(shift.clock_in);
         const autoClockOutTime = new Date(clockInTime.getTime() + 12 * 60 * 60 * 1000); // 12 hours after clock-in
 
-        await client.query(
-          `UPDATE attendance SET clock_out = $1 WHERE id = $2`,
-          [autoClockOutTime, shift.id]
-        );
+        await client.query(`UPDATE attendance SET clock_out = $1 WHERE id = $2`, [
+          autoClockOutTime,
+          shift.id,
+        ]);
         console.warn(`- Auto-closed shift ID ${shift.id} which started at ${shift.clock_in}`);
       }
     }
-    
+
     // --- END OF NEW LOGIC ---
 
     // 3. Now that any old shifts are closed, we can safely create the new clock-in record.
@@ -295,15 +295,14 @@ app.post("/api/attendance/clock-in", authenticateToken, async (req, res) => {
 
     // 4. Update the employee's main status.
     await client.query(`UPDATE employees SET status = 'present' WHERE id = $1`, [employeeId]);
-    
+
     client.release(); // Release the client back to the pool
 
     // Notify all clients that the data has changed
-    broadcastAttendanceUpdate(); 
+    broadcastAttendanceUpdate();
 
     // Return the newly created entry to the frontend for an immediate UI update
     res.status(201).json({ message: "Clocked in successfully", entry: newEntries[0] });
-
   } catch (err) {
     console.error("Error during clock-in:", err);
     res.status(500).json({ message: "Server error" });

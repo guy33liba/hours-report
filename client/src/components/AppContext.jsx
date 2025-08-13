@@ -1,12 +1,6 @@
 // src/AppContext.jsx - הספק הראשי של הקונטקסט באפליקציה
 
-import {
-  createContext,
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-} from "react";
+import { createContext, useState, useEffect, useCallback, useMemo } from "react";
 import io from "socket.io-client";
 // ייבוא apiFetch ו-Toast מהקובץ utils.js
 import { apiFetch, Toast } from "./utils"; // וודא שהנתיב נכון
@@ -105,18 +99,11 @@ export const AppProvider = ({ children }) => {
     today.setHours(0, 0, 0, 0);
 
     // Add checks for null/undefined before mapping
-    if (
-      !employees ||
-      !Array.isArray(employees) ||
-      !absences ||
-      !Array.isArray(absences)
-    )
-      return;
+    if (!employees || !Array.isArray(employees) || !absences || !Array.isArray(absences)) return;
 
     const updatedEmployees = employees.map((emp) => {
       const activeAbsence = absences.find((a) => {
-        if (!a || !a.startDate || !a.endDate || a.employeeId !== emp.id)
-          return false;
+        if (!a || !a.startDate || !a.endDate || a.employeeId !== emp.id) return false;
 
         const startDate = new Date(a.startDate);
         startDate.setHours(0, 0, 0, 0);
@@ -128,8 +115,8 @@ export const AppProvider = ({ children }) => {
       const newStatus = activeAbsence
         ? activeAbsence.type
         : emp.status === "present" || emp.status === "on_break"
-        ? emp.status
-        : "absent"; // Preserve present/on_break status if not on active absence
+          ? emp.status
+          : "absent"; // Preserve present/on_break status if not on active absence
 
       if (emp.status !== newStatus) {
         // Only update if status actually changed
@@ -148,7 +135,7 @@ export const AppProvider = ({ children }) => {
     (user, token) => {
       setCurrentUser(user);
       localStorage.setItem("token", token);
-      addToast("התחברת בהצלחה", "type");
+      addToast("התחברת בהצלחה", "success");
     },
     [addToast]
   );
@@ -170,13 +157,12 @@ export const AppProvider = ({ children }) => {
     setError(null);
     try {
       // אחזר את כל הנתונים הנדרשים במקביל
-      const [employeesData, attendanceData, absencesData, settingsData] =
-        await Promise.all([
-          apiFetch("/employees"),
-          apiFetch("/attendance"),
-          apiFetch("/absences"), // וודא שנקודת קצה זו קיימת בבקאנד שלך
-          apiFetch("/settings"), // וודא שנקודת קצה זו קיימת בבקאנד שלך
-        ]);
+      const [employeesData, attendanceData, absencesData, settingsData] = await Promise.all([
+        apiFetch("/employees"),
+        apiFetch("/attendance"),
+        apiFetch("/absences"), // וודא שנקודת קצה זו קיימת בבקאנד שלך
+        apiFetch("/settings"), // וודא שנקודת קצה זו קיימת בבקאנד שלך
+      ]);
 
       // עדכן את המצבים עם הנתונים שאוחזרו
       setEmployees(employeesData);
@@ -269,10 +255,7 @@ export const AppProvider = ({ children }) => {
         setAttendance((prev) =>
           prev.map((entry) => (entry.id === data.entry.id ? data.entry : entry))
         );
-        addToast(
-          data.entry.on_break ? "הפסקה התחילה." : "הפסקה הסתיימה.",
-          "info"
-        );
+        addToast(data.entry.on_break ? "הפסקה התחילה." : "הפסקה הסתיימה.", "info");
         return data.entry;
       } catch (err) {
         addToast(`שגיאת הפסקה: ${err.message}`, "error");
@@ -329,7 +312,7 @@ export const AppProvider = ({ children }) => {
       toasts,
     ]
   );
-//helolo
+  //helolo
   return (
     <AppContext.Provider value={contextValue}>
       {children}
@@ -339,9 +322,7 @@ export const AppProvider = ({ children }) => {
             key={index}
             message={toastItem.message}
             type={toastItem.type}
-            onDismiss={() =>
-              setToasts((p) => p.filter((t) => t.id !== toastItem.id))
-            }
+            onDismiss={() => setToasts((p) => p.filter((t) => t.id !== toastItem.id))}
           />
         ))}
       </div>

@@ -67,7 +67,7 @@ function Dashboard() {
         .forEach((entry) => {
           const startTime = new Date(entry.clockIn);
           const endTime = entry.clockOut ? new Date(entry.clockOut) : new Date();
-          const durationMs = endTime - startTime;
+          const durationMs = Math.max(0, endTime - startTime);
           totalMillisecondsToday += durationMs;
           totalPayToday += (durationMs / 3600000) * hourlyRate;
         });
@@ -159,16 +159,27 @@ function Dashboard() {
 
       const todayStr = new Date().toISOString().split("T")[0];
 
-      const todaysAttendance = attendance.filter(
-        (a) => a.employeeId === emp.id && a.clockIn.startsWith(todayStr)
-      );
-
       // +++ הדפסת אבחון מספר 3: אילו רשומות נמצאו עבור העובד "להיום" +++
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // The very beginning of today (midnight)
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1); // The beginning of tomorrow
+
+      const todaysAttendance = attendance.filter(
+        (a) =>
+          a.employeeId === emp.id &&
+          new Date(a.clockIn) < tomorrow &&
+          (!a.clockOut || new Date(a.clockOut) > today)
+      );
 
       const totalMillisecondsToday = todaysAttendance.reduce((total, entry) => {
         const startTime = new Date(entry.clockIn);
         const endTime = entry.clockOut ? new Date(entry.clockOut) : new Date();
-        const duration = endTime - startTime;
+        const todayStart = new Date(todayStr + "T00:00:00");
+        const todayEnd = new Date(todayStr + "T23:59:59");
+        if (startTime < todayStart) startTime.setTime(todayStart.getTime());
+        if (endTime > todayEnd) endTime.setTime(todayEnd.getTime());
+        const duration = Math.max(0, endTime - startTime);
 
         // +++ הדפסת אבחון מספר 4: מה החישוב עבור כל רשומה בודדת +++
 

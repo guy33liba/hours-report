@@ -7,7 +7,7 @@
   --primary-light: #eef2ff;
   --danger-color: #ef4444;
   --danger-hover: #dc2626;
-  --success-color: #10b981;
+  --success-color: #31a378;
   --warning-color: #f59e0b;
   --text-dark: #111827;
   --text-main: #374151;
@@ -571,6 +571,8 @@ tbody tr:hover {
 .toast {
   padding: 1rem 1.5rem;
   color: white;
+  font-weight: bolder;
+  text-align: center;
   border-radius: var(--border-radius);
   box-shadow: var(--box-shadow-lg);
   animation: toast-in 0.5s cubic-bezier(0.215, 0.61, 0.355, 1);

@@ -55,7 +55,7 @@ export const AppProvider = ({ children }) => {
     setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts((p) => p.filter((t) => t.id !== id));
-    }, 3000); // הסרה אוטומטית לאחר 3 שניות
+    }, 1200); // הסרה אוטומטית לאחר 3 שניות
   }, []);
 
   // --- הגדרת המצבים הגלובליים של האפליקציה ---

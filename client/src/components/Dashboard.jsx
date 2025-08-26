@@ -257,6 +257,10 @@ function Dashboard() {
               const status = getEmployeeStatus(emp);
               const isClockedIn = status.class === "present" || status.class === "on_break";
               const isDisabled = status.class === "sick" || status.class === "vacation";
+              const todayStr = new Date().toISOString().split("T")[0];
+              const hasCompletedShiftToday = attendance.some(
+                (a) => a.employeeId === emp.id && a.clockIn.startsWith(todayStr) && a.clockOut
+              );
               return (
                 <div key={emp.id} className="employee-row">
                   <div className="employee-info">
@@ -271,7 +275,7 @@ function Dashboard() {
                   <div className="employee-actions">
                     <button
                       onClick={() => handleClockIn(emp.id)}
-                      disabled={isClockedIn || isDisabled}
+                      disabled={isClockedIn || hasCompletedShiftToday || isDisabled}
                     >
                       כניסה
                     </button>

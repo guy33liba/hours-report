@@ -155,12 +155,15 @@ function Dashboard() {
         .filter((a) => a.employeeId === emp.id)
         .sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn))[0];
 
+      // +++ הדפסת אבחון מספר 2: על איזה עובד אנחנו עובדים +++
+
       const todayStr = new Date().toISOString().split("T")[0];
 
+      // +++ הדפסת אבחון מספר 3: אילו רשומות נמצאו עבור העובד "להיום" +++
       const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0); // The very beginning of today (midnight)
       const tomorrow = new Date(today);
-      tomorrow.setDate(today.getDate() + 1);
+      tomorrow.setDate(today.getDate() + 1); // The beginning of tomorrow
 
       const todaysAttendance = attendance.filter(
         (a) =>
@@ -178,10 +181,14 @@ function Dashboard() {
         if (endTime > todayEnd) endTime.setTime(todayEnd.getTime());
         const duration = Math.max(0, endTime - startTime);
 
+        // +++ הדפסת אבחון מספר 4: מה החישוב עבור כל רשומה בודדת +++
+
         return total + duration;
       }, 0);
 
       const totalHoursToday = totalMillisecondsToday / (1000 * 60 * 60);
+
+      // +++ הדפסת אבחון מספר 5: מה הסכום הסופי שחושב +++
 
       return {
         "שם העובד": emp.name,
@@ -250,14 +257,6 @@ function Dashboard() {
               const status = getEmployeeStatus(emp);
               const isClockedIn = status.class === "present" || status.class === "on_break";
               const isDisabled = status.class === "sick" || status.class === "vacation";
-
-              // --- הוספת הלוגיקה החדשה ---
-              const todayStr = new Date().toISOString().split("T")[0];
-              const hasCompletedShiftToday = attendance.some(
-                (a) => a.employeeId === emp.id && a.clockIn.startsWith(todayStr) && a.clockOut // <-- החלק החשוב: בודק אם יש חתימת יציאה
-              );
-              // --- סוף הלוגיקה החדשה ---
-
               return (
                 <div key={emp.id} className="employee-row">
                   <div className="employee-info">
@@ -272,11 +271,17 @@ function Dashboard() {
                   <div className="employee-actions">
                     <button
                       onClick={() => handleClockIn(emp.id)}
-                      // --- עדכון התנאי בכפתור ---
-                      disabled={isClockedIn || hasCompletedShiftToday || isDisabled}
+                      disabled={isClockedIn || isDisabled}
                     >
                       כניסה
                     </button>
+                    {/* <button
+                      onClick={() => handleBreakToggle(emp.id)}
+                      disabled={!isClockedIn || isDisabled}
+                      className="secondary"
+                    >
+                      {status.class === "on_break" ? "חזור מהפסקה" : "הפסקה"}
+                    </button> */}
                     <button
                       onClick={() => handleClockOut(emp.id)}
                       disabled={!isClockedIn || isDisabled}

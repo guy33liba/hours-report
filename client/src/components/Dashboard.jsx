@@ -155,15 +155,12 @@ function Dashboard() {
         .filter((a) => a.employeeId === emp.id)
         .sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn))[0];
 
-      // +++ הדפסת אבחון מספר 2: על איזה עובד אנחנו עובדים +++
-
       const todayStr = new Date().toISOString().split("T")[0];
 
-      // +++ הדפסת אבחון מספר 3: אילו רשומות נמצאו עבור העובד "להיום" +++
       const today = new Date();
-      today.setHours(0, 0, 0, 0); // The very beginning of today (midnight)
+      today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
-      tomorrow.setDate(today.getDate() + 1); // The beginning of tomorrow
+      tomorrow.setDate(today.getDate() + 1);
 
       const todaysAttendance = attendance.filter(
         (a) =>
@@ -181,14 +178,10 @@ function Dashboard() {
         if (endTime > todayEnd) endTime.setTime(todayEnd.getTime());
         const duration = Math.max(0, endTime - startTime);
 
-        // +++ הדפסת אבחון מספר 4: מה החישוב עבור כל רשומה בודדת +++
-
         return total + duration;
       }, 0);
 
       const totalHoursToday = totalMillisecondsToday / (1000 * 60 * 60);
-
-      // +++ הדפסת אבחון מספר 5: מה הסכום הסופי שחושב +++
 
       return {
         "שם העובד": emp.name,

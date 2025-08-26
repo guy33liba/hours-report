@@ -250,10 +250,14 @@ function Dashboard() {
               const status = getEmployeeStatus(emp);
               const isClockedIn = status.class === "present" || status.class === "on_break";
               const isDisabled = status.class === "sick" || status.class === "vacation";
+
+              // --- הוספת הלוגיקה החדשה ---
               const todayStr = new Date().toISOString().split("T")[0];
               const hasCompletedShiftToday = attendance.some(
-                (a) => a.employeeId === emp.id && a.clockIn.startsWith(todayStr) && a.clockOut
+                (a) => a.employeeId === emp.id && a.clockIn.startsWith(todayStr) && a.clockOut // <-- החלק החשוב: בודק אם יש חתימת יציאה
               );
+              // --- סוף הלוגיקה החדשה ---
+
               return (
                 <div key={emp.id} className="employee-row">
                   <div className="employee-info">
@@ -268,17 +272,11 @@ function Dashboard() {
                   <div className="employee-actions">
                     <button
                       onClick={() => handleClockIn(emp.id)}
+                      // --- עדכון התנאי בכפתור ---
                       disabled={isClockedIn || hasCompletedShiftToday || isDisabled}
                     >
                       כניסה
                     </button>
-                    {/* <button
-                      onClick={() => handleBreakToggle(emp.id)}
-                      disabled={!isClockedIn || isDisabled}
-                      className="secondary"
-                    >
-                      {status.class === "on_break" ? "חזור מהפסקה" : "הפסקה"}
-                    </button> */}
                     <button
                       onClick={() => handleClockOut(emp.id)}
                       disabled={!isClockedIn || isDisabled}

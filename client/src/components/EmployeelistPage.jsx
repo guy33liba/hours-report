@@ -77,33 +77,33 @@ function EmployeeListPage() {
       }
     }
   };
-  const handleToggleAutoClock = async (employeeId, currentStatus) => {
-    const newStatus = !currentStatus;
+  // const handleToggleAutoClock = async (employeeId, currentStatus) => {
+  //   const newStatus = !currentStatus;
 
-    // Instantly update the UI for a better user experience
-    setEmployees((prevEmployees) =>
-      prevEmployees.map((emp) =>
-        emp.id === employeeId ? { ...emp, has_auto_clock: newStatus } : emp
-      )
-    );
+  //   // Instantly update the UI for a better user experience
+  //   setEmployees((prevEmployees) =>
+  //     prevEmployees.map((emp) =>
+  //       emp.id === employeeId ? { ...emp, has_auto_clock: newStatus } : emp
+  //     )
+  //   );
 
-    try {
-      // Call the new API endpoint we created in the backend
-      await apiFetch(`/employees/${employeeId}/toggle-auto-clock`, {
-        method: "PUT",
-        body: JSON.stringify({ hasAutoClock: newStatus }),
-      });
-      addToast(`שעון אוטומטי ${newStatus ? "הופעל" : "כובה"}`, "success");
-    } catch (err) {
-      addToast(err.message, "danger");
-      // If the API call fails, revert the change in the UI
-      setEmployees((prevEmployees) =>
-        prevEmployees.map((emp) =>
-          emp.id === employeeId ? { ...emp, has_auto_clock: currentStatus } : emp
-        )
-      );
-    }
-  };
+  //   try {
+  //     // Call the new API endpoint we created in the backend
+  //     await apiFetch(`/employees/${employeeId}/toggle-auto-clock`, {
+  //       method: "PUT",
+  //       body: JSON.stringify({ hasAutoClock: newStatus }),
+  //     });
+  //     addToast(`שעון אוטומטי ${newStatus ? "הופעל" : "כובה"}`, "success");
+  //   } catch (err) {
+  //     addToast(err.message, "danger");
+  //     // If the API call fails, revert the change in the UI
+  //     setEmployees((prevEmployees) =>
+  //       prevEmployees.map((emp) =>
+  //         emp.id === employeeId ? { ...emp, has_auto_clock: currentStatus } : emp
+  //       )
+  //     );
+  //   }
+  // };
 
   return (
     <>
@@ -137,7 +137,7 @@ function EmployeeListPage() {
                       {emp.role === "manager" ? "מנהל" : emp.role === "support" ? "תמיכה" : "עובד"}
                     </td>
                     <td>
-                      <label className="autoClockSwitch">
+                      {/* <label className="autoClockSwitch">
                         <input
                           type="checkbox"
                           // נניח שנתוני העובד מכילים עכשיו has_auto_clock
@@ -145,7 +145,7 @@ function EmployeeListPage() {
                           onChange={() => handleToggleAutoClock(emp.id, emp.has_auto_clock)}
                         />
                         <span className="slider round"></span>
-                      </label>
+                      </label> */}
                     </td>
                     <td className="actions-cell">
                       <button

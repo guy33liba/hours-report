@@ -466,8 +466,8 @@ tbody tr:hover {
 }
 .employee-timer {
   font-family: monospace;
-  font-size: 1.25rem;
-  font-weight: 600;
+  font-size: 1.3rem;
+  font-weight: 800;
   color: var(--primary-color);
   min-width: 100px;
   text-align: center;
@@ -479,8 +479,9 @@ tbody tr:hover {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-weight: 600;
+  font-weight: bold;
   padding: 0.5rem 1rem;
+  font-size: 1.3rem;
   border-radius: 999px;
 }
 .status-dot {
@@ -657,6 +658,10 @@ tbody tr:hover {
     flex-direction: column;
   }
 }
+.employee-actions button {
+  font-size: 1.5rem;
+}
+
 /* --- Add this to the END of your styles.css file --- */
 
 /* Styles for the Payroll page controls */

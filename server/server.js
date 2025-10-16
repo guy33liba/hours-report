@@ -229,41 +229,20 @@ app.delete("/api/employees/:id", authenticateToken, authorizeManager, async (req
 app.get("/api/attendance", authenticateToken, async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      WITH DailyAttendance AS (
-          SELECT
-              att.employee_id,
-              att.clock_in::date AS attendance_date,
-              SUM(
-                  EXTRACT(EPOCH FROM (att.clock_out - att.clock_in)) -
-                  COALESCE((
-                      SELECT SUM(EXTRACT(EPOCH FROM (b.end::TIMESTAMP - b.start::TIMESTAMP)))
-                      FROM jsonb_to_recordset(att.breaks) AS b(start TEXT, "end" TEXT)
-                      WHERE b.start IS NOT NULL AND b.end IS NOT NULL
-                  ), 0)
-              ) / 3600.0 AS total_hours_on_day,
-              MIN(att.clock_in) AS first_clock_in,
-              MAX(att.clock_out) AS last_clock_out
-          FROM
-              attendance AS att
-          WHERE
-              att.clock_out IS NOT NULL
-          GROUP BY
-              att.employee_id,
-              att.clock_in::date
-      )
-      SELECT
-          da.employee_id AS "employeeId",
-          emp.name AS "employeeName",
-          da.attendance_date AS "date",
-          da.total_hours_on_day AS "totalHours",
-          da.first_clock_in AS "clockIn",
-          da.last_clock_out AS "clockOut"
-      FROM
-          DailyAttendance AS da
-      JOIN
-          employees AS emp ON da.employee_id = emp.id
-      ORDER BY
-          da.attendance_date DESC, emp.name ASC;
+        SELECT 
+            att.id,                         -- חד משמעי: קח את ה-id מטבלת הנוכחות
+            att.employee_id AS "employeeId",
+            emp.name AS "employeeName",
+            att.clock_in AS "clockIn", 
+            att.clock_out AS "clockOut", 
+            att.breaks, 
+            att.on_break AS "onBreak" 
+        FROM 
+            attendance AS att               -- תן לטבלה את הכינוי "att"
+        JOIN 
+            employees AS emp ON att.employee_id = emp.id -- תן לטבלה את הכינוי "emp"
+        ORDER BY 
+            att.clock_in DESC
     `);
     res.json(rows);
   } catch (err) {

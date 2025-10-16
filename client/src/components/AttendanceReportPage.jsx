@@ -9,7 +9,7 @@ const getTodayYYYYMMDD = () => {
 const getFirstDayOfMonthYYYYMMDD = () => {
   const today = new Date();
   // יוצר תאריך חדש עם השנה הנוכחית, החודש הנוכחי, וביום הראשון (1)
-  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 2);
   return firstDay.toISOString().split("T")[0];
 };
 function AttendanceReportPage() {
@@ -61,7 +61,7 @@ function AttendanceReportPage() {
       }
 
       // שאר הסינון נשאר זהה
-      const recordDate = new Date(record.date); // Use record.date from aggregated data
+      const recordDate = new Date(record.clockIn || record.check_in_time);
       const nameMatch = filters.name
         ? record.employeeName?.toLowerCase().includes(filters.name.toLowerCase())
         : true;
@@ -84,16 +84,19 @@ function AttendanceReportPage() {
     return new Date(dateString).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
   };
 
-  // Modified to use pre-calculated totalHours from backend
-  const calculateHours = (totalHours) => {
-    if (typeof totalHours !== 'number') return "-";
-    return totalHours.toFixed(2) + " שעות";
+  const calculateHours = (start, end) => {
+    if (!start || !end) return "-";
+    const durationHours = (new Date(end).getTime() - new Date(start).getTime()) / 3600000;
+    return durationHours.toFixed(2) + " שעות";
   };
-
   const totalHoursSum = useMemo(() => {
     return filteredRecords.reduce((sum, record) => {
-      // Sum the pre-calculated totalHours from each aggregated record
-      return sum + (record.totalHours || 0);
+      if (record.clockIn && record.clockOut) {
+        const durationHours =
+          (new Date(record.clockOut).getTime() - new Date(record.clockIn).getTime()) / 3600000;
+        return sum + durationHours;
+      }
+      return sum;
     }, 0);
   }, [filteredRecords]); // החישוב ירוץ מחדש רק כשהסינון משתנה
 
@@ -106,13 +109,18 @@ function AttendanceReportPage() {
       "שם עובד": record.employeeName,
       "שעת יציאה": formatTime(record.clockOut),
       "שעת כניסה": formatTime(record.clockIn),
-      "תאריך כניסה": formatDate(record.date), // Use record.date
-      'סה"כ שעות': record.totalHours.toFixed(2), // Use pre-calculated totalHours
+      "תאריך כניסה": formatDate(record.clockIn),
+      'סה"כ שעות': calculateHours(record.clockIn, record.clockOut).replace(" שעות", ""),
     }));
 
     // --- התוספות החדשות ---
     const totalHoursSum = filteredRecords.reduce((sum, record) => {
-      return sum + (record.totalHours || 0);
+      if (record.clockIn && record.clockOut) {
+        const durationHours =
+          (new Date(record.clockOut).getTime() - new Date(record.clockIn).getTime()) / 3600000;
+        return sum + durationHours;
+      }
+      return sum;
     }, 0);
 
     dataToExport.push({}); // שורה ריקה
@@ -211,27 +219,30 @@ function AttendanceReportPage() {
             <tbody>
               {filteredRecords.length > 0 ? (
                 filteredRecords.map((record) => (
-                  <tr key={`${record.employeeId}-${record.date}`}>
+                  <tr key={record.id}>
                     {/* 7. תא דינמי */}
                     {currentUser?.role === "manager" && (
                       <td className="cell-employee-name">
-                        {record.employeeName}
+                        {record.employeeName || record.employee_name}
                       </td>
                     )}
                     <td className="cell-time-data">
-                      {formatDate(record.clockIn)}
+                      {formatDate(record.clockIn || record.check_in_time)}
                     </td>
                     <td className="cell-time-data">
-                      {formatTime(record.clockIn)}
+                      {formatTime(record.clockIn || record.check_in_time)}
                     </td>
                     <td className="cell-time-data">
-                      {formatDate(record.clockOut)}
+                      {formatDate(record.clockOut || record.check_out_time)}
                     </td>
                     <td className="cell-time-data">
-                      {formatTime(record.clockOut)}
+                      {formatTime(record.clockOut || record.check_out_time)}
                     </td>
                     <td>
-                      {calculateHours(record.totalHours)}
+                      {calculateHours(
+                        record.clockIn || record.check_in_time,
+                        record.clockOut || record.check_out_time
+                      )}
                     </td>
                   </tr>
                 ))

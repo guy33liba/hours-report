@@ -49,30 +49,94 @@ function AttendanceReportPage() {
     fetchAttendance();
   }, [fetchAttendance]);
 
-  const filteredRecords = useMemo(() => {
-    // הוספנו בדיקה ש-currentUser קיים
+  const aggregatedRecords = useMemo(() => {
     if (!attendanceRecords || !currentUser) return [];
 
-    return attendanceRecords.filter((record) => {
-      // 2. הסינון הדינמי - התוספת החשובה ביותר
-      // אם המשתמש הוא לא מנהל, והרשומה לא שייכת לו - סנן אותה החוצה
-      if (currentUser.role !== "manager" && record.employeeId !== currentUser.id) {
-        return false;
+    const grouped = attendanceRecords.reduce((acc, record) => {
+      const employeeId = record.employeeId || record.employee_id;
+      const dateKey = new Date(record.clockIn || record.check_in_time).toLocaleDateString("en-CA"); // YYYY-MM-DD
+
+      // Filter by current user if not manager
+      if (currentUser.role !== "manager" && employeeId !== currentUser.id) {
+        return acc;
       }
 
-      // שאר הסינון נשאר זהה
+      // Apply date filters
       const recordDate = new Date(record.clockIn || record.check_in_time);
-      const nameMatch = filters.name
-        ? record.employeeName?.toLowerCase().includes(filters.name.toLowerCase())
-        : true;
       const startDateMatch = filters.startDate ? recordDate >= new Date(filters.startDate) : true;
       const endDateMatch = filters.endDate
         ? recordDate <= new Date(filters.endDate + "T23:59:59")
         : true;
 
-      return nameMatch && startDateMatch && endDateMatch;
-    });
-  }, [attendanceRecords, filters, currentUser]); // הוספנו את currentUser למערך התלויות
+      if (!startDateMatch || !endDateMatch) {
+        return acc;
+      }
+
+      const key = `${employeeId}-${dateKey}`;
+      if (!acc[key]) {
+        acc[key] = {
+          employeeId: employeeId,
+          employeeName: record.employeeName || record.employee_name,
+          date: dateKey,
+          shifts: [],
+          totalDuration: 0,
+          hasOpenShift: false,
+        };
+      }
+      acc[key].shifts.push(record);
+      return acc;
+    }, {});
+
+    return Object.values(grouped)
+      .map((group) => {
+        let totalHours = 0;
+        let hasOpenShift = false;
+        let firstClockIn = null;
+        let lastClockOut = null;
+
+        group.shifts.forEach((shift) => {
+          const clockIn = new Date(shift.clockIn || shift.check_in_time);
+          const clockOut = shift.clockOut || shift.check_out_time ? new Date(shift.clockOut || shift.check_out_time) : null;
+
+          if (clockIn && clockOut) {
+            totalHours += (clockOut.getTime() - clockIn.getTime()) / 3600000;
+          } else if (clockIn && !clockOut) {
+            hasOpenShift = true;
+            // For open shifts, calculate hours up to now for display, but don't add to totalHoursSum for export
+            // This will be handled in the display logic
+          }
+
+          if (!firstClockIn || clockIn < firstClockIn) {
+            firstClockIn = clockIn;
+          }
+          if (clockOut && (!lastClockOut || clockOut > lastClockOut)) {
+            lastClockOut = clockOut;
+          }
+        });
+
+        // If there's an open shift, the "lastClockOut" for display purposes is "בעבודה"
+        // The actual calculation for total hours will be done in the table rendering
+        const displayClockOut = hasOpenShift ? null : lastClockOut;
+
+        return {
+          employeeId: group.employeeId,
+          employeeName: group.employeeName,
+          date: group.date,
+          firstClockIn: firstClockIn,
+          lastClockOut: displayClockOut, // This will be null if hasOpenShift is true
+          totalHours: totalHours, // Sum of completed shifts
+          hasOpenShift: hasOpenShift,
+        };
+      })
+      .filter((record) => {
+        // Apply name filter after aggregation
+        const nameMatch = filters.name
+          ? record.employeeName?.toLowerCase().includes(filters.name.toLowerCase())
+          : true;
+        return nameMatch;
+      })
+      .sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort by date descending
+  }, [attendanceRecords, filters, currentUser]);
 
   const formatDate = (dateString) => {
     if (!dateString) return "-";
@@ -90,50 +154,32 @@ function AttendanceReportPage() {
     return durationHours.toFixed(2) + " שעות";
   };
   const totalHoursSum = useMemo(() => {
-    return filteredRecords.reduce((sum, record) => {
-      if (record.clockIn && record.clockOut) {
-        const durationHours =
-          (new Date(record.clockOut).getTime() - new Date(record.clockIn).getTime()) / 3600000;
-        return sum + durationHours;
-      }
-      return sum;
-    }, 0);
-  }, [filteredRecords]); // החישוב ירוץ מחדש רק כשהסינון משתנה
+    return aggregatedRecords.reduce((sum, record) => sum + record.totalHours, 0);
+  }, [aggregatedRecords]); // החישוב ירוץ מחדש רק כשהסינון משתנה
 
   const handleExport = useCallback(() => {
-    if (!filteredRecords || filteredRecords.length === 0) {
+    if (!aggregatedRecords || aggregatedRecords.length === 0) {
       addToast("אין נתונים לייצוא", "danger");
       return;
     }
-    const dataToExport = filteredRecords.map((record) => ({
+    const dataToExport = aggregatedRecords.map((record) => ({
       "שם עובד": record.employeeName,
-      "שעת יציאה": formatTime(record.clockOut),
-      "שעת כניסה": formatTime(record.clockIn),
-      "תאריך כניסה": formatDate(record.clockIn),
-      'סה"כ שעות': calculateHours(record.clockIn, record.clockOut).replace(" שעות", ""),
+      "תאריך": formatDate(record.date),
+      "שעת כניסה ראשונה": formatTime(record.firstClockIn),
+      "שעת יציאה אחרונה": record.hasOpenShift ? "בעבודה" : formatTime(record.lastClockOut),
+      'סה"כ שעות': record.totalHours.toFixed(2),
     }));
-
-    // --- התוספות החדשות ---
-    const totalHoursSum = filteredRecords.reduce((sum, record) => {
-      if (record.clockIn && record.clockOut) {
-        const durationHours =
-          (new Date(record.clockOut).getTime() - new Date(record.clockIn).getTime()) / 3600000;
-        return sum + durationHours;
-      }
-      return sum;
-    }, 0);
 
     dataToExport.push({}); // שורה ריקה
     dataToExport.push({
       "שם עובד": 'סה"כ שעות לתקופה:',
       'סה"כ שעות': totalHoursSum.toFixed(2),
     });
-    // --- סוף התוספות ---
 
     const fileName = `Attendance_Report_${filters.startDate}_to_${filters.endDate}`;
     exportToExcel(dataToExport, fileName);
     addToast("הדוח יוצא בהצלחה!", "success");
-  }, [filteredRecords, filters.startDate, filters.endDate, addToast]);
+  }, [aggregatedRecords, filters.startDate, filters.endDate, addToast, totalHoursSum]);
   if (loading) return <div>טוען נתוני נוכחות...</div>;
   if (error) return <div style={{ color: "red" }}>{error}</div>;
 
@@ -209,47 +255,35 @@ function AttendanceReportPage() {
               <tr>
                 {/* 6. כותרת עמודה דינמית */}
                 {currentUser?.role === "manager" && <th>שם עובד</th>}
-                <th>תאריך כניסה</th>
-                <th>שעת כניסה</th>
-                <th>תאריך יציאה</th>
-                <th>שעת יציאה</th>
+                <th>תאריך</th>
+                <th>שעת כניסה ראשונה</th>
+                <th>שעת יציאה אחרונה</th>
                 <th>סה"כ שעות</th>
               </tr>
             </thead>
             <tbody>
-              {filteredRecords.length > 0 ? (
-                filteredRecords.map((record) => (
-                  <tr key={record.id}>
-                    {/* 7. תא דינמי */}
+              {aggregatedRecords.length > 0 ? (
+                aggregatedRecords.map((record) => (
+                  <tr key={`${record.employeeId}-${record.date}`}>
                     {currentUser?.role === "manager" && (
-                      <td className="cell-employee-name">
-                        {record.employeeName || record.employee_name}
-                      </td>
+                      <td className="cell-employee-name">{record.employeeName}</td>
                     )}
+                    <td className="cell-time-data">{formatDate(record.date)}</td>
+                    <td className="cell-time-data">{formatTime(record.firstClockIn)}</td>
                     <td className="cell-time-data">
-                      {formatDate(record.clockIn || record.check_in_time)}
-                    </td>
-                    <td className="cell-time-data">
-                      {formatTime(record.clockIn || record.check_in_time)}
-                    </td>
-                    <td className="cell-time-data">
-                      {formatDate(record.clockOut || record.check_out_time)}
-                    </td>
-                    <td className="cell-time-data">
-                      {formatTime(record.clockOut || record.check_out_time)}
+                      {record.hasOpenShift ? "בעבודה" : formatTime(record.lastClockOut)}
                     </td>
                     <td>
-                      {calculateHours(
-                        record.clockIn || record.check_in_time,
-                        record.clockOut || record.check_out_time
-                      )}
+                      {record.hasOpenShift
+                        ? calculateHours(record.firstClockIn, new Date())
+                        : record.totalHours.toFixed(2) + " שעות"}
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td
-                    colSpan={currentUser?.role === "manager" ? 6 : 5}
+                    colSpan={currentUser?.role === "manager" ? 4 : 3}
                     style={{ textAlign: "center" }}
                   >
                     אין נתוני נוכחות התואמים לסינון.
@@ -260,7 +294,7 @@ function AttendanceReportPage() {
             <tfoot>
               <tr className="summary-row">
                 <td
-                  colSpan={currentUser?.role === "manager" ? 5 : 4}
+                  colSpan={currentUser?.role === "manager" ? 4 : 3}
                   style={{ textAlign: "left", fontWeight: "bold" }}
                 >
                   סה"כ שעות לתקופה:

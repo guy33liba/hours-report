@@ -1,4 +1,4 @@
-import { useCallback, useContext, useMemo } from "react";
+import { useCallback, useContext, useMemo, useState, useEffect } from "react";
 import DigitalClock from "./DigitalClock";
 import EmployeeTimer from "./EmployeeTimer";
 import { AppContext } from "./AppContext";
@@ -6,19 +6,35 @@ import { apiFetch, exportToExcel } from "./utils";
 import "../styles.css";
 function Dashboard() {
   // FIX 1: קבלת 'loading' מהקונטקסט. זה המפתח לדעת מתי הנתונים מוכנים.
-  const { employees, attendance, setAttendance, addToast, currentUser, loading } =
-    useContext(AppContext);
+  const { employees, attendance, setAttendance, addToast, currentUser, loading } = useContext(AppContext);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
+
+  useEffect(() => {
+    if (currentUser && employees.length > 0) {
+      if (currentUser.role === "manager") {
+        setSelectedEmployeeId(""); // Managers see all by default
+      } else {
+        setSelectedEmployeeId(currentUser.id); // Employees see only themselves
+      }
+    }
+  }, [currentUser, employees]);
 
   // FIX 2: הוספת בדיקות בטיחות ל-useMemo. הוא לא ירוץ עד שכל הנתונים קיימים.
   const employeesToDisplay = useMemo(() => {
     if (loading || !employees || !currentUser) {
       return [];
     }
-    if (currentUser.role === "manager") {
-      return employees;
+
+    let filteredEmployees = employees;
+
+    if (currentUser.role === "manager" && selectedEmployeeId) {
+      filteredEmployees = employees.filter((emp) => emp.id === selectedEmployeeId);
+    } else if (currentUser.role !== "manager") {
+      filteredEmployees = employees.filter((emp) => emp.id === currentUser.id);
     }
-    return employees.filter((emp) => emp.id === currentUser.id);
-  }, [employees, currentUser, loading]);
+
+    return filteredEmployees;
+  }, [employees, currentUser, loading, selectedEmployeeId]);
 
   const getEmployeeStatus = (employee) => {
     if (!attendance) {
@@ -55,7 +71,7 @@ function Dashboard() {
     let totalMillisecondsToday = 0;
     let totalPayToday = 0;
 
-    employees.forEach((emp) => {
+    employeesToDisplay.forEach((emp) => {
       const hourlyRate = parseFloat(emp.hourly_rate) || 0;
 
       if (attendance.some((a) => a.employeeId === emp.id && !a.clockOut)) {
@@ -67,7 +83,18 @@ function Dashboard() {
         .forEach((entry) => {
           const startTime = new Date(entry.clockIn);
           const endTime = entry.clockOut ? new Date(entry.clockOut) : new Date();
-          const durationMs = Math.max(0, endTime - startTime);
+          let durationMs = Math.max(0, endTime - startTime);
+
+          // Subtract break durations
+          if (entry.breaks && entry.breaks.length > 0) {
+            const totalBreakMs = entry.breaks.reduce((breakTotal, b) => {
+              const breakStart = new Date(b.start);
+              const breakEnd = b.end ? new Date(b.end) : new Date(); // If break is ongoing, use current time
+              return breakTotal + Math.max(0, breakEnd - breakStart);
+            }, 0);
+            durationMs = Math.max(0, durationMs - totalBreakMs);
+          }
+
           totalMillisecondsToday += durationMs;
           totalPayToday += (durationMs / 3600000) * hourlyRate;
         });
@@ -78,7 +105,7 @@ function Dashboard() {
       totalHoursToday: totalMillisecondsToday / 3600000,
       totalPayToday,
     };
-  }, [attendance, employees, loading]);
+  }, [attendance, employeesToDisplay, loading]);
   // כל פונקציות ה-handle... נשארות כפי שהן, הן תקינות.
   const handleClockIn = async (employeeId) => {
     try {
@@ -227,6 +254,20 @@ function Dashboard() {
         <h2>לוח בקרה</h2>
 
         <div className="page-actions">
+          {currentUser.role === "manager" && (
+            <select
+              value={selectedEmployeeId}
+              onChange={(e) => setSelectedEmployeeId(e.target.value)}
+              className="employee-select"
+            >
+              <option value="">כל העובדים</option>
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.name}
+                </option>
+              ))}
+            </select>
+          )}
           <DigitalClock />
         </div>
       </div>

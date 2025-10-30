@@ -6,7 +6,8 @@ import { apiFetch, exportToExcel } from "./utils";
 import "../styles.css";
 function Dashboard() {
   // FIX 1: קבלת 'loading' מהקונטקסט. זה המפתח לדעת מתי הנתונים מוכנים.
-  const { employees, attendance, setAttendance, addToast, currentUser, loading } = useContext(AppContext);
+  const { employees, attendance, setAttendance, addToast, currentUser, loading } =
+    useContext(AppContext);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
 
   useEffect(() => {

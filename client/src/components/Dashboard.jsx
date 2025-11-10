@@ -29,9 +29,9 @@ function Dashboard() {
     let filteredEmployees = employees;
 
     if (currentUser.role === "manager" && selectedEmployeeId) {
-      filteredEmployees = employees.filter((emp) => emp.id === selectedEmployeeId);
+      filteredEmployees = employees.filter((emp) => String(emp.id) === selectedEmployeeId);
     } else if (currentUser.role !== "manager") {
-      filteredEmployees = employees.filter((emp) => emp.id === currentUser.id);
+      filteredEmployees = employees.filter((emp) => String(emp.id) === String(currentUser.id));
     }
 
     return filteredEmployees;
@@ -228,8 +228,8 @@ function Dashboard() {
           lastEntry && lastEntry.clockOut
             ? formatTime(lastEntry.clockOut)
             : status.class.includes("present") || status.class.includes("break")
-              ? "בעבודה"
-              : "",
+            ? "בעבודה"
+            : "",
         'סה"כ שעות להיום': formatDuration(totalHoursToday),
       };
     });
@@ -252,7 +252,10 @@ function Dashboard() {
   return (
     <>
       <div className="page-header">
-        <h2>לוח בקרה</h2>
+        <div className="header-info">
+          <p className="current-user-name">{currentUser.name}</p>
+          <DigitalClock />
+        </div>
 
         <div className="page-actions">
           {currentUser.role === "manager" && (
@@ -269,7 +272,6 @@ function Dashboard() {
               ))}
             </select>
           )}
-          <DigitalClock />
         </div>
       </div>
 

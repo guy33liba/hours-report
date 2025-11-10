@@ -14,6 +14,7 @@ function EmployeeListPage() {
   const sortedEmployees = useMemo(() => {
     // Crucial: Default employees to an empty array if it's null or undefined.
     const employeesArray = employees || [];
+    console.log("EmployeelistPage: Employees received for sorting/filtering:", employeesArray);
 
     const roleOrder = {
       manager: 1,

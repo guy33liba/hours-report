@@ -115,8 +115,8 @@ export const AppProvider = ({ children }) => {
       const newStatus = activeAbsence
         ? activeAbsence.type
         : emp.status === "present" || emp.status === "on_break"
-          ? emp.status
-          : "absent"; // Preserve present/on_break status if not on active absence
+        ? emp.status
+        : "absent"; // Preserve present/on_break status if not on active absence
 
       if (emp.status !== newStatus) {
         // Only update if status actually changed
@@ -248,7 +248,7 @@ export const AppProvider = ({ children }) => {
   const breakToggle = useCallback(
     async (employeeId) => {
       try {
-        const data = await apiFetch("/attendance/break", {
+        const data = await apiFetch("/attendance/toggle-break", {
           method: "POST",
           body: JSON.stringify({ employeeId }),
         });

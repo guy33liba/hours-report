@@ -113,7 +113,7 @@ app.post("/api/auth/login", async (req, res) => {
 app.get("/api/employees", authenticateToken, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      "SELECT id, name, role, department, hourly_rate, status,has_auto_clock FROM employees ORDER BY name"
+      "SELECT id, name, role, department, hourly_rate, status, has_auto_clock, COALESCE(vacation_days,0) AS vacation_days FROM employees ORDER BY name"
     );
     res.json(rows);
   } catch (error) {
@@ -159,13 +159,17 @@ app.put(
 );
 
 app.post("/api/employees", authenticateToken, authorizeManager, async (req, res) => {
-  const { name, department, hourlyRate, role } = req.body;
+  const { name, department, hourlyRate, role, vacationDays } = req.body;
   const password = "123"; // Default password
+  const initialVacation = Number.isFinite(parseInt(vacationDays)) ? parseInt(vacationDays) : 0;
   try {
-    // FIX: Standardized to hourly_rate
+    // FIX: Standardized to hourly_rate and include vacation_days
     const { rows } = await pool.query(
-      "INSERT INTO employees (name, department, hourly_rate, role, password) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, department, role, hourly_rate",
-      [name, department, hourlyRate, role, password]
+      "INSERT INTO employees (name, department, hourly_rate, role, password, vacation_days) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, department, role, hourly_rate, vacation_days",
+      [name, department, hourlyRate, role, password, initialVacation]
+    );
+    console.log(
+      `Created employee ${rows[0].name} (id=${rows[0].id}) with ${rows[0].vacation_days} vacation days`
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -180,12 +184,15 @@ app.post("/api/employees", authenticateToken, authorizeManager, async (req, res)
 
 app.put("/api/employees/:id", authenticateToken, authorizeManager, async (req, res) => {
   const { id } = req.params;
-  const { name, department, hourlyRate, role } = req.body;
+  const { name, department, hourlyRate, role, vacationDays } = req.body;
   try {
-    // FIX: Standardized to hourly_rate
+    // FIX: Standardized to hourly_rate and include vacation_days
     const { rows } = await pool.query(
-      "UPDATE employees SET name = $1, department = $2, hourly_rate = $3, role = $4 WHERE id = $5 RETURNING id, name, department, role, hourly_rate",
-      [name, department, hourlyRate, role, id]
+      "UPDATE employees SET name = $1, department = $2, hourly_rate = $3, role = $4, vacation_days = $5 WHERE id = $6 RETURNING id, name, department, role, hourly_rate, vacation_days",
+      [name, department, hourlyRate, role, vacationDays, id]
+    );
+    console.log(
+      `Updated employee ${rows[0].name} (id=${rows[0].id}) -> vacation_days=${rows[0].vacation_days}`
     );
     res.json(rows[0]);
   } catch (err) {
@@ -398,17 +405,70 @@ app.get("/api/absences", authenticateToken, async (req, res) => {
 });
 app.post("/api/absences", authenticateToken, authorizeManager, async (req, res) => {
   const { employeeId, type, startDate, endDate } = req.body;
+  // If type is vacation, we'll decrement employee.vacation_days accordingly (transactionally)
+  if (!employeeId || !type || !startDate || !endDate) {
+    return res.status(400).json({ message: "נדרשים employeeId, type, startDate, endDate" });
+  }
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  // Calculate inclusive days
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const days = Math.round((end.setHours(0, 0, 0, 0) - start.setHours(0, 0, 0, 0)) / msPerDay) + 1;
+
+  const clientDb = await pool.connect();
   try {
-    // FIX: Standardized to employee_id
-    const { rows } = await pool.query(
-      'INSERT INTO scheduled_absences (employee_id, type, start_date, end_date) VALUES ($1, $2, $3, $4) RETURNING id, employee_id as "employeeId", type, start_date as "startDate", end_date as "endDate"',
-      [employeeId, type, startDate, endDate]
-    );
-    res.status(201).json(rows[0]);
+    await clientDb.query("BEGIN");
+
+    if (type === "vacation") {
+      // Lock employee row
+      const { rows: empRows } = await clientDb.query(
+        "SELECT id, name, COALESCE(vacation_days,0) AS vacation_days FROM employees WHERE id = $1 FOR UPDATE",
+        [employeeId]
+      );
+      if (empRows.length === 0) {
+        await clientDb.query("ROLLBACK");
+        return res.status(404).json({ message: "Employee not found" });
+      }
+      const emp = empRows[0];
+      console.log(
+        `Employee ${emp.name} has ${emp.vacation_days} vacation days before booking ${days} day(s)`
+      );
+      if (emp.vacation_days < days) {
+        await clientDb.query("ROLLBACK");
+        return res.status(400).json({ message: "אין מספיק ימי חופשה" });
+      }
+      // insert absence
+      const { rows: inserted } = await clientDb.query(
+        'INSERT INTO scheduled_absences (employee_id, type, start_date, end_date) VALUES ($1, $2, $3, $4) RETURNING id, employee_id as "employeeId", type, start_date as "startDate", end_date as "endDate"',
+        [employeeId, type, startDate, endDate]
+      );
+      // decrement vacation days
+      const newBalance = emp.vacation_days - days;
+      await clientDb.query("UPDATE employees SET vacation_days = $1 WHERE id = $2", [
+        newBalance,
+        employeeId,
+      ]);
+      await clientDb.query("COMMIT");
+      console.log(`Booked ${days} vacation day(s) for ${emp.name}. New balance: ${newBalance}`);
+      broadcastAttendanceUpdate();
+      return res.status(201).json(inserted[0]);
+    } else {
+      // Non-vacation: simple insert
+      const { rows } = await clientDb.query(
+        'INSERT INTO scheduled_absences (employee_id, type, start_date, end_date) VALUES ($1, $2, $3, $4) RETURNING id, employee_id as "employeeId", type, start_date as "startDate", end_date as "endDate"',
+        [employeeId, type, startDate, endDate]
+      );
+      await clientDb.query("COMMIT");
+      broadcastAttendanceUpdate();
+      return res.status(201).json(rows[0]);
+    }
   } catch (err) {
-    // FIX: Added error logging
-    console.error("Error adding absence:", err);
-    res.status(500).json({ message: "שגיאה בהוספת היעדרות" });
+    await clientDb.query("ROLLBACK");
+    console.error("Error adding absence (transaction):", err);
+    return res.status(500).json({ message: "שגיאה בהוספת היעדרות" });
+  } finally {
+    clientDb.release();
   }
 });
 
@@ -422,6 +482,34 @@ app.delete("/api/absences/:id", authenticateToken, authorizeManager, async (req,
     res.status(500).json({ message: "שגיאה במחיקת היעדרות" });
   }
 });
+
+// Endpoint to set vacation days explicitly for an employee
+app.put(
+  "/api/employees/:id/vacation-days",
+  authenticateToken,
+  authorizeManager,
+  async (req, res) => {
+    const { id } = req.params;
+    const { vacationDays } = req.body;
+    if (vacationDays === undefined || isNaN(parseInt(vacationDays))) {
+      return res.status(400).json({ message: "vacationDays must be provided as a number" });
+    }
+    try {
+      const { rows } = await pool.query(
+        "UPDATE employees SET vacation_days = $1 WHERE id = $2 RETURNING id, name, vacation_days",
+        [parseInt(vacationDays, 10), id]
+      );
+      if (rows.length === 0) return res.status(404).json({ message: "Employee not found" });
+      console.log(
+        `Set vacation_days for employee ${rows[0].name} (id=${rows[0].id}) -> ${rows[0].vacation_days}`
+      );
+      res.json(rows[0]);
+    } catch (err) {
+      console.error("Error setting vacation days:", err);
+      res.status(500).json({ message: "שגיאה בעדכון ימי חופשה" });
+    }
+  }
+);
 
 // ב-server.js
 
@@ -711,7 +799,8 @@ cron.schedule(
           await pool.query(`INSERT INTO attendance (employee_id, clock_in) VALUES ($1, NOW())`, [
             employee.id,
           ]);
-          await pool.query("UPDATE employees SET status = 'נוכח' WHERE id = $1", [employee.id]);
+          // Use consistent internal status values
+          await pool.query("UPDATE employees SET status = 'present' WHERE id = $1", [employee.id]);
           console.log(`      - SUCCESS: Auto-clocked in ${employee.name}.`);
         } else {
           console.log(`      - Status: Already clocked in. Skipping.`);
@@ -756,7 +845,10 @@ cron.schedule(
           `UPDATE attendance SET clock_out = NOW() WHERE employee_id = $1 AND clock_out IS NULL`,
           [employee.id]
         );
-        await pool.query("UPDATE employees SET status = 'לא בעבודה' WHERE id = $1", [employee.id]);
+        // Use consistent internal status values
+        await pool.query("UPDATE employees SET status = 'not_working' WHERE id = $1", [
+          employee.id,
+        ]);
       }
     } catch (err) {
       console.error("SCHEDULER: FATAL ERROR during auto clock-out task:", err);

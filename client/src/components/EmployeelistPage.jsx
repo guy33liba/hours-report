@@ -1,5 +1,6 @@
 import { useContext, useMemo, useState } from "react";
 import EmployeeFormModal from "./EmployeeFormModal";
+import AbsenceModal from "./AbsenceModal";
 import ResetPasswordModal from "./ResetPasswordModal";
 import { apiFetch } from "./utils";
 import { AppContext } from "./AppContext";
@@ -9,6 +10,7 @@ function EmployeeListPage() {
   const { employees, setEmployees, addToast, fetchData } = useContext(AppContext);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
+  const [isAbsenceModalOpen, setIsAbsenceModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
 
   const sortedEmployees = useMemo(() => {
@@ -41,6 +43,11 @@ function EmployeeListPage() {
   const handleOpenResetPasswordModal = (employee) => {
     setSelectedEmployee(employee);
     setIsResetPasswordModalOpen(true);
+  };
+
+  const handleOpenAbsenceModal = (employee) => {
+    setSelectedEmployee(employee);
+    setIsAbsenceModalOpen(true);
   };
 
   const handleSaveEmployee = async (employeeData) => {
@@ -165,6 +172,13 @@ function EmployeeListPage() {
                       </button>
                       <button
                         style={{ fontSize: "16px" }}
+                        onClick={() => handleOpenAbsenceModal(emp)}
+                        className="secondary"
+                      >
+                        הוסף חופשה
+                      </button>
+                      <button
+                        style={{ fontSize: "16px" }}
                         onClick={() => handleDeleteEmployee(emp.id)}
                         className="danger secondary"
                       >
@@ -175,7 +189,7 @@ function EmployeeListPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="4" style={{ textAlign: "center" }}>
+                  <td colSpan="6" style={{ textAlign: "center" }}>
                     אין עובדים להצגה.
                   </td>
                 </tr>
@@ -193,6 +207,11 @@ function EmployeeListPage() {
       <ResetPasswordModal
         show={isResetPasswordModalOpen}
         onClose={() => setIsResetPasswordModalOpen(false)}
+        employee={selectedEmployee}
+      />
+      <AbsenceModal
+        show={isAbsenceModalOpen}
+        onClose={() => setIsAbsenceModalOpen(false)}
         employee={selectedEmployee}
       />
     </>

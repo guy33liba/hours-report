@@ -2,7 +2,7 @@
 
 /* --- 1. Global Setup & Modern Variables --- */
 :root {
-  --primary-color: #4f46e5;
+  --primary-color: #2119adcc;
   --primary-hover: #4338ca;
   --primary-light: #eef2ff;
   --danger-color: #ef4444;
@@ -1095,4 +1095,16 @@ input:checked + .slider:before {
   font-size: 2.5rem;
   font-weight: bold;
   color: var(--primary-color);
+}
+
+/* --- Dashboard Specific Styles --- */
+.employee-select-large {
+  font-size: 1.25rem; /* Reduced font size */
+  width: 13rem; /* Increased width */
+  padding: 0.5rem 1rem;
+  height: auto;
+  border: 2px solid var(--primary-color); /* Added color */
+  background-color: var(--primary-light); /* Added background color */
+  color: var(--primary-color);
+  font-weight: 600;
 }

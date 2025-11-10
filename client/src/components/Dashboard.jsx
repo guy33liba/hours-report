@@ -262,7 +262,7 @@ function Dashboard() {
             <select
               value={selectedEmployeeId}
               onChange={(e) => setSelectedEmployeeId(e.target.value)}
-              className="employee-select"
+              className="employee-select employee-select-large"
             >
               <option value="">כל העובדים</option>
               {employees.map((emp) => (
